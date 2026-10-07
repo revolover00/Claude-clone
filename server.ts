@@ -2,8 +2,8 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
+import rateLimit from "express-rate-limit";
 import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
@@ -23,8 +23,71 @@ const ai = new GoogleGenAI({
 });
 
 const app = express();
-app.use(cors());
-app.use(express.json({ limit: "50mb" }));
+
+// Restrict cors to ALLOWED_ORIGIN env var (default same-origin only)
+const allowedOrigin = process.env.ALLOWED_ORIGIN;
+app.use(cors(allowedOrigin ? { origin: allowedOrigin } : { origin: false }));
+
+// Body parser with 25mb limit
+app.use(express.json({ limit: "25mb" }));
+
+// Rate limiter for AI endpoints: 20 req/min per IP
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({ error: "Rate limit reached, try again in a minute", code: 429 });
+  },
+});
+
+app.use("/api/chat", apiLimiter);
+app.use("/api/title", apiLimiter);
+
+// Health check endpoint
+app.get("/api/health", (_req, res) => {
+  res.json({
+    ok: true,
+    hasKey: Boolean(apiKey),
+    models: ["gemini-3.8-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite"],
+  });
+});
+
+// Map Gemini errors to HTTP status codes & friendly messages
+function mapGeminiError(err: any): { status: number; message: string; technical: string } {
+  const errMsg = err?.message || String(err) || "";
+  const errStatus = err?.status || err?.statusCode || (typeof err?.code === "number" ? err.code : undefined);
+
+  let status = 500;
+  let friendly = "An unexpected error occurred while communicating with the AI model.";
+
+  if (errStatus === 429 || /429|resource.*exhausted|rate.*limit/i.test(errMsg)) {
+    status = 429;
+    friendly = "Rate limit reached, try again in a minute";
+  } else if (errStatus === 402 || /402|quota/i.test(errMsg)) {
+    status = 402;
+    friendly = "Model quota exceeded or API key invalid";
+  } else if (errStatus === 403 || /403|api.?key.*invalid|permission_denied|unauthorized/i.test(errMsg)) {
+    status = 403;
+    friendly = "API key invalid or missing on the server";
+  } else if (errStatus === 404 || /404|not.*found|model.*not.*found/i.test(errMsg)) {
+    status = 404;
+    friendly = "Selected model is unavailable";
+  } else if (errStatus && errStatus >= 500 && errStatus < 600) {
+    status = errStatus;
+    friendly = "Upstream AI service temporarily unavailable";
+  } else if (errStatus && errStatus >= 400 && errStatus < 500) {
+    status = errStatus;
+    friendly = errMsg || "Invalid request to AI service";
+  }
+
+  return {
+    status,
+    message: friendly,
+    technical: errMsg,
+  };
+}
 
 // Formats user/assistant messages, resolving images to base64 and txt/md/csv/json files to text
 function formatMessage(msg: any) {
@@ -152,15 +215,59 @@ app.post("/api/chat", async (req, res) => {
     language,
   } = req.body;
 
-  if (!apiKey) {
-    res.status(500).json({ error: "GEMINI_API_KEY environment variable is not configured." });
+  // Validate request body
+  if (!messages || !Array.isArray(messages)) {
+    res.status(400).json({ error: "Invalid request: messages must be an array.", code: 400 });
     return;
   }
 
-  // Set SSE response headers
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
+  if (messages.length > 100) {
+    res.status(400).json({ error: "Invalid request: messages array exceeds maximum of 100 messages.", code: 400 });
+    return;
+  }
+
+  for (const msg of messages) {
+    if (typeof msg?.content === "string" && msg.content.length > 100000) {
+      res.status(400).json({
+        error: "Invalid request: individual message content cannot exceed 100,000 characters.",
+        code: 400,
+      });
+      return;
+    }
+  }
+
+  // Validate total attachment size <= 20MB
+  let totalAttachmentBytes = 0;
+  for (const msg of messages) {
+    if (Array.isArray(msg?.attachments)) {
+      for (const att of msg.attachments) {
+        if (typeof att?.size === "number") {
+          totalAttachmentBytes += att.size;
+        } else if (typeof att?.url === "string") {
+          totalAttachmentBytes += Math.round(att.url.length * 0.75);
+        }
+      }
+    }
+  }
+
+  if (totalAttachmentBytes > 20 * 1024 * 1024) {
+    res.status(400).json({
+      error: "Invalid request: total attachment size exceeds 20MB limit.",
+      code: 400,
+    });
+    return;
+  }
+
+  if (!apiKey) {
+    res.status(403).json({ error: "API key invalid or missing on the server", code: 403 });
+    return;
+  }
+
+  // Setup abort controller on client disconnect to abort stream
+  const abortCtrl = new AbortController();
+  req.on("close", () => {
+    abortCtrl.abort();
+  });
 
   try {
     // Map model selectors to valid Gemini models
@@ -183,6 +290,7 @@ app.post("/api/chat", async (req, res) => {
         projectKnowledge,
         language
       ),
+      abortSignal: abortCtrl.signal,
     };
 
     // Configure search grounding tool
@@ -204,15 +312,65 @@ app.post("/api/chat", async (req, res) => {
       };
     }
 
-    // Start Gemini streaming call
-    const stream = await ai.models.generateContentStream({
-      model: modelId,
-      contents: formattedMessages,
-      config,
-    });
+    // Initiate Gemini streaming call before opening SSE headers
+    let stream;
+    try {
+      stream = await ai.models.generateContentStream({
+        model: modelId,
+        contents: formattedMessages,
+        config,
+      });
+    } catch (err: any) {
+      const errInfo = mapGeminiError(err);
+      res.status(errInfo.status).json({
+        error: errInfo.message,
+        details: errInfo.technical,
+        code: errInfo.status,
+      });
+      return;
+    }
+
+    // Set SSE response headers now that connection is established
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders?.();
+
+    const collectedSources: Array<{ title: string; url: string }> = [];
+    const seenUrls = new Set<string>();
 
     for await (const chunk of stream) {
-      const parts = chunk.candidates?.[0]?.content?.parts || [];
+      if (abortCtrl.signal.aborted) {
+        break;
+      }
+
+      // Extract search grounding sources from Gemini metadata
+      const candidate = chunk.candidates?.[0];
+      const groundingMeta = (candidate as any)?.groundingMetadata;
+      if (groundingMeta?.groundingChunks && Array.isArray(groundingMeta.groundingChunks)) {
+        let newSourceAdded = false;
+        for (const gc of groundingMeta.groundingChunks) {
+          const web = gc?.web;
+          if (web?.uri && !seenUrls.has(web.uri)) {
+            seenUrls.add(web.uri);
+            let title = web.title?.trim();
+            if (!title) {
+              try {
+                title = new URL(web.uri).hostname.replace(/^www\./, "");
+              } catch {
+                title = "Source";
+              }
+            }
+            collectedSources.push({ title, url: web.uri });
+            newSourceAdded = true;
+          }
+        }
+        if (newSourceAdded) {
+          res.write(`data: ${JSON.stringify({ sources: collectedSources })}\n\n`);
+        }
+      }
+
+      const parts = candidate?.content?.parts || [];
       for (const part of parts) {
         if (part.thought) {
           // Streaming thoughts/reasoning
@@ -224,12 +382,27 @@ app.post("/api/chat", async (req, res) => {
       }
     }
 
-    res.write("data: [DONE]\n\n");
+    if (!abortCtrl.signal.aborted) {
+      res.write("data: [DONE]\n\n");
+    }
     res.end();
   } catch (err: any) {
+    if (abortCtrl.signal.aborted) {
+      res.end();
+      return;
+    }
     console.error("Gemini API stream error:", err);
-    res.write(`data: ${JSON.stringify({ error: err.message || "An error occurred while streaming response." })}\n\n`);
-    res.end();
+    const errInfo = mapGeminiError(err);
+    if (!res.headersSent) {
+      res.status(errInfo.status).json({
+        error: errInfo.message,
+        details: errInfo.technical,
+        code: errInfo.status,
+      });
+    } else {
+      res.write(`data: ${JSON.stringify({ error: errInfo.message, details: errInfo.technical, code: errInfo.status })}\n\n`);
+      res.end();
+    }
   }
 });
 
@@ -238,13 +411,19 @@ app.post("/api/title", async (req, res) => {
   const { firstUserMsg, firstReply } = req.body;
 
   if (!apiKey) {
-    res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
+    res.status(403).json({ error: "API key invalid or missing on the server", code: 403 });
     return;
   }
 
+  // Escape & limit to 500 chars each
+  let safeUserMsg = typeof firstUserMsg === "string" ? firstUserMsg.slice(0, 500) : "";
+  let safeReply = typeof firstReply === "string" ? firstReply.slice(0, 500) : "";
+  safeUserMsg = safeUserMsg.replace(/[\\"\n\r]/g, " ").trim();
+  safeReply = safeReply.replace(/[\\"\n\r]/g, " ").trim();
+
   try {
-    const prompt = `Generate a 3-6 word title for a chat conversation based on the user's first message: "${firstUserMsg}" and the assistant's reply: "${firstReply}". The title MUST be in the same language as the chat conversation. Return ONLY the plain title text, with no quotation marks, no markdown, and no preamble.`;
-    
+    const prompt = `Generate a 3-6 word title for a chat conversation based on the user's first message: "${safeUserMsg}" and the assistant's reply: "${safeReply}". The title MUST be in the same language as the chat conversation. Return ONLY the plain title text, with no quotation marks, no markdown, and no preamble.`;
+
     const response = await ai.models.generateContent({
       model: "gemini-3.1-flash-lite", // Extremely cheap & fast model for titles
       contents: prompt,
@@ -252,15 +431,18 @@ app.post("/api/title", async (req, res) => {
 
     const title = response.text?.trim().replace(/['"“”]/g, "") || "New conversation";
     res.json({ title });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Auto-title generation error:", err);
-    res.status(500).json({ error: "Failed to generate title" });
+    const errInfo = mapGeminiError(err);
+    res.status(errInfo.status).json({ error: errInfo.message, details: errInfo.technical, code: errInfo.status });
   }
 });
 
 // Serve frontend with Vite middlewares in dev or static files in production
 const isProd = process.env.NODE_ENV === "production";
 if (!isProd) {
+  // Dynamic import so vite is not loaded in production
+  const { createServer: createViteServer } = await import("vite");
   const vite = await createViteServer({
     server: { middlewareMode: true, host: "0.0.0.0", port: 3000 },
     appType: "spa",
@@ -268,7 +450,7 @@ if (!isProd) {
   app.use(vite.middlewares);
 } else {
   app.use(express.static(path.join(__dirname, "dist")));
-  app.get(/.*/, (req, res) => {
+  app.get(/.*/, (_req, res) => {
     res.sendFile(path.join(__dirname, "dist", "index.html"));
   });
 }

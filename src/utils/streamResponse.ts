@@ -1,9 +1,12 @@
+import { SSEParser } from "./sseParser";
+
 export interface StreamCallbacks {
   onThinkingStart?: () => void;
   onThinkingUpdate?: (thought: string) => void;
   onToken?: (token: string, fullText: string) => void;
+  onSources?: (sources: Array<{ title: string; url: string }>) => void;
   onDone?: (fullText: string) => void;
-  onError?: (err: Error) => void;
+  onError?: (err: Error & { details?: string; code?: number }) => void;
 }
 
 export interface ChatStreamOptions {
@@ -64,15 +67,36 @@ export function streamRealResponse(
       });
 
       if (!response.ok) {
-        let errMsg = "An error occurred during generation.";
-        if (response.status === 429) {
-          errMsg = "Rate limit exceeded. Please wait a moment before retrying.";
-        } else if (response.status === 402) {
-          errMsg = "Model quota exceeded. Please select another model or try again later.";
-        } else {
-          errMsg = `HTTP Error ${response.status}: Failed to reach the AI gateway.`;
+        let serverErrorMsg = "";
+        let serverDetails = "";
+        let serverCode = response.status;
+        try {
+          const errData = await response.json();
+          if (errData?.error) serverErrorMsg = errData.error;
+          if (errData?.details) serverDetails = errData.details;
+          if (errData?.code) serverCode = errData.code;
+        } catch {
+          // Response body was not JSON
         }
-        throw new Error(errMsg);
+
+        // Read real error message from server response, or map status code
+        let friendlyMsg = serverErrorMsg;
+        if (!friendlyMsg) {
+          if (response.status === 429) {
+            friendlyMsg = "Rate limit reached, try again in a minute";
+          } else if (response.status === 403) {
+            friendlyMsg = "API key invalid or missing on the server";
+          } else if (response.status === 404) {
+            friendlyMsg = "Selected model is unavailable";
+          } else {
+            friendlyMsg = `HTTP Error ${response.status}: Failed to reach the AI gateway.`;
+          }
+        }
+
+        const httpErr = new Error(friendlyMsg);
+        (httpErr as any).details = serverDetails;
+        (httpErr as any).code = serverCode;
+        throw httpErr;
       }
 
       const reader = response.body?.getReader();
@@ -83,45 +107,43 @@ export function streamRealResponse(
       const decoder = new TextDecoder();
       let accumulatedContent = "";
       let accumulatedThinking = "";
-      let buffer = "";
+      let midStreamError: (Error & { details?: string; code?: number }) | null = null;
 
       callbacks.onThinkingUpdate?.(""); // Initialize thinking process state
+
+      const parser = new SSEParser({
+        onThinking: (thought) => {
+          accumulatedThinking += thought;
+          callbacks.onThinkingUpdate?.(accumulatedThinking);
+        },
+        onSources: (sources) => {
+          callbacks.onSources?.(sources);
+        },
+        onToken: (token) => {
+          accumulatedContent += token;
+          callbacks.onToken?.(token, accumulatedContent);
+        },
+        onError: (err) => {
+          midStreamError = err;
+        },
+        onDone: () => {},
+      });
 
       while (!isCancelled) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+        const chunk = decoder.decode(value, { stream: true });
+        parser.feed(chunk);
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          if (trimmed === "data: [DONE]") continue;
-
-          if (trimmed.startsWith("data: ")) {
-            const jsonStr = trimmed.slice(6);
-            try {
-              const data = JSON.parse(jsonStr);
-              if (data.error) {
-                throw new Error(data.error);
-              }
-
-              if (data.thinking) {
-                accumulatedThinking += data.thinking;
-                callbacks.onThinkingUpdate?.(accumulatedThinking);
-              }
-
-              if (data.token) {
-                accumulatedContent += data.token;
-                callbacks.onToken?.(data.token, accumulatedContent);
-              }
-            } catch (err) {
-              console.error("Error parsing stream line:", err, jsonStr);
-            }
-          }
+        if (midStreamError) {
+          throw midStreamError;
         }
+      }
+      parser.flush();
+
+      if (midStreamError) {
+        throw midStreamError;
       }
 
       if (!isCancelled) {
@@ -132,11 +154,22 @@ export function streamRealResponse(
         return;
       }
       console.error("Stream response error:", err);
-      let message = err.message || "Backend unreachable";
-      if (err.message && (err.message.includes("Failed to fetch") || err.message.includes("NetworkError"))) {
-        message = "Backend unreachable. Please make sure the backend is active.";
+      let message = err.message || "An unexpected error occurred.";
+      if (
+        err.name === "TypeError" ||
+        (err.message &&
+          (err.message.includes("Failed to fetch") ||
+            err.message.includes("NetworkError") ||
+            err.message.includes("fetch failed") ||
+            err.message.includes("Load failed")))
+      ) {
+        message = "Backend unreachable";
       }
-      callbacks.onError?.(new Error(message));
+
+      const finalErr = new Error(message);
+      (finalErr as any).details = err.details || (err.stack ? String(err.stack) : undefined);
+      (finalErr as any).code = err.code;
+      callbacks.onError?.(finalErr as any);
     }
   })();
 

@@ -63,13 +63,13 @@ export default function SettingsModal() {
             <button
               type="button"
               onClick={() => setActiveTab("general")}
-              className={`flex w-full items-center rounded-lg px-2.5 py-1.5 text-[13.5px] font-medium transition-colors ${
+              className={`flex w-full items-center rounded-lg px-2.5 py-1.5 text-[13.5px] font-medium transition-colors cursor-pointer ${
                 activeTab === "general"
                   ? "bg-elev-3 text-ink"
                   : "text-ink-muted hover:bg-elev-2 hover:text-ink"
               }`}
             >
-              General
+              Profile
             </button>
             <button
               type="button"
@@ -107,47 +107,31 @@ export default function SettingsModal() {
             <X size={18} />
           </button>
 
-          {/* GENERAL TAB */}
+          {/* GENERAL / PROFILE TAB */}
           {activeTab === "general" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-[16px] font-medium text-ink">Account</h3>
+                <h3 className="text-[16px] font-medium text-ink">Profile</h3>
                 <p className="text-[13px] text-ink-muted">
                   Personal profile and workspace details
                 </p>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div>
                   <label className="text-[12.5px] font-medium text-ink-muted">
-                    Display Name
+                    Your Name
                   </label>
                   <input
                     type="text"
-                    disabled
-                    value="Nolen"
-                    className="mt-1 w-full rounded-lg border border-line bg-elev-2 px-3 py-1.5 text-[14px] text-ink"
+                    value={preferences.userName ?? "You"}
+                    onChange={(e) => updatePreferences({ userName: e.target.value })}
+                    placeholder="You"
+                    className="mt-1 w-full rounded-lg border border-line bg-elev-2 px-3 py-1.5 text-[14px] text-ink focus:outline-none focus:border-accent"
                   />
-                </div>
-                <div>
-                  <label className="text-[12.5px] font-medium text-ink-muted">
-                    Email
-                  </label>
-                  <input
-                    type="text"
-                    disabled
-                    value="francesco.store.ss@gmail.com"
-                    className="mt-1 w-full rounded-lg border border-line bg-elev-2 px-3 py-1.5 text-[14px] text-ink"
-                  />
-                </div>
-                <div>
-                  <label className="text-[12.5px] font-medium text-ink-muted">
-                    Current Plan
-                  </label>
-                  <div className="mt-1 flex items-center justify-between rounded-lg border border-line bg-elev-2 px-3 py-2 text-[13.5px]">
-                    <span className="font-medium text-ink">Free Plan</span>
-                    <span className="text-[12px] text-accent font-medium">Standard quota</span>
-                  </div>
+                  <p className="mt-1 text-[12px] text-ink-faint">
+                    Displayed in the sidebar, user menu, and personalized greetings.
+                  </p>
                 </div>
               </div>
             </div>

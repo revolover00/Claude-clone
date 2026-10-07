@@ -3,35 +3,7 @@ import type { Project, ProjectKnowledgeItem } from "../../types/chat";
 
 const STORAGE_KEY_PROJECTS = "claude_clone_projects_v3";
 
-const DEFAULT_PROJECTS: Project[] = [
-  {
-    id: "proj-1",
-    name: "Design System",
-    description: "Reusable UI components, icons, and styling guidelines.",
-    instructions:
-      "Always adhere to Claude design principles: warm tones, elegant serif headers, minimalist borders, and logical layout classes.",
-    knowledge: [
-      {
-        id: "know-1",
-        title: "Brand Style Guide",
-        content:
-          "Colors: Background #211f1d, Accent #d97757, Text #edeae4. Fonts: Inter (sans) & Source Serif 4 (serif).",
-        type: "text",
-        createdAt: Date.now() - 3600000 * 24,
-      },
-    ],
-    updatedAt: Date.now() - 3600000 * 24,
-  },
-  {
-    id: "proj-2",
-    name: "API Integration",
-    description: "Backend architecture, schemas, and endpoint definitions.",
-    instructions:
-      "Write clean, type-safe Express & Gemini TypeScript routes with robust error handling and streaming SSE format.",
-    knowledge: [],
-    updatedAt: Date.now() - 3600000 * 72,
-  },
-];
+const DEFAULT_PROJECTS: Project[] = [];
 
 export function useProjectsStore() {
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -39,7 +11,13 @@ export function useProjectsStore() {
       const saved =
         localStorage.getItem(STORAGE_KEY_PROJECTS) ||
         localStorage.getItem("claude_clone_projects_v2");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          // Filter out seeded demo projects
+          return parsed.filter((p: Project) => p.id !== "proj-1" && p.id !== "proj-2");
+        }
+      }
     } catch {
       // ignore
     }

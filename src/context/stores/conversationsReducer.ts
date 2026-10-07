@@ -21,6 +21,11 @@ export type ConversationAction =
       isStreaming?: boolean;
       isThinking?: boolean;
       thinking?: string;
+      isError?: boolean;
+      errorText?: string;
+      errorDetails?: string;
+      sources?: Array<{ title: string; url: string }>;
+      isSearchingWeb?: boolean;
     }
   | {
       type: "SWITCH_VERSION";
@@ -239,6 +244,11 @@ export function conversationsReducer(
             isStreaming: action.isStreaming ?? false,
             isThinking: action.isThinking ?? false,
             ...(action.thinking !== undefined ? { thinking: action.thinking } : {}),
+            ...(action.isError !== undefined ? { isError: action.isError } : {}),
+            ...(action.errorText !== undefined ? { errorText: action.errorText } : {}),
+            ...(action.errorDetails !== undefined ? { errorDetails: action.errorDetails } : {}),
+            ...(action.sources !== undefined ? { sources: action.sources } : {}),
+            ...(action.isSearchingWeb !== undefined ? { isSearchingWeb: action.isSearchingWeb } : {}),
           };
         });
         return {

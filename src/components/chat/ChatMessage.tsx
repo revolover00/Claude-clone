@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Globe,
+  ExternalLink,
 } from "lucide-react";
 import ClaudeSpark from "../icons/ClaudeSpark";
 import MarkdownView from "./MarkdownView";
@@ -49,6 +51,7 @@ export default function ChatMessage({
   const [thumbs, setThumbs] = useState<"up" | "down" | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
 
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -175,49 +178,51 @@ export default function ChatMessage({
               </div>
             </div>
           ) : (
-            /* Normal User Message Bubble */
-            <div
-              dir={isArabic ? "rtl" : "ltr"}
-              className="relative max-w-[85%] rounded-[14px] bg-elev-2 px-4 py-3 text-[15.5px] leading-6 text-ink shadow-sm text-start"
-            >
-              {/* Attached files preview */}
-              {message.attachments && message.attachments.length > 0 && (
-                <div className="mb-2.5 flex flex-wrap gap-2">
-                  {message.attachments.map((att) =>
-                    att.isImage ? (
-                      <div
-                        key={att.id}
-                        className="overflow-hidden rounded-lg border border-line bg-black/30"
-                      >
-                        <img
-                          src={att.url}
-                          alt={att.name}
-                          className="max-h-48 max-w-xs object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div
-                        key={att.id}
-                        className="flex items-center gap-2 rounded-lg border border-line bg-elev-1 px-2.5 py-1.5 text-[12.5px] text-ink-soft"
-                      >
-                        <FileText size={15} className="text-accent shrink-0" />
-                        <span className="font-medium truncate max-w-[160px]">
-                          {att.name}
-                        </span>
-                        <span className="text-ink-muted text-[11px] ms-auto">
-                          {(att.size / 1024).toFixed(0)} KB
-                        </span>
-                      </div>
-                    )
-                  )}
-                </div>
-              )}
-
-              <div className="whitespace-pre-wrap text-start">{message.content}</div>
-
-              {/* Version Switcher and Hover actions under User Message */}
+            <>
+              {/* Normal User Message Bubble */}
               <div
-                className={`mt-2 flex items-center gap-1.5 ${
+                dir={isArabic ? "rtl" : "ltr"}
+                className="relative max-w-[85%] rounded-[14px] bg-elev-2 px-3.5 py-2.5 text-[15px] leading-relaxed text-ink shadow-xs text-start"
+              >
+                {/* Attached files preview */}
+                {message.attachments && message.attachments.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    {message.attachments.map((att) =>
+                      att.isImage ? (
+                        <div
+                          key={att.id}
+                          className="overflow-hidden rounded-lg border border-line bg-black/30"
+                        >
+                          <img
+                            src={att.url}
+                            alt={att.name}
+                            className="max-h-48 max-w-xs object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          key={att.id}
+                          className="flex items-center gap-2 rounded-lg border border-line bg-elev-1 px-2.5 py-1.5 text-[12.5px] text-ink-soft"
+                        >
+                          <FileText size={15} className="text-accent shrink-0" />
+                          <span className="font-medium truncate max-w-[160px]">
+                            {att.name}
+                          </span>
+                          <span className="text-ink-muted text-[11px] ms-auto">
+                            {(att.size / 1024).toFixed(0)} KB
+                          </span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+
+                <div className="whitespace-pre-wrap break-words text-start">{message.content.trim()}</div>
+              </div>
+
+              {/* Version Switcher and Hover actions UNDER User Message */}
+              <div
+                className={`mt-1 flex items-center gap-1.5 ${
                   isArabic ? "justify-start" : "justify-end"
                 }`}
               >
@@ -228,7 +233,7 @@ export default function ChatMessage({
                       type="button"
                       disabled={currentIndex === 0}
                       onClick={handlePrevVersion}
-                      className="p-0.5 rounded hover:bg-elev-3 disabled:opacity-30 disabled:cursor-not-allowed text-ink-muted hover:text-ink transition-colors"
+                      className="p-0.5 rounded hover:bg-elev-3 disabled:opacity-30 disabled:cursor-not-allowed text-ink-muted hover:text-ink transition-colors cursor-pointer"
                       title="Previous version"
                     >
                       <ChevronLeft size={13} />
@@ -240,7 +245,7 @@ export default function ChatMessage({
                       type="button"
                       disabled={currentIndex === siblings.length - 1}
                       onClick={handleNextVersion}
-                      className="p-0.5 rounded hover:bg-elev-3 disabled:opacity-30 disabled:cursor-not-allowed text-ink-muted hover:text-ink transition-colors"
+                      className="p-0.5 rounded hover:bg-elev-3 disabled:opacity-30 disabled:cursor-not-allowed text-ink-muted hover:text-ink transition-colors cursor-pointer"
                       title="Next version"
                     >
                       <ChevronRight size={13} />
@@ -255,7 +260,7 @@ export default function ChatMessage({
                       type="button"
                       onClick={() => setIsEditing(true)}
                       title="Edit message"
-                      className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-elev-1 text-ink-muted transition-colors hover:bg-elev-3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-elev-1 text-ink-muted transition-colors hover:bg-elev-3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
                     >
                       <Pencil size={12} strokeWidth={1.9} />
                     </button>
@@ -264,7 +269,7 @@ export default function ChatMessage({
                     type="button"
                     onClick={handleCopy}
                     title="Copy message"
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-elev-1 text-ink-muted transition-colors hover:bg-elev-3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-elev-1 text-ink-muted transition-colors hover:bg-elev-3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
                   >
                     {copied ? (
                       <Check size={12} strokeWidth={2} className="text-accent" />
@@ -274,7 +279,7 @@ export default function ChatMessage({
                   </button>
                 </div>
               </div>
-            </div>
+            </>
           )}
         </div>
       </ErrorBoundary>
@@ -283,7 +288,8 @@ export default function ChatMessage({
 
   // Claude Assistant message
   const isErrorState =
-    !message.content && !message.isStreaming && !message.isThinking;
+    Boolean(message.isError || (!message.content && !message.isStreaming && !message.isThinking));
+  const displayErrorMessage = message.errorText || "Unable to generate complete response";
 
   return (
     <ErrorBoundary fallbackType="message">
@@ -314,21 +320,47 @@ export default function ChatMessage({
 
           {/* aria-live="polite" on the streaming message for accessibility */}
           <div aria-live={message.isStreaming ? "polite" : undefined} className="min-w-0 flex-1 text-start">
+            {/* Web search status indicator */}
+            {(message.isSearchingWeb || (message.sources && message.sources.length > 0)) && (
+              <div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full border border-line/60 bg-elev-1 px-2.5 py-0.5 text-[12px] text-ink-muted">
+                <Globe size={13} className={`text-accent ${message.isStreaming && !message.content ? "animate-pulse" : ""}`} />
+                <span>{message.isStreaming && !message.content ? "Searching the web..." : "Searched the web"}</span>
+              </div>
+            )}
+
             {/* Error handling state */}
             {isErrorState ? (
               <div className="rounded-xl border border-danger/30 bg-danger-bg p-3.5 text-[14px] text-ink font-sans">
                 <div className="flex items-center gap-2 text-danger font-medium">
                   <AlertTriangle size={16} />
-                  <span>Unable to generate complete response</span>
+                  <span>{displayErrorMessage}</span>
                 </div>
                 <p className="mt-1 text-[13px] text-ink-muted">
                   There was a temporary disruption while generating. You can try again.
                 </p>
+
+                {message.errorDetails && (
+                  <div className="mt-2 text-[12px]">
+                    <button
+                      type="button"
+                      onClick={() => setShowErrorDetails(!showErrorDetails)}
+                      className="inline-flex items-center gap-1 font-mono text-[11px] text-ink-muted underline underline-offset-2 hover:text-ink transition-colors cursor-pointer"
+                    >
+                      {showErrorDetails ? "Hide Details" : "Show Details"}
+                    </button>
+                    {showErrorDetails && (
+                      <pre className="mt-1.5 max-h-36 overflow-x-auto rounded bg-black/40 p-2 font-mono text-[11px] text-ink-soft whitespace-pre-wrap break-all border border-line/40 select-text">
+                        {message.errorDetails}
+                      </pre>
+                    )}
+                  </div>
+                )}
+
                 {onRetry && (
                   <button
                     type="button"
                     onClick={() => onRetry(message.id)}
-                    className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-line bg-elev-2 px-3 py-1.5 text-[12.5px] font-medium text-ink hover:bg-elev-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-line bg-elev-2 px-3 py-1.5 text-[12.5px] font-medium text-ink hover:bg-elev-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
                   >
                     <RotateCcw size={13} />
                     <span>Retry response</span>
@@ -336,13 +368,57 @@ export default function ChatMessage({
                 )}
               </div>
             ) : message.content ? (
-              <MarkdownView
-                content={message.content}
-                userPrompt={userPrompt}
-                conversationId={conversationId}
-                isStreaming={message.isStreaming}
-                onOpenArtifact={openArtifact}
-              />
+              <>
+                <MarkdownView
+                  content={message.content}
+                  userPrompt={userPrompt}
+                  conversationId={conversationId}
+                  isStreaming={message.isStreaming}
+                  onOpenArtifact={openArtifact}
+                />
+
+                {/* Sources row with favicon + domain chips opening in a new tab */}
+                {message.sources && message.sources.length > 0 && (
+                  <div className="mt-3.5 pt-2.5 border-t border-line/40">
+                    <div className="text-[11.5px] font-medium uppercase tracking-wider text-ink-faint mb-2">
+                      Sources
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {message.sources.map((src, idx) => {
+                        let domain: string;
+                        try {
+                          domain = new URL(src.url).hostname.replace(/^www\./, "");
+                        } catch {
+                          domain = src.title || "source";
+                        }
+                        const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+
+                        return (
+                          <a
+                            key={`${src.url}-${idx}`}
+                            href={src.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-elev-1 px-2.5 py-1 text-[12px] text-ink-soft hover:bg-elev-2 hover:text-ink transition-colors max-w-[240px]"
+                            title={src.title}
+                          >
+                            <img
+                              src={faviconUrl}
+                              alt=""
+                              className="h-3.5 w-3.5 shrink-0 rounded-xs"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
+                            />
+                            <span className="truncate font-medium">{domain}</span>
+                            <ExternalLink size={10} className="shrink-0 text-ink-faint" />
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
             ) : message.isThinking ? null : (
               <span className="inline-block h-4 w-2 animate-pulse bg-ink-muted" />
             )}
