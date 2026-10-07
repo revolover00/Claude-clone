@@ -110,7 +110,16 @@ const SUGGESTIONS = [
 ];
 
 type Props = {
-  onSend?: (text: string, attachments?: Attachment[]) => void;
+  onSend?: (
+    text: string,
+    attachments?: Attachment[],
+    options?: {
+      model: string;
+      effort: string;
+      webSearch: boolean;
+      extendedThinking: boolean;
+    }
+  ) => void;
   onStop?: () => void;
   isStreaming?: boolean;
   inChatView?: boolean;
@@ -400,7 +409,12 @@ export default function Composer({
       areaRef.current.style.height = "auto";
     }
 
-    onSend?.(textToSend, attsToSend);
+    onSend?.(textToSend, attsToSend, {
+      model,
+      effort,
+      webSearch: webSearchEnabled,
+      extendedThinking: extendedThinkingEnabled,
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

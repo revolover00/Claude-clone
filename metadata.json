@@ -2,5 +2,6 @@
   "name": "Claude UI Clone",
   "description": "A sleek and responsive clone of the Claude web interface featuring chat, sidebar navigation, model selector, and composer controls.",
   "permissions": [],
-  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
