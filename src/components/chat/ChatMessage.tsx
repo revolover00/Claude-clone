@@ -12,8 +12,7 @@ import {
 import ClaudeSpark from "../icons/ClaudeSpark";
 import MarkdownView from "./MarkdownView";
 import ThoughtProcess from "./ThoughtProcess";
-import ArtifactCard from "./ArtifactCard";
-import type { Message, Artifact } from "../../types/chat";
+import type { Message } from "../../types/chat";
 import { isArabicText } from "../../utils/text";
 import { detectArtifact } from "../../utils/artifactDetector";
 import { useToast } from "../../context/ToastContext";
@@ -21,13 +20,25 @@ import { useChat } from "../../context/ChatContext";
 
 type Props = {
   message: Message;
+  userPrompt?: string;
+  conversationId?: string;
   onSaveEdit?: (messageId: string, newContent: string) => void;
   onRetry?: () => void;
 };
 
-export default function ChatMessage({ message, onSaveEdit, onRetry }: Props) {
+export default function ChatMessage({
+  message,
+  userPrompt = "",
+  conversationId = "",
+  onSaveEdit,
+  onRetry,
+}: Props) {
   const { showToast } = useToast();
-  const { artifacts, openArtifact, saveOrUpdateArtifact } = useChat();
+  const {
+    openArtifact,
+    saveOrUpdateArtifact,
+    updateActiveArtifactLive,
+  } = useChat();
 
   const [copied, setCopied] = useState(false);
   const [thumbs, setThumbs] = useState<"up" | "down" | null>(null);
@@ -42,30 +53,17 @@ export default function ChatMessage({ message, onSaveEdit, onRetry }: Props) {
   // Detect artifact in assistant message
   const detected = useMemo(() => {
     if (message.role !== "assistant" || !message.content) return null;
-    return detectArtifact(message.content);
-  }, [message.role, message.content]);
+    return detectArtifact(message.content, userPrompt);
+  }, [message.role, message.content, userPrompt]);
 
-  // Construct or retrieve Artifact object
-  const artifactObj: Artifact | null = useMemo(() => {
-    if (!detected) return null;
-    const existing = artifacts.find(
-      (a) => a.title.toLowerCase() === detected.title.toLowerCase()
-    );
-    if (existing) return existing;
-    return {
-      id: `art-${detected.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
-      identifier: detected.title.toLowerCase().replace(/[^a-z0-9]/g, "-"),
-      title: detected.title,
-      language: detected.language,
-      type: detected.type,
-      code: detected.code,
-      chatId: "",
-      chatTitle: "",
-      version: 1,
-      createdAt: message.createdAt,
-      updatedAt: message.createdAt,
-    };
-  }, [detected, artifacts, message.createdAt]);
+  // If streaming and artifact is active, update its code live
+  useEffect(() => {
+    if (message.isStreaming && detected?.code && detected.title) {
+      updateActiveArtifactLive(detected.title, detected.code);
+    }
+  }, [message.isStreaming, detected, updateActiveArtifactLive]);
+
+
 
   // Auto-save detected artifact into store once streaming finishes
   useEffect(() => {
@@ -74,10 +72,11 @@ export default function ChatMessage({ message, onSaveEdit, onRetry }: Props) {
         detected.title,
         detected.language,
         detected.type,
-        detected.code
+        detected.code,
+        conversationId
       );
     }
-  }, [detected, message.isStreaming, saveOrUpdateArtifact]);
+  }, [detected, message.isStreaming, saveOrUpdateArtifact, conversationId]);
 
   useEffect(() => {
     if (isEditing) {
@@ -270,22 +269,16 @@ export default function ChatMessage({ message, onSaveEdit, onRetry }: Props) {
                 </button>
               )}
             </div>
-          ) : (
-            <>
-              {/* Artifact Card: if detected, render compact artifact card */}
-              {artifactObj && !message.isStreaming && (
-                <ArtifactCard
-                  artifact={artifactObj}
-                  onOpen={(art) => openArtifact(art)}
-                />
-              )}
-
-              {message.content ? (
-                <MarkdownView content={message.content} />
-              ) : message.isThinking ? null : (
-                <span className="inline-block h-4 w-2 animate-pulse bg-ink-muted" />
-              )}
-            </>
+          ) : message.content ? (
+            <MarkdownView
+              content={message.content}
+              userPrompt={userPrompt}
+              conversationId={conversationId}
+              isStreaming={message.isStreaming}
+              onOpenArtifact={openArtifact}
+            />
+          ) : message.isThinking ? null : (
+            <span className="inline-block h-4 w-2 animate-pulse bg-ink-muted" />
           )}
 
           {/* Hover actions under Claude message */}

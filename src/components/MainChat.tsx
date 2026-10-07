@@ -374,14 +374,22 @@ export default function MainChat({
               {/* CHAT VIEW: messages list */}
               {inChatView && (
                 <div className="mx-auto w-full max-w-[720px] flex-1 pb-6 pt-2">
-                  {messages.map((message) => (
-                    <ChatMessage
-                      key={message.id}
-                      message={message}
-                      onSaveEdit={handleSaveEdit}
-                      onRetry={handleRetry}
-                    />
-                  ))}
+                  {messages.map((message, idx) => {
+                    const prevUserMsg = messages
+                      .slice(0, idx)
+                      .reverse()
+                      .find((m) => m.role === "user");
+                    return (
+                      <ChatMessage
+                        key={message.id}
+                        message={message}
+                        userPrompt={prevUserMsg?.content || ""}
+                        conversationId={activeConversationId || ""}
+                        onSaveEdit={handleSaveEdit}
+                        onRetry={handleRetry}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </div>
