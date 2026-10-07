@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Search, MessageSquare, ArrowRight, X } from "lucide-react";
 import { useChat } from "../../context/ChatContext";
+import { useFocusTrap } from "../../utils/useFocusTrap";
 
 export default function SearchModal() {
   const {
@@ -13,12 +14,14 @@ export default function SearchModal() {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(dialogRef, searchModalOpen, () => setSearchModalOpen(false), inputRef);
 
   useEffect(() => {
     if (searchModalOpen) {
       setQuery("");
       setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [searchModalOpen]);
 
@@ -77,6 +80,10 @@ export default function SearchModal() {
       onClick={() => setSearchModalOpen(false)}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Search conversations"
         className="anim-modal-in w-full max-w-[580px] overflow-hidden rounded-xl border border-line bg-elev-1 shadow-[0_20px_50px_rgba(0,0,0,0.5)] font-sans"
         onClick={(e) => e.stopPropagation()}
       >

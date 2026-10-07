@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { ArrowDown, PanelLeft } from "lucide-react";
 import IconButton from "./shared/IconButton";
 import ClaudeSpark from "./icons/ClaudeSpark";
 import Composer from "./Composer";
 import ChatMessage from "./chat/ChatMessage";
-import ProjectsView from "./views/ProjectsView";
-import ArtifactsView from "./views/ArtifactsView";
-import CustomizeView from "./views/CustomizeView";
-import CodeSessionsView from "./views/CodeSessionsView";
+
+const ProjectsView = lazy(() => import("./views/ProjectsView"));
+const ArtifactsView = lazy(() => import("./views/ArtifactsView"));
+const CustomizeView = lazy(() => import("./views/CustomizeView"));
+const CodeSessionsView = lazy(() => import("./views/CodeSessionsView"));
 import type { Message, Attachment } from "../types/chat";
 import { streamSimulatedResponse } from "../utils/streamResponse";
 import { getTimeGreeting } from "../utils/text";
@@ -325,13 +326,15 @@ export default function MainChat({
         )}
       </div>
 
-      {/* Routed Views */}
-      {activeView === "projects" && <ProjectsView />}
-      {activeView === "artifacts" && (
-        <ArtifactsView onOpenArtifact={openArtifact} />
-      )}
-      {activeView === "customize" && <CustomizeView />}
-      {activeView === "code" && <CodeSessionsView />}
+      {/* Routed Views with Suspense */}
+      <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-ink-muted animate-pulse">Loading...</div>}>
+        {activeView === "projects" && <ProjectsView />}
+        {activeView === "artifacts" && (
+          <ArtifactsView onOpenArtifact={openArtifact} />
+        )}
+        {activeView === "customize" && <CustomizeView />}
+        {activeView === "code" && <CodeSessionsView />}
+      </Suspense>
 
       {/* Chat View */}
       {activeView === "chat" && (
@@ -351,7 +354,7 @@ export default function MainChat({
                     : "flex flex-1 flex-col items-center justify-center pt-8 pb-12 opacity-100 translate-y-0"
                 }`}
               >
-                <h1 className="anim-rise flex items-center gap-3 text-center font-serif text-[clamp(32px,5.2vw,52px)] font-normal leading-[1.1] tracking-[-0.01em] text-[#edeae4]">
+                <h1 className="anim-rise flex items-center gap-3 text-center font-serif text-[clamp(32px,5.2vw,52px)] font-normal leading-[1.1] tracking-[-0.01em] text-ink">
                   <ClaudeSpark size={46} className="shrink-0 text-accent" />
                   <span>{greetingPrefix} how are things?</span>
                 </h1>
@@ -409,7 +412,10 @@ export default function MainChat({
 
           {/* DOCKED COMPOSER (In Chat View) */}
           {inChatView && (
-            <div className="shrink-0 px-4 pb-3 pt-2 bg-gradient-to-t from-shell via-shell to-transparent transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)]">
+            <div
+              style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}
+              className="shrink-0 px-4 pb-3 pt-2 bg-gradient-to-t from-shell via-shell to-transparent transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            >
               <div className="mx-auto w-full max-w-[720px]">
                 <Composer
                   onSend={handleSend}

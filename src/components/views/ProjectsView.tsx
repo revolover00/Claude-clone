@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Plus, FolderGit2, Trash2, X, Clock } from "lucide-react";
 import { useChat } from "../../context/ChatContext";
+import { useFocusTrap } from "../../utils/useFocusTrap";
 
 export default function ProjectsView() {
   const { projects, addProject, deleteProject } = useChat();
   const [modalOpen, setModalOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(modalRef, modalOpen, () => setModalOpen(false));
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +74,7 @@ export default function ProjectsView() {
                         type="button"
                         onClick={() => deleteProject(proj.id)}
                         title="Delete project"
-                        className="opacity-0 transition-opacity group-hover:opacity-100 text-ink-muted hover:text-[#f08578]"
+                        className="opacity-0 transition-opacity group-hover:opacity-100 text-ink-muted hover:text-red-500 dark:hover:text-red-400"
                       >
                         <Trash2 size={15} />
                       </button>
@@ -98,11 +102,15 @@ export default function ProjectsView() {
           onClick={() => setModalOpen(false)}
         >
           <div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-project-heading"
             className="anim-modal-in w-full max-w-[460px] rounded-xl border border-line bg-elev-1 p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-[17px] font-medium text-ink">Create project</h2>
+              <h2 id="create-project-heading" className="text-[17px] font-medium text-ink">Create project</h2>
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}

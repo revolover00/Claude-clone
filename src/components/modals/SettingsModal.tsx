@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Sun, Moon, Download, Trash2, Check } from "lucide-react";
 import { useChat } from "../../context/ChatContext";
+import { useFocusTrap } from "../../utils/useFocusTrap";
 
 export default function SettingsModal() {
   const {
@@ -16,6 +17,9 @@ export default function SettingsModal() {
     "general"
   );
   const [confirmClear, setConfirmClear] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(dialogRef, settingsModalOpen, () => setSettingsModalOpen(false));
 
   useEffect(() => {
     if (settingsModalOpen) {
@@ -43,12 +47,16 @@ export default function SettingsModal() {
       onClick={() => setSettingsModalOpen(false)}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-heading"
         className="anim-modal-in flex h-[500px] w-full max-w-[620px] overflow-hidden rounded-xl border border-line bg-elev-1 shadow-[0_24px_64px_rgba(0,0,0,0.5)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Left tabs column */}
         <div className="w-48 shrink-0 border-r border-line bg-panel p-3">
-          <h2 className="mb-3 px-2 text-[14.5px] font-semibold text-ink">
+          <h2 id="settings-heading" className="mb-3 px-2 text-[14.5px] font-semibold text-ink">
             Settings
           </h2>
           <nav className="space-y-1">

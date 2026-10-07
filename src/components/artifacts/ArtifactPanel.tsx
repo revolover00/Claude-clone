@@ -8,7 +8,7 @@ import {
   CodeXml,
   ChevronDown,
 } from "lucide-react";
-import hljs from "highlight.js";
+import hljs from "../../utils/hljs";
 import MarkdownView from "../chat/MarkdownView";
 import type { Artifact } from "../../types/chat";
 import { useToast } from "../../context/ToastContext";
