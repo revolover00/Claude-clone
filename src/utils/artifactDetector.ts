@@ -52,8 +52,8 @@ export function extractArtifactTitle(code: string, type: string): string {
 
 export function getArtifactType(lang: string, code: string): string {
   const clean = lang.trim().toLowerCase();
-  if (clean === "html" || clean === "xml") return "HTML";
   if (clean === "svg" || code.includes("<svg")) return "SVG";
+  if (clean === "html" || clean === "xml") return "HTML";
   if (clean === "jsx" || clean === "tsx" || clean === "react") return "React";
   if (clean === "markdown" || clean === "md") return "Markdown";
   return "Code";

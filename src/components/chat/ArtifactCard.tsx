@@ -25,6 +25,7 @@ export default function ArtifactCard({
     <div
       role="button"
       tabIndex={0}
+      dir="ltr"
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -32,7 +33,7 @@ export default function ArtifactCard({
           onClick();
         }
       }}
-      className="group my-3.5 flex items-center justify-between rounded-xl border border-line bg-elev-1 p-3.5 transition-all duration-200 hover:border-elev-3 hover:-translate-y-0.5 hover:shadow-md cursor-pointer select-none font-sans"
+      className="group my-3.5 flex items-center justify-between rounded-xl border border-line bg-elev-1 p-3.5 transition-all duration-200 hover:border-elev-3 hover:-translate-y-0.5 hover:shadow-md cursor-pointer select-none font-sans text-start"
       aria-label={`Open artifact: ${title}`}
     >
       <div className="flex items-center gap-3 min-w-0">

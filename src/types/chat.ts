@@ -32,6 +32,9 @@ export interface Artifact {
 
 export interface Message {
   id: string;
+  parentId?: string | null;
+  activeChildId?: string | null;
+  childrenIds?: string[];
   role: MessageRole;
   content: string;
   attachments?: Attachment[];
@@ -45,17 +48,32 @@ export interface Message {
 export interface Conversation {
   id: string;
   title: string;
+  projectId?: string | null;
   messages: Message[];
+  rootMessageId?: string | null;
   createdAt: number;
   updatedAt: number;
   starred?: boolean;
   isTypingTitle?: boolean;
 }
 
+export interface ProjectKnowledgeItem {
+  id: string;
+  title: string;
+  content: string;
+  type: "text" | "file";
+  fileName?: string;
+  fileSize?: number;
+  createdAt: number;
+}
+
 export interface Project {
   id: string;
   name: string;
   description: string;
+  instructions?: string;
+  knowledge?: ProjectKnowledgeItem[];
+  createdAt?: number;
   updatedAt: number;
 }
 

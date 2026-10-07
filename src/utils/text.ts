@@ -1,13 +1,15 @@
 /**
- * Detects if a text starts with Arabic characters (or right-to-left scripts).
+ * Detects if a text contains Arabic or RTL scripts (Arabic, Hebrew, Persian, Urdu).
  */
 export function isArabicText(text: string): boolean {
   if (!text) return false;
   const trimmed = text.trim();
-  const firstLetter = trimmed.match(/[\p{L}]/u)?.[0];
-  if (!firstLetter) return false;
-  // Arabic Unicode ranges including basic, supplement, presentation forms
-  return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(firstLetter);
+  if (!trimmed) return false;
+  // Match RTL characters (Arabic, Hebrew, Syriac, Thaana, NKo, Samaritan, etc.)
+  const rtlRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0590-\u05FF]/;
+  // Test first 100 characters to determine primary direction
+  const sample = trimmed.slice(0, 120);
+  return rtlRegex.test(sample);
 }
 
 /**

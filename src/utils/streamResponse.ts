@@ -10,6 +10,8 @@ export interface ChatStreamOptions {
   messages: any[];
   style: string;
   profileInstructions: string;
+  projectInstructions?: string;
+  projectKnowledge?: Array<{ title: string; content: string }>;
   model: string;
   effort: string;
   webSearch: boolean;
@@ -50,6 +52,8 @@ export function streamRealResponse(
           ],
           style: options.style,
           profileInstructions: options.profileInstructions,
+          projectInstructions: options.projectInstructions,
+          projectKnowledge: options.projectKnowledge,
           model: options.model,
           effort: options.effort,
           webSearch: options.webSearch,

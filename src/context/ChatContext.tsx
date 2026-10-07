@@ -1,33 +1,42 @@
 import React, {
   createContext,
   useContext,
+  useReducer,
   useEffect,
-  useState,
   useCallback,
+  useMemo,
 } from "react";
 import type {
   Conversation,
   Message,
   Project,
+  ProjectKnowledgeItem,
   Artifact,
   UserPreferences,
 } from "../types/chat";
+import {
+  conversationsReducer,
+  getActiveBranch,
+  getMessageSiblings,
+  migrateConversations,
+} from "./stores/conversationsReducer";
+import { useArtifactsStore } from "./stores/useArtifactsStore";
+import { usePreferencesStore } from "./stores/usePreferencesStore";
+import { useProjectsStore } from "./stores/useProjectsStore";
+import { useUIStore, type ActiveView } from "./stores/useUIStore";
 
-export type ActiveView =
-  | "chat"
-  | "projects"
-  | "artifacts"
-  | "customize"
-  | "code";
+export { getActiveBranch, getMessageSiblings, migrateConversations };
+export type { ActiveView };
 
-interface ChatContextType {
+export interface ChatContextType {
   // Conversations
   conversations: Conversation[];
   activeConversationId: string | null;
   activeConversation: Conversation | null;
+  activeBranch: Message[];
   setActiveConversationId: (id: string | null) => void;
-  createNewChat: () => void;
-  saveMessage: (conversationId: string, message: Message) => void;
+  createNewChat: (projectId?: string | null) => void;
+  saveMessage: (conversationId: string, message: Message, projectId?: string | null) => void;
   setConversationMessages: (conversationId: string, messages: Message[]) => void;
   updateMessageContent: (
     conversationId: string,
@@ -42,7 +51,19 @@ interface ChatContextType {
   renameConversation: (id: string, newTitle: string) => void;
   triggerAutoTitle: (conversationId: string, firstUserMsg: string, firstReply: string) => Promise<void>;
 
-  // History stack for Back / Forward buttons
+  // Message Branching & Versioning
+  switchMessageVersion: (conversationId: string, messageId: string, targetVersionIndex: number) => void;
+  branchEditUserMessage: (
+    conversationId: string,
+    targetMessageId: string,
+    newContent: string
+  ) => { newUserMsg: Message; newAssistantMsg: Message } | null;
+  branchRetryAssistantMessage: (
+    conversationId: string,
+    assistantMessageId: string
+  ) => { parentUserMsg: Message; newAssistantMsg: Message } | null;
+
+  // History navigation
   canGoBack: boolean;
   canGoForward: boolean;
   goBack: () => void;
@@ -64,10 +85,18 @@ interface ChatContextType {
   preferences: UserPreferences;
   updatePreferences: (partial: Partial<UserPreferences>) => void;
 
-  // Projects & Artifacts
+  // Projects
   projects: Project[];
-  addProject: (name: string, description: string) => void;
+  addProject: (name: string, description: string) => Project;
+  updateProject: (id: string, partial: Partial<Project>) => void;
   deleteProject: (id: string) => void;
+  addProjectKnowledge: (
+    projectId: string,
+    item: Omit<ProjectKnowledgeItem, "id" | "createdAt">
+  ) => void;
+  deleteProjectKnowledge: (projectId: string, knowledgeId: string) => void;
+
+  // Artifacts
   artifacts: Artifact[];
   activeArtifact: Artifact | null;
   artifactPanelOpen: boolean;
@@ -87,262 +116,26 @@ interface ChatContextType {
   clearAllData: () => void;
 }
 
-const STORAGE_KEY_CONVS = "claude_clone_conversations_v2";
-const STORAGE_KEY_PREFS = "claude_clone_preferences_v2";
-const STORAGE_KEY_PROJECTS = "claude_clone_projects_v2";
-const STORAGE_KEY_ARTIFACTS = "claude_clone_artifacts_v2";
-
-const DEFAULT_PREFERENCES: UserPreferences = {
-  profileInstructions: "",
-  responseStyle: "Normal",
-  theme: "dark",
-  language: "en",
-};
-
-const DEFAULT_PROJECTS: Project[] = [
-  {
-    id: "proj-1",
-    name: "Design System",
-    description: "Reusable UI components, icons, and styling guidelines.",
-    updatedAt: Date.now() - 3600000 * 24,
-  },
-  {
-    id: "proj-2",
-    name: "API Integration",
-    description: "Backend architecture, schemas, and endpoint definitions.",
-    updatedAt: Date.now() - 3600000 * 72,
-  },
-];
-
-const DEFAULT_ARTIFACTS: Artifact[] = [
-  {
-    id: "art-1",
-    identifier: "button-component",
-    title: "Button Component",
-    language: "tsx",
-    type: "React",
-    code: `export const Button = ({ children, variant = 'primary' }) => {\n  return (\n    <button className="px-4 py-2 rounded-lg bg-accent text-white">\n      {children}\n    </button>\n  );\n};`,
-    chatId: "",
-    chatTitle: "Component Library",
-    version: 1,
-    versions: [
-      {
-        version: 1,
-        content: `export const Button = ({ children, variant = 'primary' }) => {\n  return (\n    <button className="px-4 py-2 rounded-lg bg-accent text-white">\n      {children}\n    </button>\n  );\n};`,
-        createdAt: Date.now() - 3600000 * 48,
-      },
-    ],
-    createdAt: Date.now() - 3600000 * 48,
-    updatedAt: Date.now() - 3600000 * 48,
-  },
-];
+const STORAGE_KEY_CONVS = "claude_clone_conversations_v3";
 
 const ChatContext = createContext<ChatContextType | null>(null);
 
-export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  // Load conversations
-  const [conversations, setConversations] = useState<Conversation[]>(() => {
+export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Load initial conversations with automatic migration
+  const [conversations, dispatch] = useReducer(conversationsReducer, [], () => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY_CONVS);
-      if (saved) return JSON.parse(saved);
+      const savedV3 = localStorage.getItem(STORAGE_KEY_CONVS);
+      if (savedV3) return migrateConversations(JSON.parse(savedV3));
+
+      const savedV2 = localStorage.getItem("claude_clone_conversations_v2");
+      if (savedV2) return migrateConversations(JSON.parse(savedV2));
     } catch {
       // ignore
     }
     return [];
   });
 
-  const [activeConversationId, setActiveConversationIdState] = useState<
-    string | null
-  >(null);
-
-  // History stack for Back / Forward buttons
-  const [history, setHistory] = useState<(string | null)[]>([null]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-
-  // Active view
-  const [activeView, setActiveView] = useState<ActiveView>("chat");
-
-  // Modals
-  const [searchModalOpen, setSearchModalOpen] = useState(false);
-  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-
-  // Preferences
-  const [preferences, setPreferences] = useState<UserPreferences>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_PREFS);
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // ignore
-    }
-    return DEFAULT_PREFERENCES;
-  });
-
-  // Projects
-  const [projects, setProjects] = useState<Project[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_PROJECTS);
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // ignore
-    }
-    return DEFAULT_PROJECTS;
-  });
-
-  // Artifacts
-  const [artifacts, setArtifacts] = useState<Artifact[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_ARTIFACTS);
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // ignore
-    }
-    return DEFAULT_ARTIFACTS;
-  });
-
-  const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null);
-  const [artifactPanelOpen, setArtifactPanelOpen] = useState(false);
-
-  const openArtifact = useCallback(
-    (art: Artifact) => {
-      // Look up existing artifact in store to preserve all version history
-      const existing = artifacts.find(
-        (a) =>
-          a.id === art.id ||
-          a.identifier === art.identifier ||
-          a.title.toLowerCase() === art.title.toLowerCase()
-      );
-      setActiveArtifact(existing || art);
-      setArtifactPanelOpen(true);
-    },
-    [artifacts]
-  );
-
-  const closeArtifact = useCallback(() => {
-    setArtifactPanelOpen(false);
-  }, []);
-
-  const updateActiveArtifactLive = useCallback(
-    (title: string, code: string) => {
-      setActiveArtifact((curr) => {
-        if (!curr) return null;
-        if (curr.title.toLowerCase() === title.toLowerCase()) {
-          return { ...curr, code };
-        }
-        return curr;
-      });
-    },
-    []
-  );
-
-  const saveOrUpdateArtifact = useCallback(
-    (
-      title: string,
-      language: string,
-      type: string,
-      code: string,
-      chatId = "",
-      chatTitle = ""
-    ) => {
-      const existing = artifacts.find(
-        (a) => a.title.toLowerCase() === title.toLowerCase()
-      );
-
-      if (existing) {
-        // If code hasn't changed, return existing
-        if (existing.code === code) {
-          return existing;
-        }
-
-        const nextVersion = (existing.version || 1) + 1;
-        const initialVersions = existing.versions && existing.versions.length > 0
-          ? existing.versions
-          : [{ version: 1, content: existing.code, createdAt: existing.createdAt }];
-
-        const updatedVersions = [
-          ...initialVersions,
-          { version: nextVersion, content: code, createdAt: Date.now() },
-        ];
-        const updated: Artifact = {
-          ...existing,
-          code,
-          version: nextVersion,
-          versions: updatedVersions,
-          chatId: chatId || existing.chatId,
-          chatTitle: chatTitle || existing.chatTitle,
-          updatedAt: Date.now(),
-        };
-        setArtifacts((prev) =>
-          prev.map((a) => (a.id === existing.id ? updated : a))
-        );
-        if (activeArtifact?.id === existing.id || activeArtifact?.title.toLowerCase() === title.toLowerCase()) {
-          setActiveArtifact(updated);
-        }
-        return updated;
-      } else {
-        const created: Artifact = {
-          id: `art-${Date.now()}`,
-          identifier: title.toLowerCase().replace(/[^a-z0-9]/g, "-"),
-          title,
-          language,
-          type,
-          code,
-          chatId,
-          chatTitle,
-          version: 1,
-          versions: [{ version: 1, content: code, createdAt: Date.now() }],
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-        setArtifacts((prev) => [created, ...prev]);
-        return created;
-      }
-    },
-    [artifacts, activeArtifact]
-  );
-
-  const setArtifactVersion = useCallback(
-    (artifactId: string, version: number) => {
-      setArtifacts((prev) =>
-        prev.map((a) => {
-          if (a.id !== artifactId) return a;
-          const foundVer = a.versions?.find((v) => v.version === version);
-          if (!foundVer) return a;
-          const updated = {
-            ...a,
-            version,
-            code: foundVer.content,
-          };
-          if (activeArtifact?.id === artifactId) {
-            setActiveArtifact(updated);
-          }
-          return updated;
-        })
-      );
-    },
-    [activeArtifact]
-  );
-
-  const deleteArtifact = useCallback(
-    (id: string) => {
-      setArtifacts((prev) => prev.filter((a) => a.id !== id));
-      setActiveArtifact((curr) => (curr?.id === id ? null : curr));
-    },
-    []
-  );
-
-  // Apply theme to document element
-  useEffect(() => {
-    const root = document.documentElement;
-    if (preferences.theme === "light") {
-      root.setAttribute("data-theme", "light");
-    } else {
-      root.removeAttribute("data-theme");
-    }
-  }, [preferences.theme]);
-
-  // Save to localStorage
+  // Save conversations to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_CONVS, JSON.stringify(conversations));
@@ -351,109 +144,30 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [conversations]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_PREFS, JSON.stringify(preferences));
-    } catch {
-      // ignore
-    }
-  }, [preferences]);
+  // Hook stores
+  const ui = useUIStore();
+  const artifactsStore = useArtifactsStore();
+  const preferencesStore = usePreferencesStore();
+  const projectsStore = useProjectsStore();
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_PROJECTS, JSON.stringify(projects));
-    } catch {
-      // ignore
-    }
-  }, [projects]);
+  const activeConversation = useMemo(() => {
+    return conversations.find((c) => c.id === ui.activeConversationId) || null;
+  }, [conversations, ui.activeConversationId]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_ARTIFACTS, JSON.stringify(artifacts));
-    } catch {
-      // ignore
-    }
-  }, [artifacts]);
+  const activeBranch = useMemo(() => {
+    return getActiveBranch(
+      activeConversation?.messages || [],
+      activeConversation?.rootMessageId
+    );
+  }, [activeConversation]);
 
-  // Set active conversation with history recording
-  const setActiveConversationId = useCallback(
-    (id: string | null) => {
-      setActiveConversationIdState(id);
-      setActiveView("chat");
-
-      setHistory((prev) => {
-        const next = prev.slice(0, historyIndex + 1);
-        if (next[next.length - 1] !== id) {
-          next.push(id);
-        }
-        return next;
-      });
-      setHistoryIndex((prev) => prev + 1);
-    },
-    [historyIndex]
-  );
-
-  const canGoBack = historyIndex > 0;
-  const canGoForward = historyIndex < history.length - 1;
-
-  const goBack = useCallback(() => {
-    if (canGoBack) {
-      const newIdx = historyIndex - 1;
-      setHistoryIndex(newIdx);
-      setActiveConversationIdState(history[newIdx]);
-      setActiveView("chat");
-    }
-  }, [canGoBack, historyIndex, history]);
-
-  const goForward = useCallback(() => {
-    if (canGoForward) {
-      const newIdx = historyIndex + 1;
-      setHistoryIndex(newIdx);
-      setActiveConversationIdState(history[newIdx]);
-      setActiveView("chat");
-    }
-  }, [canGoForward, historyIndex, history]);
-
-  // "New" button creates an empty chat and returns to Home view
-  const createNewChat = useCallback(() => {
-    setActiveConversationId(null);
-    setActiveView("chat");
-  }, [setActiveConversationId]);
-
-  const activeConversation =
-    conversations.find((c) => c.id === activeConversationId) || null;
-
-  // Save a new message
   const saveMessage = useCallback(
-    (conversationId: string, message: Message) => {
-      setConversations((prev) => {
-        const existing = prev.find((c) => c.id === conversationId);
-        if (existing) {
-          return prev.map((c) =>
-            c.id === conversationId
-              ? {
-                  ...c,
-                  messages: [...c.messages, message],
-                  updatedAt: Date.now(),
-                }
-              : c
-          );
-        } else {
-          // Create new conversation
-          const title =
-            message.content.length > 40
-              ? message.content.slice(0, 40) + "..."
-              : message.content || "New conversation";
-          const newConv: Conversation = {
-            id: conversationId,
-            title,
-            messages: [message],
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            starred: false,
-          };
-          return [newConv, ...prev];
-        }
+    (conversationId: string, message: Message, projectId?: string | null) => {
+      dispatch({
+        type: "SAVE_MESSAGE",
+        conversationId,
+        message,
+        projectId,
       });
     },
     []
@@ -461,18 +175,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const setConversationMessages = useCallback(
     (conversationId: string, messages: Message[]) => {
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === conversationId
-            ? { ...c, messages, updatedAt: Date.now() }
-            : c
-        )
-      );
+      dispatch({
+        type: "SET_CONVERSATION_MESSAGES",
+        conversationId,
+        messages,
+      });
     },
     []
   );
 
-  // Update existing message content (streaming / thinking)
   const updateMessageContent = useCallback(
     (
       conversationId: string,
@@ -482,49 +193,126 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       isThinking = false,
       thinking?: string
     ) => {
-      setConversations((prev) =>
-        prev.map((c) => {
-          if (c.id !== conversationId) return c;
-          const updatedMessages = c.messages.map((m) => {
-            if (m.id !== messageId) return m;
-            return {
-              ...m,
-              content,
-              isStreaming,
-              isThinking,
-              ...(thinking !== undefined ? { thinking } : {}),
-            };
-          });
-          return {
-            ...c,
-            messages: updatedMessages,
-            updatedAt: Date.now(),
-          };
-        })
-      );
+      dispatch({
+        type: "UPDATE_MESSAGE_CONTENT",
+        conversationId,
+        messageId,
+        content,
+        isStreaming,
+        isThinking,
+        thinking,
+      });
     },
     []
   );
 
-  const deleteConversation = useCallback((id: string) => {
-    setConversations((prev) => prev.filter((c) => c.id !== id));
-    setActiveConversationIdState((curr) => (curr === id ? null : curr));
-  }, []);
+  const switchMessageVersion = useCallback(
+    (conversationId: string, messageId: string, targetVersionIndex: number) => {
+      dispatch({
+        type: "SWITCH_VERSION",
+        conversationId,
+        messageId,
+        targetVersionIndex,
+      });
+    },
+    []
+  );
+
+  const branchEditUserMessage = useCallback(
+    (conversationId: string, targetMessageId: string, newContent: string) => {
+      const conv = conversations.find((c) => c.id === conversationId);
+      if (!conv) return null;
+      const targetMsg = conv.messages.find((m) => m.id === targetMessageId);
+      if (!targetMsg) return null;
+
+      const parentId = targetMsg.parentId || null;
+      const newUserMsgId = `u-${Date.now()}`;
+      const newAssistantMsgId = `a-${Date.now()}`;
+
+      const newUserMsg: Message = {
+        id: newUserMsgId,
+        parentId,
+        activeChildId: newAssistantMsgId,
+        childrenIds: [newAssistantMsgId],
+        role: "user",
+        content: newContent,
+        attachments: targetMsg.attachments,
+        createdAt: Date.now(),
+      };
+
+      const newAssistantMsg: Message = {
+        id: newAssistantMsgId,
+        parentId: newUserMsgId,
+        role: "assistant",
+        content: "",
+        isStreaming: true,
+        createdAt: Date.now(),
+      };
+
+      dispatch({
+        type: "BRANCH_EDIT_USER",
+        conversationId,
+        newUserMsg,
+        newAssistantMsg,
+        parentId,
+      });
+
+      return { newUserMsg, newAssistantMsg };
+    },
+    [conversations]
+  );
+
+  const branchRetryAssistantMessage = useCallback(
+    (conversationId: string, assistantMessageId: string) => {
+      const conv = conversations.find((c) => c.id === conversationId);
+      if (!conv) return null;
+      const targetAssistant = conv.messages.find((m) => m.id === assistantMessageId);
+      if (!targetAssistant || !targetAssistant.parentId) return null;
+
+      const parentUserMsgId = targetAssistant.parentId;
+      const parentUserMsg = conv.messages.find((m) => m.id === parentUserMsgId);
+      if (!parentUserMsg) return null;
+
+      const newAssistantMsgId = `a-${Date.now()}`;
+      const newAssistantMsg: Message = {
+        id: newAssistantMsgId,
+        parentId: parentUserMsgId,
+        role: "assistant",
+        content: "",
+        isStreaming: true,
+        createdAt: Date.now(),
+      };
+
+      dispatch({
+        type: "BRANCH_RETRY_ASSISTANT",
+        conversationId,
+        newAssistantMsg,
+        parentUserMsgId,
+      });
+
+      return { parentUserMsg, newAssistantMsg };
+    },
+    [conversations]
+  );
+
+  const deleteConversation = useCallback(
+    (id: string) => {
+      dispatch({ type: "DELETE_CONVERSATION", id });
+      if (ui.activeConversationId === id) {
+        ui.setActiveConversationId(null);
+      }
+    },
+    [ui]
+  );
 
   const toggleStar = useCallback((id: string) => {
-    setConversations((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, starred: !c.starred } : c))
-    );
+    dispatch({ type: "TOGGLE_STAR", id });
   }, []);
 
   const renameConversation = useCallback((id: string, newTitle: string) => {
-    if (!newTitle.trim()) return;
-    setConversations((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, title: newTitle.trim() } : c))
-    );
+    dispatch({ type: "RENAME_CONVERSATION", id, newTitle });
   }, []);
 
-  // Auto-title with typewriter effect in sidebar
   const triggerAutoTitle = useCallback(
     async (conversationId: string, firstUserMsg: string, firstReply: string) => {
       let targetTitle = "New conversation";
@@ -546,136 +334,158 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         targetTitle = trimmed.length <= 36 ? trimmed : trimmed.slice(0, 36) + "...";
       }
 
-      // Typewriter effect in the sidebar
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === conversationId
-            ? { ...c, title: "", isTypingTitle: true }
-            : c
-        )
-      );
+      dispatch({
+        type: "SET_TYPING_TITLE",
+        conversationId,
+        title: "",
+        isTypingTitle: true,
+      });
 
       for (let i = 1; i <= targetTitle.length; i++) {
         await new Promise((r) => setTimeout(r, 22));
         const partial = targetTitle.slice(0, i);
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.id === conversationId ? { ...c, title: partial } : c
-          )
-        );
+        dispatch({
+          type: "SET_TYPING_TITLE",
+          conversationId,
+          title: partial,
+          isTypingTitle: true,
+        });
       }
 
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === conversationId
-            ? { ...c, title: targetTitle, isTypingTitle: false }
-            : c
-        )
-      );
-    },
-    []
-  );
-
-  // Projects
-  const addProject = useCallback((name: string, description: string) => {
-    const newProj: Project = {
-      id: `proj-${Date.now()}`,
-      name,
-      description,
-      updatedAt: Date.now(),
-    };
-    setProjects((prev) => [newProj, ...prev]);
-  }, []);
-
-  const deleteProject = useCallback((id: string) => {
-    setProjects((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
-
-  const updatePreferences = useCallback(
-    (partial: Partial<UserPreferences>) => {
-      setPreferences((prev) => ({ ...prev, ...partial }));
+      dispatch({
+        type: "SET_TYPING_TITLE",
+        conversationId,
+        title: targetTitle,
+        isTypingTitle: false,
+      });
     },
     []
   );
 
   const clearAllData = useCallback(() => {
-    setConversations([]);
-    setActiveConversationIdState(null);
-    setProjects([]);
-    setArtifacts([]);
+    dispatch({ type: "SET_ALL", conversations: [] });
+    ui.setActiveConversationId(null);
+    projectsStore.clearProjects();
+    artifactsStore.clearArtifacts();
     localStorage.removeItem(STORAGE_KEY_CONVS);
-    localStorage.removeItem(STORAGE_KEY_PROJECTS);
-    localStorage.removeItem(STORAGE_KEY_ARTIFACTS);
-  }, []);
+  }, [ui, projectsStore, artifactsStore]);
 
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isCmdOrCtrl = e.metaKey || e.ctrlKey;
 
-      // Ctrl/Cmd + K: Open search
       if (isCmdOrCtrl && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setSearchModalOpen((v) => !v);
+        ui.setSearchModalOpen(!ui.searchModalOpen);
       }
 
-      // Ctrl/Cmd + Shift + O: New chat
       if (isCmdOrCtrl && e.shiftKey && e.key.toLowerCase() === "o") {
         e.preventDefault();
-        createNewChat();
+        ui.createNewChat();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [createNewChat]);
+  }, [ui]);
 
-  return (
-    <ChatContext.Provider
-      value={{
-        conversations,
-        activeConversationId,
-        activeConversation,
-        setActiveConversationId,
-        createNewChat,
-        saveMessage,
-        setConversationMessages,
-        updateMessageContent,
-        deleteConversation,
-        toggleStar,
-        renameConversation,
-        triggerAutoTitle,
-        canGoBack,
-        canGoForward,
-        goBack,
-        goForward,
-        activeView,
-        setActiveView,
-        searchModalOpen,
-        setSearchModalOpen,
-        settingsModalOpen,
-        setSettingsModalOpen,
-        preferences,
-        updatePreferences,
-        projects,
-        addProject,
-        deleteProject,
-        artifacts,
-        activeArtifact,
-        artifactPanelOpen,
-        openArtifact,
-        closeArtifact,
-        saveOrUpdateArtifact,
-        updateActiveArtifactLive,
-        setArtifactVersion,
-        deleteArtifact,
-        clearAllData,
-      }}
-    >
-      {children}
-    </ChatContext.Provider>
+  const value = useMemo<ChatContextType>(
+    () => ({
+      conversations,
+      activeConversationId: ui.activeConversationId,
+      activeConversation,
+      activeBranch,
+      setActiveConversationId: ui.setActiveConversationId,
+      createNewChat: ui.createNewChat,
+      saveMessage,
+      setConversationMessages,
+      updateMessageContent,
+      deleteConversation,
+      toggleStar,
+      renameConversation,
+      triggerAutoTitle,
+      switchMessageVersion,
+      branchEditUserMessage,
+      branchRetryAssistantMessage,
+      canGoBack: ui.canGoBack,
+      canGoForward: ui.canGoForward,
+      goBack: ui.goBack,
+      goForward: ui.goForward,
+      activeView: ui.activeView,
+      setActiveView: ui.setActiveView,
+      searchModalOpen: ui.searchModalOpen,
+      setSearchModalOpen: ui.setSearchModalOpen,
+      settingsModalOpen: ui.settingsModalOpen,
+      setSettingsModalOpen: ui.setSettingsModalOpen,
+      preferences: preferencesStore.preferences,
+      updatePreferences: preferencesStore.updatePreferences,
+      projects: projectsStore.projects,
+      addProject: projectsStore.addProject,
+      updateProject: projectsStore.updateProject,
+      deleteProject: projectsStore.deleteProject,
+      addProjectKnowledge: projectsStore.addProjectKnowledge,
+      deleteProjectKnowledge: projectsStore.deleteProjectKnowledge,
+      artifacts: artifactsStore.artifacts,
+      activeArtifact: artifactsStore.activeArtifact,
+      artifactPanelOpen: artifactsStore.artifactPanelOpen,
+      openArtifact: artifactsStore.openArtifact,
+      closeArtifact: artifactsStore.closeArtifact,
+      saveOrUpdateArtifact: artifactsStore.saveOrUpdateArtifact,
+      updateActiveArtifactLive: artifactsStore.updateActiveArtifactLive,
+      setArtifactVersion: artifactsStore.setArtifactVersion,
+      deleteArtifact: artifactsStore.deleteArtifact,
+      clearAllData,
+    }),
+    [
+      conversations,
+      ui.activeConversationId,
+      activeConversation,
+      activeBranch,
+      ui.setActiveConversationId,
+      ui.createNewChat,
+      saveMessage,
+      setConversationMessages,
+      updateMessageContent,
+      deleteConversation,
+      toggleStar,
+      renameConversation,
+      triggerAutoTitle,
+      switchMessageVersion,
+      branchEditUserMessage,
+      branchRetryAssistantMessage,
+      ui.canGoBack,
+      ui.canGoForward,
+      ui.goBack,
+      ui.goForward,
+      ui.activeView,
+      ui.setActiveView,
+      ui.searchModalOpen,
+      ui.setSearchModalOpen,
+      ui.settingsModalOpen,
+      ui.setSettingsModalOpen,
+      preferencesStore.preferences,
+      preferencesStore.updatePreferences,
+      projectsStore.projects,
+      projectsStore.addProject,
+      projectsStore.updateProject,
+      projectsStore.deleteProject,
+      projectsStore.addProjectKnowledge,
+      projectsStore.deleteProjectKnowledge,
+      artifactsStore.artifacts,
+      artifactsStore.activeArtifact,
+      artifactsStore.artifactPanelOpen,
+      artifactsStore.openArtifact,
+      artifactsStore.closeArtifact,
+      artifactsStore.saveOrUpdateArtifact,
+      artifactsStore.updateActiveArtifactLive,
+      artifactsStore.setArtifactVersion,
+      artifactsStore.deleteArtifact,
+      clearAllData,
+    ]
   );
+
+  return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
 
 export const useChat = () => {
