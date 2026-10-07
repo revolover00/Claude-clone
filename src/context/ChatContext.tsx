@@ -44,7 +44,10 @@ export interface ChatContextType {
     content: string,
     isStreaming?: boolean,
     isThinking?: boolean,
-    thinking?: string
+    thinking?: string,
+    errorInfo?: { isError?: boolean; errorText?: string; errorDetails?: string },
+    sources?: Array<{ title: string; url: string }>,
+    isSearchingWeb?: boolean
   ) => void;
   deleteConversation: (id: string) => void;
   toggleStar: (id: string) => void;
@@ -191,7 +194,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       content: string,
       isStreaming = false,
       isThinking = false,
-      thinking?: string
+      thinking?: string,
+      errorInfo?: { isError?: boolean; errorText?: string; errorDetails?: string },
+      sources?: Array<{ title: string; url: string }>,
+      isSearchingWeb?: boolean
     ) => {
       dispatch({
         type: "UPDATE_MESSAGE_CONTENT",
@@ -201,6 +207,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isStreaming,
         isThinking,
         thinking,
+        isError: errorInfo?.isError,
+        errorText: errorInfo?.errorText,
+        errorDetails: errorInfo?.errorDetails,
+        sources,
+        isSearchingWeb,
       });
     },
     []

@@ -43,6 +43,11 @@ export interface Message {
   isThinking?: boolean;
   artifactId?: string;
   createdAt: number;
+  isError?: boolean;
+  errorText?: string;
+  errorDetails?: string;
+  sources?: Array<{ title: string; url: string }>;
+  isSearchingWeb?: boolean;
 }
 
 export interface Conversation {
@@ -80,6 +85,7 @@ export interface Project {
 export type ResponseStyle = "Normal" | "Concise" | "Explanatory" | "Formal";
 
 export interface UserPreferences {
+  userName?: string;
   profileInstructions: string;
   responseStyle: ResponseStyle;
   theme: "dark" | "light";

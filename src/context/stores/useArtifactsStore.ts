@@ -3,34 +3,18 @@ import type { Artifact } from "../../types/chat";
 
 const STORAGE_KEY_ARTIFACTS = "claude_clone_artifacts_v3";
 
-const DEFAULT_ARTIFACTS: Artifact[] = [
-  {
-    id: "art-1",
-    identifier: "button-component",
-    title: "Button Component",
-    language: "tsx",
-    type: "React",
-    code: `export const Button = ({ children, variant = 'primary' }) => {\n  return (\n    <button className="px-4 py-2 rounded-lg bg-accent text-white">\n      {children}\n    </button>\n  );\n};`,
-    chatId: "",
-    chatTitle: "Component Library",
-    version: 1,
-    versions: [
-      {
-        version: 1,
-        content: `export const Button = ({ children, variant = 'primary' }) => {\n  return (\n    <button className="px-4 py-2 rounded-lg bg-accent text-white">\n      {children}\n    </button>\n  );\n};`,
-        createdAt: Date.now() - 3600000 * 48,
-      },
-    ],
-    createdAt: Date.now() - 3600000 * 48,
-    updatedAt: Date.now() - 3600000 * 48,
-  },
-];
+const DEFAULT_ARTIFACTS: Artifact[] = [];
 
 export function useArtifactsStore() {
   const [artifacts, setArtifacts] = useState<Artifact[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_ARTIFACTS) || localStorage.getItem("claude_clone_artifacts_v2");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((a: Artifact) => a.id !== "art-1");
+        }
+      }
     } catch {
       // ignore
     }

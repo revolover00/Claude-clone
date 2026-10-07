@@ -151,25 +151,71 @@ describe("Message Tree Logic & Versioning", () => {
       expect(activeBranch.map((m) => m.id)).toEqual(["u1", "a1_v1", "u2_v1"]);
     });
 
-    it("handles BRANCH_RETRY_ASSISTANT creating new sibling version", () => {
+    it("calculates exact '‹ 2/3 ›' version switcher labels and boundary conditions", () => {
+      const threeVersions: Message[] = [
+        ...treeMessages,
+        {
+          id: "a1_v3",
+          parentId: "u1",
+          activeChildId: null,
+          childrenIds: [],
+          role: "assistant",
+          content: "Assistant reply version 3",
+          createdAt: 1250,
+        },
+      ];
+
+      // Version 1 of 3: index 0 (‹ 1/3 ›)
+      const v1 = getMessageSiblings(threeVersions, "a1_v1");
+      expect(v1.siblings.length).toBe(3);
+      expect(v1.currentIndex).toBe(0);
+      expect(`${v1.currentIndex + 1}/${v1.siblings.length}`).toBe("1/3");
+
+      // Version 2 of 3: index 1 (‹ 2/3 ›)
+      const v2 = getMessageSiblings(threeVersions, "a1_v2");
+      expect(v2.currentIndex).toBe(1);
+      expect(`${v2.currentIndex + 1}/${v2.siblings.length}`).toBe("2/3");
+
+      // Version 3 of 3: index 2 (‹ 3/3 ›)
+      const v3 = getMessageSiblings(threeVersions, "a1_v3");
+      expect(v3.currentIndex).toBe(2);
+      expect(`${v3.currentIndex + 1}/${v3.siblings.length}`).toBe("3/3");
+    });
+
+    it("handles BRANCH_EDIT_USER creating new user and assistant sibling pair", () => {
+      const newUserMsg: Message = {
+        id: "u1_v2",
+        parentId: null,
+        activeChildId: "a1_new",
+        childrenIds: ["a1_new"],
+        role: "user",
+        content: "Edited user question",
+        createdAt: 2000,
+      };
       const newAssistantMsg: Message = {
-        id: "a1_v3",
-        parentId: "u1",
+        id: "a1_new",
+        parentId: "u1_v2",
         role: "assistant",
-        content: "Assistant reply version 3",
-        createdAt: 1500,
+        content: "",
+        createdAt: 2001,
       };
 
-      const nextState = conversationsReducer([conv], {
-        type: "BRANCH_RETRY_ASSISTANT",
+      const editedState = conversationsReducer([conv], {
+        type: "BRANCH_EDIT_USER",
         conversationId: "conv-1",
+        newUserMsg,
         newAssistantMsg,
-        parentUserMsgId: "u1",
+        parentId: null,
       });
 
-      const u1 = nextState[0].messages.find((m) => m.id === "u1");
-      expect(u1?.activeChildId).toBe("a1_v3");
-      expect(u1?.childrenIds).toContain("a1_v3");
+      expect(editedState[0].rootMessageId).toBe("u1_v2");
+      const activeBranch = getActiveBranch(editedState[0].messages, "u1_v2");
+      expect(activeBranch.map((m) => m.id)).toEqual(["u1_v2", "a1_new"]);
+
+      // Both user versions are root siblings
+      const userSiblings = getMessageSiblings(editedState[0].messages, "u1_v2");
+      expect(userSiblings.siblings.length).toBe(2);
+      expect(`${userSiblings.currentIndex + 1}/${userSiblings.siblings.length}`).toBe("2/2");
     });
   });
 });

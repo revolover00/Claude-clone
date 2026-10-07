@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { BrowserRouter } from "react-router-dom";
-import { UploadCloud } from "lucide-react";
+import { UploadCloud, AlertTriangle, X } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import MainChat from "./components/MainChat";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
@@ -36,7 +36,22 @@ function AppContent() {
   });
 
   const [windowDragActive, setWindowDragActive] = useState(false);
+  const [backendNotConfigured, setBackendNotConfigured] = useState(false);
   const dragCounterRef = useRef(0);
+
+  // Check health on app start
+  useEffect(() => {
+    fetch("/api/health")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.hasKey === false) {
+          setBackendNotConfigured(true);
+        }
+      })
+      .catch((err) => {
+        console.warn("Health check error:", err);
+      });
+  }, []);
 
   useEffect(() => {
     try {
@@ -178,41 +193,62 @@ function AppContent() {
   ]);
 
   return (
-    <div className="flex h-[100dvh] w-full overflow-hidden bg-shell text-ink font-sans">
-      {/* Mobile backdrop for sidebar */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/55 backdrop-blur-[2px] lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
-        />
+    <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-shell text-ink font-sans">
+      {/* Dismissible AI backend not configured banner */}
+      {backendNotConfigured && (
+        <div className="relative z-50 flex shrink-0 items-center justify-between border-b border-amber-500/30 bg-amber-500/15 px-4 py-2 text-[13px] text-amber-200">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={15} className="shrink-0 text-amber-400" />
+            <span>AI backend is not configured</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBackendNotConfigured(false)}
+            className="rounded p-1 text-amber-300 transition-colors hover:bg-amber-500/20 cursor-pointer"
+            title="Dismiss"
+            aria-label="Dismiss banner"
+          >
+            <X size={14} />
+          </button>
+        </div>
       )}
 
-      {/* Sidebar */}
-      <Sidebar
-        open={sidebarOpen}
-        onToggle={() => setSidebarOpen((v: boolean) => !v)}
-      />
-
-      {/* Main Chat Stage */}
-      <MainChat
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen((v: boolean) => !v)}
-      />
-
-      {/* Slide-in Artifact Panel (Desktop 45% right column, Mobile sheet) */}
-      <Suspense fallback={null}>
-        <ErrorBoundary fallbackType="artifact">
-          <ArtifactPanel
-            artifact={activeArtifact}
-            isOpen={artifactPanelOpen}
-            onClose={closeArtifact}
-            onSelectVersion={(v) => {
-              if (activeArtifact) setArtifactVersion(activeArtifact.id, v);
-            }}
+      <div className="flex flex-1 min-h-0 w-full overflow-hidden">
+        {/* Mobile backdrop for sidebar */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-30 bg-black/55 backdrop-blur-[2px] lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
           />
-        </ErrorBoundary>
-      </Suspense>
+        )}
+
+        {/* Sidebar */}
+        <Sidebar
+          open={sidebarOpen}
+          onToggle={() => setSidebarOpen((v: boolean) => !v)}
+        />
+
+        {/* Main Chat Stage */}
+        <MainChat
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={() => setSidebarOpen((v: boolean) => !v)}
+        />
+
+        {/* Slide-in Artifact Panel (Desktop 45% right column, Mobile sheet) */}
+        <Suspense fallback={null}>
+          <ErrorBoundary fallbackType="artifact">
+            <ArtifactPanel
+              artifact={activeArtifact}
+              isOpen={artifactPanelOpen}
+              onClose={closeArtifact}
+              onSelectVersion={(v) => {
+                if (activeArtifact) setArtifactVersion(activeArtifact.id, v);
+              }}
+            />
+          </ErrorBoundary>
+        </Suspense>
+      </div>
 
       {/* Global Modals lazy-loaded with Suspense */}
       <Suspense fallback={null}>

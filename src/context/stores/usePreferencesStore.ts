@@ -4,6 +4,7 @@ import type { UserPreferences } from "../../types/chat";
 const STORAGE_KEY_PREFS = "claude_clone_preferences_v3";
 
 const DEFAULT_PREFERENCES: UserPreferences = {
+  userName: "You",
   profileInstructions: "",
   responseStyle: "Normal",
   theme: "dark",
