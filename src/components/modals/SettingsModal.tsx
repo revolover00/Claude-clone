@@ -243,10 +243,10 @@ export default function SettingsModal() {
                   </button>
                 </div>
 
-                <div className="rounded-xl border border-[#7d2d24]/50 bg-[#3a1a17]/20 p-3.5">
+                <div className="rounded-xl border border-danger/30 bg-danger-bg p-3.5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-[14px] font-medium text-[#f08578]">
+                      <h4 className="text-[14px] font-medium text-danger">
                         Clear All Data
                       </h4>
                       <p className="text-[12.5px] text-ink-muted">
@@ -257,7 +257,7 @@ export default function SettingsModal() {
                       <button
                         type="button"
                         onClick={() => setConfirmClear(true)}
-                        className="flex items-center gap-1.5 rounded-lg bg-[#68241d] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[#852f26]"
+                        className="flex items-center gap-1.5 rounded-lg bg-danger px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-danger-hover"
                       >
                         <Trash2 size={14} />
                         <span>Clear Data</span>
@@ -277,7 +277,7 @@ export default function SettingsModal() {
                             clearAllData();
                             setSettingsModalOpen(false);
                           }}
-                          className="rounded bg-[#a83428] px-3 py-1 text-[12.5px] font-medium text-white hover:bg-[#bd3d30]"
+                          className="rounded bg-danger px-3 py-1 text-[12.5px] font-medium text-white hover:bg-danger-hover"
                         >
                           Confirm Delete
                         </button>

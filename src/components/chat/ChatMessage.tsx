@@ -247,11 +247,11 @@ export default function ChatMessage({
         </div>
 
         {/* aria-live="polite" on the streaming message for accessibility */}
-        <div aria-live="polite" className="min-w-0 flex-1">
+        <div aria-live={message.isStreaming ? "polite" : undefined} className="min-w-0 flex-1">
           {/* Error handling state */}
           {isErrorState ? (
-            <div className="rounded-xl border border-[#7d2d24]/60 bg-[#3a1a17]/30 p-3.5 text-[14px] text-ink font-sans">
-              <div className="flex items-center gap-2 text-[#f08578] font-medium">
+            <div className="rounded-xl border border-danger/30 bg-danger-bg p-3.5 text-[14px] text-ink font-sans">
+              <div className="flex items-center gap-2 text-danger font-medium">
                 <AlertTriangle size={16} />
                 <span>Unable to generate complete response</span>
               </div>

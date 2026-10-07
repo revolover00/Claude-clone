@@ -32,7 +32,6 @@ export default function MainChat({
     setConversationMessages,
     updateMessageContent,
     triggerAutoTitle,
-    openArtifact,
   } = useChat();
 
   const [isStreaming, setIsStreaming] = useState(false);
@@ -330,7 +329,7 @@ export default function MainChat({
       <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-ink-muted animate-pulse">Loading...</div>}>
         {activeView === "projects" && <ProjectsView />}
         {activeView === "artifacts" && (
-          <ArtifactsView onOpenArtifact={openArtifact} />
+          <ArtifactsView />
         )}
         {activeView === "customize" && <CustomizeView />}
         {activeView === "code" && <CodeSessionsView />}

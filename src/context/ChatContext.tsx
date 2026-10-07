@@ -83,6 +83,7 @@ interface ChatContextType {
   ) => Artifact;
   updateActiveArtifactLive: (title: string, code: string) => void;
   setArtifactVersion: (artifactId: string, version: number) => void;
+  deleteArtifact: (id: string) => void;
   clearAllData: () => void;
 }
 
@@ -321,6 +322,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       );
     },
     [activeArtifact]
+  );
+
+  const deleteArtifact = useCallback(
+    (id: string) => {
+      setArtifacts((prev) => prev.filter((a) => a.id !== id));
+      setActiveArtifact((curr) => (curr?.id === id ? null : curr));
+    },
+    []
   );
 
   // Apply theme to document element
@@ -654,6 +663,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         saveOrUpdateArtifact,
         updateActiveArtifactLive,
         setArtifactVersion,
+        deleteArtifact,
         clearAllData,
       }}
     >
