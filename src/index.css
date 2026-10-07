@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Source Serif 4", "Georgia", "Times New Roman", serif;
+
+  --color-shell: #211f1d; /* main surface */
+  --color-panel: #1b1a18; /* sidebar surface */
+  --color-line: #2e2c29; /* hairline borders */
+  --color-line-soft: #292724;
+
+  --color-elev-1: #262523; /* segmented control, pill */
+  --color-elev-2: #2e2c2a; /* hover, chips */
+  --color-elev-3: #383634; /* stronger hover */
+  --color-elev-4: #42403c; /* active segment */
+  --color-composer: #2a2826;
+  --color-composer-line: #3b3936;
+
+  --color-ink: #e9e6e0;
+  --color-ink-soft: #c9c5bd;
+  --color-ink-muted: #8d897f;
+  --color-ink-faint: #67635b;
+
+  --color-accent: #d97757;
+  --color-link: #7db4f5;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-shell);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+::selection {
+  background: rgba(217, 119, 87, 0.35);
+  color: #f4f1ea;
+}
+
+/* slim scrollbars for the sidebar list */
+.scroll-slim {
+  scrollbar-width: thin;
+  scrollbar-color: #343230 transparent;
+}
+.scroll-slim::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  background: #343230;
+  border-radius: 8px;
+}
+.scroll-slim::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* gentle entrance for the centered stack */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.anim-rise {
+  animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* soft pulse for the active mic */
+@keyframes micpulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(217, 119, 87, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(217, 119, 87, 0);
+  }
+}
+.anim-mic {
+  animation: micpulse 1.6s ease-out infinite;
+}
+
+textarea {
+  field-sizing: content;
+}
