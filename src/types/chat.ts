@@ -9,6 +9,27 @@ export interface Attachment {
   isImage?: boolean;
 }
 
+export interface ArtifactVersion {
+  version: number;
+  content: string;
+  createdAt: number;
+}
+
+export interface Artifact {
+  id: string;
+  identifier: string;
+  title: string;
+  language: string;
+  type: string;
+  code: string;
+  chatId: string;
+  chatTitle: string;
+  version: number;
+  versions?: ArtifactVersion[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface Message {
   id: string;
   role: MessageRole;
@@ -17,6 +38,7 @@ export interface Message {
   thinking?: string;
   isStreaming?: boolean;
   isThinking?: boolean;
+  artifactId?: string;
   createdAt: number;
 }
 
@@ -35,16 +57,6 @@ export interface Project {
   name: string;
   description: string;
   updatedAt: number;
-}
-
-export interface Artifact {
-  id: string;
-  title: string;
-  language: string;
-  code: string;
-  chatId: string;
-  chatTitle: string;
-  createdAt: number;
 }
 
 export type ResponseStyle = "Normal" | "Concise" | "Explanatory" | "Formal";

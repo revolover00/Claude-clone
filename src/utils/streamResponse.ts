@@ -81,6 +81,120 @@ export const ModernCounter: React.FC<CounterProps> = ({
     };
   }
 
+  // SVG or visual creation
+  if (lower.includes("svg") || lower.includes("draw") || lower.includes("icon") || lower.includes("illustration")) {
+    return {
+      thoughts: "1. Understanding visual design request.\n2. Constructing scalable SVG vector paths with gradient aesthetics.\n3. Packaging as an interactive artifact.",
+      response: `I've created a vector graphic illustration for you:
+
+\`\`\`svg
+<!-- Title: Claude Stellar Emblem -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a2724"/>
+      <stop offset="100%" stop-color="#191816"/>
+    </linearGradient>
+    <linearGradient id="sparkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e88c6f"/>
+      <stop offset="100%" stop-color="#d97757"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <rect width="400" height="400" rx="32" fill="url(#bgGrad)"/>
+  <circle cx="200" cy="200" r="130" stroke="#3b3733" stroke-width="2" fill="none"/>
+  <circle cx="200" cy="200" r="90" stroke="#48433d" stroke-dasharray="6 6" stroke-width="1.5" fill="none"/>
+
+  <!-- Centered Claude Star -->
+  <g transform="translate(200, 200)" filter="url(#glow)">
+    <path d="M 0,-65 C 6,-24 24,-6 65,0 C 24,6 6,24 0,65 C -6,24 -24,6 -65,0 C -24,-6 -6,-24 0,-65 Z" fill="url(#sparkGrad)"/>
+    <circle cx="0" cy="0" r="10" fill="#fff" opacity="0.9"/>
+  </g>
+
+  <text x="200" y="350" font-family="system-ui, sans-serif" font-size="13" font-weight="500" fill="#8d897f" text-anchor="middle" letter-spacing="2">
+    CLAUDE ARTIFACT
+  </text>
+</svg>
+\`\`\`
+
+You can preview the rendered vector graphic directly in the Artifact panel by clicking on the card above.`,
+    };
+  }
+
+  // HTML / Web Prototype creation
+  if (lower.includes("html") || lower.includes("game") || lower.includes("landing") || lower.includes("dashboard") || lower.includes("build") || lower.includes("create")) {
+    return {
+      thoughts: "1. Analyzing full-stack / web prototype requirements.\n2. Scaffolding complete responsive HTML5 artifact with Tailwind CSS.\n3. Embedding self-contained interactive JavaScript logic.",
+      response: `I've built a prototype according to your requirements:
+
+\`\`\`html
+<!-- Title: Interactive Analytics Dashboard -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Analytics Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#1b1917] text-[#e7e5e4] p-6 font-sans">
+  <div class="max-w-2xl mx-auto space-y-6">
+    <header class="flex items-center justify-between pb-4 border-b border-[#2e2a27]">
+      <div>
+        <h1 class="text-xl font-bold text-white">Application Metrics</h1>
+        <p class="text-xs text-[#a8a29e]">Real-time performance telemetry</p>
+      </div>
+      <span class="px-2.5 py-1 text-xs rounded-full bg-[#d97757]/20 text-[#d97757] font-medium">Live</span>
+    </header>
+
+    <div class="grid grid-cols-3 gap-3">
+      <div class="p-4 rounded-xl bg-[#262320] border border-[#38332f]">
+        <div class="text-xs text-[#a8a29e]">Active Users</div>
+        <div class="text-2xl font-bold text-white mt-1">12,845</div>
+        <div class="text-xs text-emerald-400 mt-1">↑ 14.2%</div>
+      </div>
+      <div class="p-4 rounded-xl bg-[#262320] border border-[#38332f]">
+        <div class="text-xs text-[#a8a29e]">Avg Latency</div>
+        <div class="text-2xl font-bold text-white mt-1">42ms</div>
+        <div class="text-xs text-emerald-400 mt-1">↓ 6.1%</div>
+      </div>
+      <div class="p-4 rounded-xl bg-[#262320] border border-[#38332f]">
+        <div class="text-xs text-[#a8a29e]">Throughput</div>
+        <div class="text-2xl font-bold text-white mt-1">98.9%</div>
+        <div class="text-xs text-[#a8a29e] mt-1">Optimal</div>
+      </div>
+    </div>
+
+    <div class="p-4 rounded-xl bg-[#262320] border border-[#38332f]">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold">Interactive Counter</h3>
+        <button id="btn" class="px-3 py-1 bg-[#d97757] text-white rounded-lg text-xs font-medium hover:opacity-90">Simulate Request</button>
+      </div>
+      <div class="h-2 bg-[#38332f] rounded-full overflow-hidden">
+        <div id="bar" class="h-full bg-[#d97757] w-1/3 transition-all duration-300"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let p = 33;
+    document.getElementById('btn').onclick = () => {
+      p = (p + 18) % 100;
+      document.getElementById('bar').style.width = p + '%';
+    };
+  </script>
+</body>
+</html>
+\`\`\`
+
+You can preview the live interactive prototype by opening the artifact panel.`,
+    };
+  }
+
   // English queries
   if (lower.includes("code") || lower.includes("debug") || lower.includes("react") || lower.includes("python") || lower.includes("function") || lower.includes("component")) {
     return {
