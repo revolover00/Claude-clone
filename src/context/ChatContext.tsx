@@ -526,19 +526,25 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Auto-title with typewriter effect in sidebar
   const triggerAutoTitle = useCallback(
-    async (conversationId: string, firstUserMsg: string, _firstReply: string) => {
-      // Generate clean title
-      let targetTitle = "";
-      const trimmed = firstUserMsg.trim();
-      if (trimmed.length <= 36) {
-        targetTitle = trimmed;
-      } else {
-        // Cut at word boundary
-        const sub = trimmed.slice(0, 36);
-        const lastSpace = sub.lastIndexOf(" ");
-        targetTitle = (lastSpace > 12 ? sub.slice(0, lastSpace) : sub) + "...";
+    async (conversationId: string, firstUserMsg: string, firstReply: string) => {
+      let targetTitle = "New conversation";
+      try {
+        const res = await fetch("/api/title", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ firstUserMsg, firstReply }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.title) {
+            targetTitle = data.title;
+          }
+        }
+      } catch (err) {
+        console.error("Auto-title error:", err);
+        const trimmed = firstUserMsg.trim();
+        targetTitle = trimmed.length <= 36 ? trimmed : trimmed.slice(0, 36) + "...";
       }
-      if (!targetTitle) targetTitle = "Conversation";
 
       // Typewriter effect in the sidebar
       setConversations((prev) =>

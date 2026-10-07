@@ -10,7 +10,7 @@ const ArtifactsView = lazy(() => import("./views/ArtifactsView"));
 const CustomizeView = lazy(() => import("./views/CustomizeView"));
 const CodeSessionsView = lazy(() => import("./views/CodeSessionsView"));
 import type { Message, Attachment } from "../types/chat";
-import { streamSimulatedResponse } from "../utils/streamResponse";
+import { streamRealResponse } from "../utils/streamResponse";
 import { getTimeGreeting } from "../utils/text";
 import { useChat } from "../context/ChatContext";
 
@@ -32,12 +32,19 @@ export default function MainChat({
     setConversationMessages,
     updateMessageContent,
     triggerAutoTitle,
+    preferences,
   } = useChat();
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [composerInitial, setComposerInitial] = useState("");
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [lastOptions, setLastOptions] = useState({
+    model: "sonnet-5",
+    effort: "Medium",
+    webSearch: false,
+    extendedThinking: false,
+  });
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -80,9 +87,28 @@ export default function MainChat({
     };
   }, []);
 
-  const handleSend = (text: string, attachments?: Attachment[]) => {
+  const handleSend = (
+    text: string,
+    attachments?: Attachment[],
+    options?: {
+      model: string;
+      effort: string;
+      webSearch: boolean;
+      extendedThinking: boolean;
+    }
+  ) => {
     if ((!text.trim() && (!attachments || attachments.length === 0)) || isStreaming)
       return;
+
+    const streamOpts = {
+      model: options?.model || lastOptions.model,
+      effort: options?.effort || lastOptions.effort,
+      webSearch: options?.webSearch ?? lastOptions.webSearch,
+      extendedThinking: options?.extendedThinking ?? lastOptions.extendedThinking,
+    };
+    if (options) {
+      setLastOptions(options);
+    }
 
     abortRef.current?.abort();
     const abortCtrl = new AbortController();
@@ -107,7 +133,7 @@ export default function MainChat({
       role: "assistant",
       content: "",
       thinking: "",
-      isThinking: true,
+      isThinking: streamOpts.extendedThinking,
       isStreaming: true,
       createdAt: Date.now(),
     };
@@ -127,62 +153,78 @@ export default function MainChat({
     setTimeout(() => scrollToBottom(true), 100);
 
     const promptText = text || (attachments && attachments[0]?.name ? `Analyze ${attachments[0].name}` : "Hello");
+    const existingMessages = activeConversation?.messages || [];
 
-    streamSimulatedResponse(promptText, abortCtrl.signal, {
-      onThinkingStart: () => {
-        updateMessageContent(
-          conversationId,
-          assistantMsgId,
-          "",
-          true,
-          true
-        );
+    streamRealResponse(
+      promptText,
+      abortCtrl.signal,
+      {
+        messages: existingMessages,
+        style: preferences.responseStyle,
+        profileInstructions: preferences.profileInstructions,
+        model: streamOpts.model,
+        effort: streamOpts.effort,
+        webSearch: streamOpts.webSearch,
+        extendedThinking: streamOpts.extendedThinking,
+        language: preferences.language,
       },
-      onThinkingUpdate: (thoughts) => {
-        updateMessageContent(
-          conversationId,
-          assistantMsgId,
-          "",
-          true,
-          true,
-          thoughts
-        );
-      },
-      onToken: (_token, fullText) => {
-        updateMessageContent(
-          conversationId,
-          assistantMsgId,
-          fullText,
-          true,
-          false
-        );
-      },
-      onDone: (fullText) => {
-        updateMessageContent(
-          conversationId,
-          assistantMsgId,
-          fullText,
-          false,
-          false
-        );
-        setIsStreaming(false);
+      {
+        onThinkingStart: () => {
+          updateMessageContent(
+            conversationId,
+            assistantMsgId,
+            "",
+            true,
+            streamOpts.extendedThinking,
+            ""
+          );
+        },
+        onThinkingUpdate: (thoughts) => {
+          updateMessageContent(
+            conversationId,
+            assistantMsgId,
+            "",
+            true,
+            streamOpts.extendedThinking,
+            thoughts
+          );
+        },
+        onToken: (_token, fullText) => {
+          updateMessageContent(
+            conversationId,
+            assistantMsgId,
+            fullText,
+            true,
+            false
+          );
+        },
+        onDone: (fullText) => {
+          updateMessageContent(
+            conversationId,
+            assistantMsgId,
+            fullText,
+            false,
+            false
+          );
+          setIsStreaming(false);
 
-        // Auto-title generation with typewriter effect after first reply
-        if (isFirstExchange) {
-          triggerAutoTitle(conversationId, promptText, fullText);
-        }
-      },
-      onError: () => {
-        updateMessageContent(
-          conversationId,
-          assistantMsgId,
-          "",
-          false,
-          false
-        );
-        setIsStreaming(false);
-      },
-    });
+          // Auto-title generation with typewriter effect after first reply
+          if (isFirstExchange) {
+            triggerAutoTitle(conversationId, promptText, fullText);
+          }
+        },
+        onError: (err) => {
+          updateMessageContent(
+            conversationId,
+            assistantMsgId,
+            err.message || "An unexpected error occurred.",
+            false,
+            false
+          );
+          setIsStreaming(false);
+        },
+      }
+    );
   };
 
   const handleStop = () => {
@@ -235,7 +277,7 @@ export default function MainChat({
       role: "assistant",
       content: "",
       thinking: "",
-      isThinking: true,
+      isThinking: lastOptions.extendedThinking,
       isStreaming: true,
       createdAt: Date.now(),
     };
@@ -247,56 +289,73 @@ export default function MainChat({
     setIsNearBottom(true);
     setTimeout(() => scrollToBottom(true), 100);
 
-    streamSimulatedResponse(newContent, abortCtrl.signal, {
-      onThinkingStart: () => {
-        updateMessageContent(
-          activeConversationId,
-          assistantMsgId,
-          "",
-          true,
-          true
-        );
+    const contextHistory = truncated;
+
+    streamRealResponse(
+      newContent,
+      abortCtrl.signal,
+      {
+        messages: contextHistory,
+        style: preferences.responseStyle,
+        profileInstructions: preferences.profileInstructions,
+        model: lastOptions.model,
+        effort: lastOptions.effort,
+        webSearch: lastOptions.webSearch,
+        extendedThinking: lastOptions.extendedThinking,
+        language: preferences.language,
       },
-      onThinkingUpdate: (thoughts) => {
-        updateMessageContent(
-          activeConversationId,
-          assistantMsgId,
-          "",
-          true,
-          true,
-          thoughts
-        );
-      },
-      onToken: (_token, fullText) => {
-        updateMessageContent(
-          activeConversationId,
-          assistantMsgId,
-          fullText,
-          true,
-          false
-        );
-      },
-      onDone: (fullText) => {
-        updateMessageContent(
-          activeConversationId,
-          assistantMsgId,
-          fullText,
-          false,
-          false
-        );
-        setIsStreaming(false);
-      },
-      onError: () => {
-        updateMessageContent(
-          activeConversationId,
-          assistantMsgId,
-          "",
-          false,
-          false
-        );
-        setIsStreaming(false);
-      },
-    });
+      {
+        onThinkingStart: () => {
+          updateMessageContent(
+            activeConversationId,
+            assistantMsgId,
+            "",
+            true,
+            lastOptions.extendedThinking,
+            ""
+          );
+        },
+        onThinkingUpdate: (thoughts) => {
+          updateMessageContent(
+            activeConversationId,
+            assistantMsgId,
+            "",
+            true,
+            lastOptions.extendedThinking,
+            thoughts
+          );
+        },
+        onToken: (_token, fullText) => {
+          updateMessageContent(
+            activeConversationId,
+            assistantMsgId,
+            fullText,
+            true,
+            false
+          );
+        },
+        onDone: (fullText) => {
+          updateMessageContent(
+            activeConversationId,
+            assistantMsgId,
+            fullText,
+            false,
+            false
+          );
+          setIsStreaming(false);
+        },
+        onError: (err) => {
+          updateMessageContent(
+            activeConversationId,
+            assistantMsgId,
+            err.message || "An unexpected error occurred.",
+            false,
+            false
+          );
+          setIsStreaming(false);
+        },
+      }
+    );
   };
 
   const handleRetry = () => {
