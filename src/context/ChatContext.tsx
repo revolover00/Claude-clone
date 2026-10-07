@@ -81,6 +81,7 @@ interface ChatContextType {
     chatId?: string,
     chatTitle?: string
   ) => Artifact;
+  updateActiveArtifactLive: (title: string, code: string) => void;
   setArtifactVersion: (artifactId: string, version: number) => void;
   clearAllData: () => void;
 }
@@ -202,14 +203,37 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null);
   const [artifactPanelOpen, setArtifactPanelOpen] = useState(false);
 
-  const openArtifact = useCallback((art: Artifact) => {
-    setActiveArtifact(art);
-    setArtifactPanelOpen(true);
-  }, []);
+  const openArtifact = useCallback(
+    (art: Artifact) => {
+      // Look up existing artifact in store to preserve all version history
+      const existing = artifacts.find(
+        (a) =>
+          a.id === art.id ||
+          a.identifier === art.identifier ||
+          a.title.toLowerCase() === art.title.toLowerCase()
+      );
+      setActiveArtifact(existing || art);
+      setArtifactPanelOpen(true);
+    },
+    [artifacts]
+  );
 
   const closeArtifact = useCallback(() => {
     setArtifactPanelOpen(false);
   }, []);
+
+  const updateActiveArtifactLive = useCallback(
+    (title: string, code: string) => {
+      setActiveArtifact((curr) => {
+        if (!curr) return null;
+        if (curr.title.toLowerCase() === title.toLowerCase()) {
+          return { ...curr, code };
+        }
+        return curr;
+      });
+    },
+    []
+  );
 
   const saveOrUpdateArtifact = useCallback(
     (
@@ -225,9 +249,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       if (existing) {
+        // If code hasn't changed, return existing
+        if (existing.code === code) {
+          return existing;
+        }
+
         const nextVersion = (existing.version || 1) + 1;
+        const initialVersions = existing.versions && existing.versions.length > 0
+          ? existing.versions
+          : [{ version: 1, content: existing.code, createdAt: existing.createdAt }];
+
         const updatedVersions = [
-          ...(existing.versions || []),
+          ...initialVersions,
           { version: nextVersion, content: code, createdAt: Date.now() },
         ];
         const updated: Artifact = {
@@ -235,12 +268,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           code,
           version: nextVersion,
           versions: updatedVersions,
+          chatId: chatId || existing.chatId,
+          chatTitle: chatTitle || existing.chatTitle,
           updatedAt: Date.now(),
         };
         setArtifacts((prev) =>
           prev.map((a) => (a.id === existing.id ? updated : a))
         );
-        if (activeArtifact?.id === existing.id) {
+        if (activeArtifact?.id === existing.id || activeArtifact?.title.toLowerCase() === title.toLowerCase()) {
           setActiveArtifact(updated);
         }
         return updated;
@@ -617,6 +652,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         openArtifact,
         closeArtifact,
         saveOrUpdateArtifact,
+        updateActiveArtifactLive,
         setArtifactVersion,
         clearAllData,
       }}

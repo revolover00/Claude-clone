@@ -1,13 +1,31 @@
 import React from "react";
 import { marked, type Tokens } from "marked";
 import CodeBlock from "./CodeBlock";
+import ArtifactCard from "./ArtifactCard";
+import type { Artifact } from "../../types/chat";
+import {
+  isArtifactCandidate,
+  getArtifactType,
+  extractArtifactTitle,
+} from "../../utils/artifactDetector";
 
 type Props = {
   content: string;
   className?: string;
+  userPrompt?: string;
+  isStreaming?: boolean;
+  onOpenArtifact?: (artifact: Artifact) => void;
+  conversationId?: string;
 };
 
-export default function MarkdownView({ content, className = "" }: Props) {
+export default function MarkdownView({
+  content,
+  className = "",
+  userPrompt = "",
+  isStreaming = false,
+  onOpenArtifact,
+  conversationId = "",
+}: Props) {
   // Use marked.lexer to separate block-level structures
   const tokens = React.useMemo(() => {
     try {
@@ -22,11 +40,49 @@ export default function MarkdownView({ content, className = "" }: Props) {
   }
 
   return (
-    <div className={`space-y-3 font-serif text-[16px] leading-7 text-ink ${className}`}>
+    <div
+      className={`space-y-3 font-serif text-[16px] leading-7 text-ink ${className}`}
+    >
       {tokens.map((token, idx) => {
         switch (token.type) {
           case "code": {
             const codeToken = token as Tokens.Code;
+            const lang = codeToken.lang || "";
+            const code = codeToken.text || "";
+
+            // Replace qualifying code blocks with interactive ArtifactCard
+            if (isArtifactCandidate(lang, code, userPrompt)) {
+              const type = getArtifactType(lang, code);
+              const title = extractArtifactTitle(code, type);
+              let normLang = lang.toLowerCase();
+              if (normLang === "react") normLang = "tsx";
+              if (normLang === "md") normLang = "markdown";
+
+              const art: Artifact = {
+                id: `art-${title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
+                identifier: title.toLowerCase().replace(/[^a-z0-9]/g, "-"),
+                title,
+                language: normLang,
+                type,
+                code,
+                chatId: conversationId,
+                chatTitle: "",
+                version: 1,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+              };
+
+              return (
+                <ArtifactCard
+                  key={idx}
+                  title={title}
+                  type={type}
+                  isStreaming={isStreaming}
+                  onClick={() => onOpenArtifact?.(art)}
+                />
+              );
+            }
+
             return (
               <CodeBlock
                 key={idx}
@@ -48,15 +104,39 @@ export default function MarkdownView({ content, className = "" }: Props) {
                 : "text-[18px] font-medium text-[#edeae4] mt-4 mb-2";
 
             if (depth === 1) {
-              return <h1 key={idx} className={sizeClass} dangerouslySetInnerHTML={{ __html: innerHtml }} />;
+              return (
+                <h1
+                  key={idx}
+                  className={sizeClass}
+                  dangerouslySetInnerHTML={{ __html: innerHtml }}
+                />
+              );
             }
             if (depth === 2) {
-              return <h2 key={idx} className={sizeClass} dangerouslySetInnerHTML={{ __html: innerHtml }} />;
+              return (
+                <h2
+                  key={idx}
+                  className={sizeClass}
+                  dangerouslySetInnerHTML={{ __html: innerHtml }}
+                />
+              );
             }
             if (depth === 3) {
-              return <h3 key={idx} className={sizeClass} dangerouslySetInnerHTML={{ __html: innerHtml }} />;
+              return (
+                <h3
+                  key={idx}
+                  className={sizeClass}
+                  dangerouslySetInnerHTML={{ __html: innerHtml }}
+                />
+              );
             }
-            return <h4 key={idx} className={sizeClass} dangerouslySetInnerHTML={{ __html: innerHtml }} />;
+            return (
+              <h4
+                key={idx}
+                className={sizeClass}
+                dangerouslySetInnerHTML={{ __html: innerHtml }}
+              />
+            );
           }
 
           case "paragraph": {

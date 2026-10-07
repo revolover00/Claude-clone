@@ -4,6 +4,96 @@ export interface DetectedArtifact {
   type: string;
   code: string;
   lineCount: number;
+  rawLang: string;
+}
+
+export function extractArtifactTitle(code: string, type: string): string {
+  // 1. First <title>...</title>
+  const titleTagMatch = code.match(/<title>([^<]+)<\/title>/i);
+  if (titleTagMatch && titleTagMatch[1].trim()) {
+    return titleTagMatch[1].trim();
+  }
+
+  // 2. First <h1>...</h1> or # ...
+  const h1TagMatch = code.match(/<h1>([^<]+)<\/h1>/i);
+  if (h1TagMatch && h1TagMatch[1].trim()) {
+    return h1TagMatch[1].trim();
+  }
+  const mdHeadingMatch = code.match(/^#\s+([^\n#]+)/m);
+  if (mdHeadingMatch && mdHeadingMatch[1].trim()) {
+    return mdHeadingMatch[1].trim();
+  }
+
+  // 3. First comment: // Title: ... or <!-- Title: ... --> or /* Title: ... */
+  const commentMatch = code.match(
+    /(?:\/\/|<!--|\/\*)\s*(?:Title:|Artifact:)?\s*([^\n*>-]+)/i
+  );
+  if (commentMatch && commentMatch[1].trim().length > 2) {
+    const candidate = commentMatch[1].trim();
+    if (
+      !candidate.startsWith("http") &&
+      !candidate.startsWith("@ts-") &&
+      !candidate.startsWith("eslint")
+    ) {
+      return candidate;
+    }
+  }
+
+  // 4. Default export / component name for React
+  if (type === "React") {
+    const compMatch = code.match(
+      /(?:function|const|class)\s+([A-Z][a-zA-Z0-9]+)/
+    );
+    if (compMatch) return compMatch[1] + " Component";
+  }
+
+  return "Untitled";
+}
+
+export function getArtifactType(lang: string, code: string): string {
+  const clean = lang.trim().toLowerCase();
+  if (clean === "html" || clean === "xml") return "HTML";
+  if (clean === "svg" || code.includes("<svg")) return "SVG";
+  if (clean === "jsx" || clean === "tsx" || clean === "react") return "React";
+  if (clean === "markdown" || clean === "md") return "Markdown";
+  return "Code";
+}
+
+export function isArtifactCandidate(
+  lang: string,
+  code: string,
+  userPrompt = ""
+): boolean {
+  const cleanLang = lang.trim().toLowerCase();
+  const validLangs = [
+    "html",
+    "svg",
+    "jsx",
+    "tsx",
+    "markdown",
+    "md",
+    "xml",
+    "react",
+  ];
+  if (!validLangs.includes(cleanLang)) return false;
+
+  const lineCount = code.split("\n").length;
+  if (lineCount > 15) return true;
+
+  const promptLower = userPrompt.toLowerCase();
+  const hasCreationKeyword =
+    promptLower.includes("create") ||
+    promptLower.includes("make") ||
+    promptLower.includes("build") ||
+    promptLower.includes("اعمل") ||
+    promptLower.includes("ابني") ||
+    promptLower.includes("صمم");
+
+  if (hasCreationKeyword && lineCount >= 3) {
+    return true;
+  }
+
+  return false;
 }
 
 export function detectArtifact(
@@ -13,83 +103,33 @@ export function detectArtifact(
   if (!content) return null;
 
   // Regex to match code blocks: ```lang ... ```
-  const codeBlockRegex = /```(html|svg|jsx|tsx|markdown|xml|javascript|typescript|react)\s*([\s\S]*?)```/i;
+  const codeBlockRegex =
+    /```(html|svg|jsx|tsx|markdown|md|xml|react)\s*([\s\S]*?)(?:```|$)/i;
   const match = content.match(codeBlockRegex);
 
   if (!match) return null;
 
   const rawLang = match[1].toLowerCase();
   const code = match[2].trim();
-  const lines = code.split("\n");
-  const lineCount = lines.length;
 
-  const promptLower = userPrompt.toLowerCase();
-  const hasCreationIntent =
-    promptLower.includes("create") ||
-    promptLower.includes("make") ||
-    promptLower.includes("build") ||
-    promptLower.includes("generate") ||
-    promptLower.includes("component") ||
-    promptLower.includes("html") ||
-    promptLower.includes("svg") ||
-    promptLower.includes("كود") ||
-    promptLower.includes("انشئ") ||
-    promptLower.includes("صمم") ||
-    promptLower.includes("اعمل");
-
-  // Must be >= 12 lines OR explicit creation intent with at least 5 lines
-  if (lineCount < 12 && (!hasCreationIntent || lineCount < 5)) {
+  if (!isArtifactCandidate(rawLang, code, userPrompt)) {
     return null;
   }
 
-  // Determine type
-  let type = "Code";
-  let lang = rawLang;
-  if (rawLang === "html" || rawLang === "xml") {
-    type = "HTML";
-    lang = "html";
-  } else if (rawLang === "svg" || code.includes("<svg")) {
-    type = "SVG";
-    lang = "svg";
-  } else if (rawLang === "jsx" || rawLang === "tsx" || rawLang === "react") {
-    type = "React";
-    lang = "tsx";
-  } else if (rawLang === "markdown") {
-    type = "Markdown";
-    lang = "markdown";
-  }
+  const type = getArtifactType(rawLang, code);
+  const title = extractArtifactTitle(code, type);
+  const lineCount = code.split("\n").length;
 
-  // Extract or synthesize title
-  let title = "";
-  // Check for comment title: // Title: ... or <!-- Title: ... -->
-  const titleCommentMatch = code.match(/(?:\/\/|<!--|\/\*)\s*(?:Title:|Artifact:)?\s*([^\n*>-]+)/i);
-  if (titleCommentMatch && titleCommentMatch[1].trim().length > 3) {
-    title = titleCommentMatch[1].trim();
-  }
-
-  if (!title) {
-    // Look for first heading in markdown or component name in react
-    if (type === "React") {
-      const compMatch = code.match(/(?:function|const|class)\s+([A-Z][a-zA-Z0-9]+)/);
-      if (compMatch) title = compMatch[1] + " Component";
-    } else if (type === "HTML") {
-      const titleTagMatch = code.match(/<title>([^<]+)<\/title>/i);
-      if (titleTagMatch) title = titleTagMatch[1].trim();
-      else title = "Interactive HTML Prototype";
-    } else if (type === "SVG") {
-      title = "Vector SVG Graphic";
-    }
-  }
-
-  if (!title) {
-    title = type === "SVG" ? "Vector Graphic" : `${type} Document`;
-  }
+  let normLang = rawLang;
+  if (normLang === "react") normLang = "tsx";
+  if (normLang === "md") normLang = "markdown";
 
   return {
     title,
-    language: lang,
+    language: normLang,
     type,
     code,
     lineCount,
+    rawLang,
   };
 }
