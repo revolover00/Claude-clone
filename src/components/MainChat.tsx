@@ -31,6 +31,7 @@ export default function MainChat({
     setConversationMessages,
     updateMessageContent,
     triggerAutoTitle,
+    openArtifact,
   } = useChat();
 
   const [isStreaming, setIsStreaming] = useState(false);
@@ -326,7 +327,9 @@ export default function MainChat({
 
       {/* Routed Views */}
       {activeView === "projects" && <ProjectsView />}
-      {activeView === "artifacts" && <ArtifactsView />}
+      {activeView === "artifacts" && (
+        <ArtifactsView onOpenArtifact={openArtifact} />
+      )}
       {activeView === "customize" && <CustomizeView />}
       {activeView === "code" && <CodeSessionsView />}
 

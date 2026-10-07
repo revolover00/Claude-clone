@@ -69,7 +69,19 @@ interface ChatContextType {
   addProject: (name: string, description: string) => void;
   deleteProject: (id: string) => void;
   artifacts: Artifact[];
-  addArtifact: (title: string, language: string, code: string) => void;
+  activeArtifact: Artifact | null;
+  artifactPanelOpen: boolean;
+  openArtifact: (artifact: Artifact) => void;
+  closeArtifact: () => void;
+  saveOrUpdateArtifact: (
+    title: string,
+    language: string,
+    type: string,
+    code: string,
+    chatId?: string,
+    chatTitle?: string
+  ) => Artifact;
+  setArtifactVersion: (artifactId: string, version: number) => void;
   clearAllData: () => void;
 }
 
@@ -103,12 +115,23 @@ const DEFAULT_PROJECTS: Project[] = [
 const DEFAULT_ARTIFACTS: Artifact[] = [
   {
     id: "art-1",
+    identifier: "button-component",
     title: "Button Component",
     language: "tsx",
+    type: "React",
     code: `export const Button = ({ children, variant = 'primary' }) => {\n  return (\n    <button className="px-4 py-2 rounded-lg bg-accent text-white">\n      {children}\n    </button>\n  );\n};`,
     chatId: "",
     chatTitle: "Component Library",
+    version: 1,
+    versions: [
+      {
+        version: 1,
+        content: `export const Button = ({ children, variant = 'primary' }) => {\n  return (\n    <button className="px-4 py-2 rounded-lg bg-accent text-white">\n      {children}\n    </button>\n  );\n};`,
+        createdAt: Date.now() - 3600000 * 48,
+      },
+    ],
     createdAt: Date.now() - 3600000 * 48,
+    updatedAt: Date.now() - 3600000 * 48,
   },
 ];
 
@@ -175,6 +198,95 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     return DEFAULT_ARTIFACTS;
   });
+
+  const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null);
+  const [artifactPanelOpen, setArtifactPanelOpen] = useState(false);
+
+  const openArtifact = useCallback((art: Artifact) => {
+    setActiveArtifact(art);
+    setArtifactPanelOpen(true);
+  }, []);
+
+  const closeArtifact = useCallback(() => {
+    setArtifactPanelOpen(false);
+  }, []);
+
+  const saveOrUpdateArtifact = useCallback(
+    (
+      title: string,
+      language: string,
+      type: string,
+      code: string,
+      chatId = "",
+      chatTitle = ""
+    ) => {
+      const existing = artifacts.find(
+        (a) => a.title.toLowerCase() === title.toLowerCase()
+      );
+
+      if (existing) {
+        const nextVersion = (existing.version || 1) + 1;
+        const updatedVersions = [
+          ...(existing.versions || []),
+          { version: nextVersion, content: code, createdAt: Date.now() },
+        ];
+        const updated: Artifact = {
+          ...existing,
+          code,
+          version: nextVersion,
+          versions: updatedVersions,
+          updatedAt: Date.now(),
+        };
+        setArtifacts((prev) =>
+          prev.map((a) => (a.id === existing.id ? updated : a))
+        );
+        if (activeArtifact?.id === existing.id) {
+          setActiveArtifact(updated);
+        }
+        return updated;
+      } else {
+        const created: Artifact = {
+          id: `art-${Date.now()}`,
+          identifier: title.toLowerCase().replace(/[^a-z0-9]/g, "-"),
+          title,
+          language,
+          type,
+          code,
+          chatId,
+          chatTitle,
+          version: 1,
+          versions: [{ version: 1, content: code, createdAt: Date.now() }],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        setArtifacts((prev) => [created, ...prev]);
+        return created;
+      }
+    },
+    [artifacts, activeArtifact]
+  );
+
+  const setArtifactVersion = useCallback(
+    (artifactId: string, version: number) => {
+      setArtifacts((prev) =>
+        prev.map((a) => {
+          if (a.id !== artifactId) return a;
+          const foundVer = a.versions?.find((v) => v.version === version);
+          if (!foundVer) return a;
+          const updated = {
+            ...a,
+            version,
+            code: foundVer.content,
+          };
+          if (activeArtifact?.id === artifactId) {
+            setActiveArtifact(updated);
+          }
+          return updated;
+        })
+      );
+    },
+    [activeArtifact]
+  );
 
   // Apply theme to document element
   useEffect(() => {
@@ -429,22 +541,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     setProjects((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  // Artifacts
-  const addArtifact = useCallback(
-    (title: string, language: string, code: string) => {
-      const newArt: Artifact = {
-        id: `art-${Date.now()}`,
-        title,
-        language,
-        code,
-        chatId: activeConversationId || "",
-        chatTitle: activeConversation?.title || "Quick Code",
-        createdAt: Date.now(),
-      };
-      setArtifacts((prev) => [newArt, ...prev]);
-    },
-    [activeConversationId, activeConversation]
-  );
 
   const updatePreferences = useCallback(
     (partial: Partial<UserPreferences>) => {
@@ -516,7 +612,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         addProject,
         deleteProject,
         artifacts,
-        addArtifact,
+        activeArtifact,
+        artifactPanelOpen,
+        openArtifact,
+        closeArtifact,
+        saveOrUpdateArtifact,
+        setArtifactVersion,
         clearAllData,
       }}
     >

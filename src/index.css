@@ -280,15 +280,76 @@ pre code.hljs {
   color: #cbb98f;
 }
 
+/* Menu & Dropdown entrance (140ms scale 0.96->1 + fade) */
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.anim-dropdown {
+  animation: dropdown-in 140ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Mobile sheet slide up (300ms ease-out) */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.anim-sheet-up {
+  animation: sheet-up 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Button tactile press */
+button:active:not(:disabled) {
+  transform: scale(0.97);
+  transition: transform 70ms ease-out;
+}
+
+/* Line numbers for code viewer */
+.code-with-lines {
+  counter-reset: line;
+}
+.code-line {
+  counter-increment: line;
+  display: block;
+}
+.code-line::before {
+  content: counter(line);
+  display: inline-block;
+  width: 2.4rem;
+  padding-right: 1rem;
+  color: #67635b;
+  text-align: right;
+  user-select: none;
+}
+
 /* Accessibility: respect user prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   .anim-rise,
   .anim-mic,
   .anim-thinking-spark,
   .anim-thinking-text,
-  .anim-chunk {
+  .anim-chunk,
+  .anim-modal-in,
+  .anim-popover-in,
+  .anim-chat-item-in,
+  .anim-dropdown,
+  .anim-sheet-up {
     animation: none !important;
     transition: none !important;
   }
+  button:active:not(:disabled) {
+    transform: none !important;
+  }
 }
+
 
