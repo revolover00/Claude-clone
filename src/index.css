@@ -25,6 +25,29 @@
   --color-link: #7db4f5;
 }
 
+/* claude.ai Light palette (warm cream #faf9f5) */
+[data-theme="light"] {
+  --color-shell: #faf9f5;
+  --color-panel: #f3f1ea;
+  --color-line: #e3dfd6;
+  --color-line-soft: #eae7df;
+
+  --color-elev-1: #ece9e2;
+  --color-elev-2: #e4e0d7;
+  --color-elev-3: #dbd6cb;
+  --color-elev-4: #d0c9bc;
+  --color-composer: #ffffff;
+  --color-composer-line: #d8d4c9;
+
+  --color-ink: #22211e;
+  --color-ink-soft: #4a4742;
+  --color-ink-muted: #79756d;
+  --color-ink-faint: #9c978e;
+
+  --color-accent: #d97757;
+  --color-link: #306eb5;
+}
+
 html,
 body,
 #root {
@@ -93,3 +116,179 @@ body {
 textarea {
   field-sizing: content;
 }
+
+/* Claude thinking state animations */
+@keyframes think-rotate-pulse {
+  0% {
+    transform: rotate(0deg) scale(0.92);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.05);
+  }
+  100% {
+    transform: rotate(360deg) scale(0.92);
+  }
+}
+.anim-thinking-spark {
+  animation: think-rotate-pulse 2.4s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes text-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.anim-thinking-text {
+  background: linear-gradient(90deg, #8d897f 0%, #edeae4 50%, #8d897f 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-shimmer 1.8s infinite linear;
+}
+
+/* Streaming chunk fade in */
+@keyframes chunk-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.anim-chunk {
+  animation: chunk-fade 150ms ease-out both;
+}
+
+/* Modal and popover animations */
+@keyframes modal-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.anim-modal-in {
+  animation: modal-scale-in 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes popover-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.anim-popover-in {
+  animation: popover-scale-in 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes chat-item-in {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    max-height: 48px;
+    transform: translateY(0);
+  }
+}
+.anim-chat-item-in {
+  animation: chat-item-in 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Links in markdown */
+.font-serif a {
+  color: var(--color-link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 150ms ease;
+}
+.font-serif a:hover {
+  color: #9cc6f8;
+}
+
+/* Code block syntax highlighting matching dark Claude palette */
+pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 1rem 1.15rem;
+  background: transparent;
+  color: #e9e6e0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.hljs-comment,
+.hljs-quote {
+  color: #79756c;
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst {
+  color: #d97757;
+  font-weight: 500;
+}
+.hljs-string,
+.hljs-title,
+.hljs-section,
+.hljs-attribute,
+.hljs-literal,
+.hljs-template-tag,
+.hljs-template-variable,
+.hljs-type,
+.hljs-addition {
+  color: #a4c988;
+}
+.hljs-number,
+.hljs-variable,
+.hljs-symbol,
+.hljs-bullet {
+  color: #e8a87c;
+}
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-selector-id,
+.hljs-selector-attr,
+.hljs-selector-pseudo {
+  color: #7db4f5;
+}
+.hljs-function .hljs-title,
+.hljs-title.function_ {
+  color: #9cc6f8;
+}
+.hljs-params {
+  color: #c9c5bd;
+}
+.hljs-tag,
+.hljs-name {
+  color: #d97757;
+}
+.hljs-attr {
+  color: #cbb98f;
+}
+
+/* Accessibility: respect user prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .anim-rise,
+  .anim-mic,
+  .anim-thinking-spark,
+  .anim-thinking-text,
+  .anim-chunk {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
