@@ -93,6 +93,14 @@ export default function Sidebar({ open, onToggle }: Props) {
 
   const [tab, setTab] = useState<"chat" | "code">("chat");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 750);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Chat item menu state
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -349,7 +357,26 @@ export default function Sidebar({ open, onToggle }: Props) {
 
         {/* Grouped conversations list */}
         <div className="scroll-slim min-h-0 flex-1 overflow-y-auto pb-4">
-          {conversations.length === 0 ? (
+          {isLoading ? (
+            /* Loading skeleton shimmer on first load */
+            <div className="animate-pulse space-y-4 px-2 py-3 select-none">
+              <div className="space-y-2">
+                <div className="h-2 w-12 rounded bg-elev-3/50" />
+                <div className="space-y-1.5">
+                  <div className="h-8 w-full rounded-md bg-elev-2/40" />
+                  <div className="h-8 w-full rounded-md bg-elev-2/40" />
+                  <div className="h-8 w-full rounded-md bg-elev-2/40" />
+                </div>
+              </div>
+              <div className="space-y-2 pt-2">
+                <div className="h-2 w-16 rounded bg-elev-3/50" />
+                <div className="space-y-1.5">
+                  <div className="h-8 w-full rounded-md bg-elev-2/40" />
+                  <div className="h-8 w-full rounded-md bg-elev-2/40" />
+                </div>
+              </div>
+            </div>
+          ) : conversations.length === 0 ? (
             <div className="px-2 py-6 text-center text-[13px] text-ink-muted">
               No recent conversations
             </div>
