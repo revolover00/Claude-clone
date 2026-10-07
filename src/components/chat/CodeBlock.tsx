@@ -21,7 +21,7 @@ export default function CodeBlock({ language = "", code }: Props) {
   };
 
   const cleanLang = language.trim().toLowerCase();
-  let highlighted = "";
+  let highlighted: string;
   try {
     if (cleanLang && hljs.getLanguage(cleanLang)) {
       highlighted = hljs.highlight(code, { language: cleanLang }).value;
@@ -36,7 +36,7 @@ export default function CodeBlock({ language = "", code }: Props) {
   }
 
   return (
-    <div className="my-4 overflow-hidden rounded-lg border border-line bg-[#161514] font-sans">
+    <div dir="ltr" className="my-4 overflow-hidden rounded-lg border border-line bg-[#161514] font-sans text-start">
       {/* code block header bar */}
       <div className="flex h-9 items-center justify-between border-b border-line/70 bg-[#1e1c1a] px-3.5 text-[12px] text-ink-muted">
         <span className="font-mono text-[12px] uppercase tracking-wider text-ink-soft">
@@ -63,10 +63,10 @@ export default function CodeBlock({ language = "", code }: Props) {
       </div>
 
       {/* highlighted code */}
-      <div className="scroll-slim overflow-x-auto">
-        <pre className="m-0 p-0">
+      <div className="scroll-slim overflow-x-auto text-start">
+        <pre className="m-0 p-0 text-start">
           <code
-            className="hljs"
+            className="hljs text-start"
             dangerouslySetInnerHTML={{ __html: highlighted }}
           />
         </pre>

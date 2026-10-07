@@ -83,9 +83,15 @@ function formatMessage(msg: any) {
   };
 }
 
-// Builds systemic prompting instructions adapted to response styles and profile settings
-function buildSystemInstruction(style: string, profileInstructions: string) {
-  let styleInstruction = "";
+// Builds systemic prompting instructions adapted to response styles, profile settings, and project context
+function buildSystemInstruction(
+  style: string,
+  profileInstructions: string,
+  projectInstructions?: string,
+  projectKnowledge?: Array<{ title: string; content: string }>,
+  language?: string
+) {
+  let styleInstruction: string;
   if (style === "Concise") {
     styleInstruction = "Provide extremely concise answers. Avoid fluff, keep paragraphs short, and get straight to the point.";
   } else if (style === "Explanatory") {
@@ -96,12 +102,22 @@ function buildSystemInstruction(style: string, profileInstructions: string) {
     styleInstruction = "Maintain a natural, helpful, balanced, and conversational tone (similar to Claude).";
   }
 
+  let knowledgeSection = "";
+  if (projectKnowledge && projectKnowledge.length > 0) {
+    knowledgeSection = `\n--- PROJECT KNOWLEDGE BASE ---\n` +
+      projectKnowledge
+        .map((k) => `[Document: ${k.title}]\n${k.content}`)
+        .join("\n\n") +
+      `\n-------------------------------\n`;
+  }
+
   return `You are a helpful, professional AI assistant (similar to Claude) with a reasoning capability.
 ${styleInstruction}
 
 ${profileInstructions ? `Here are some user profile instructions to tailor your responses:\n${profileInstructions}\n` : ""}
-
-Reply in the user's language (e.g., Arabic if they ask in Arabic, English if in English, etc.).
+${projectInstructions ? `Here are the specific project instructions for this workspace:\n${projectInstructions}\n` : ""}
+${knowledgeSection}
+${language === "ar" ? "Reply primarily in Arabic." : "Reply in the user's language (e.g., Arabic if they ask in Arabic, English if in English, etc.)."}
 
 When the user asks you to build, create, design, draw, or write a page, web application, UI component, SVG illustration, game, or document, you MUST output EXACTLY ONE fenced code block containing the complete, self-contained, and working implementation.
 Supported fenced code block languages are:
@@ -127,6 +143,8 @@ app.post("/api/chat", async (req, res) => {
     messages,
     style,
     profileInstructions,
+    projectInstructions,
+    projectKnowledge,
     model,
     effort,
     webSearch,
@@ -158,7 +176,13 @@ app.post("/api/chat", async (req, res) => {
 
     // Build model configuration
     const config: any = {
-      systemInstruction: buildSystemInstruction(style, profileInstructions),
+      systemInstruction: buildSystemInstruction(
+        style,
+        profileInstructions,
+        projectInstructions,
+        projectKnowledge,
+        language
+      ),
     };
 
     // Configure search grounding tool

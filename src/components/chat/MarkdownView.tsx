@@ -98,10 +98,10 @@ export default function MarkdownView({
             const depth = Math.min(headingToken.depth, 4);
             const sizeClass =
               depth === 1
-                ? "text-[24px] font-medium text-ink mt-6 mb-3"
+                ? "text-[24px] font-medium text-ink mt-6 mb-3 text-start"
                 : depth === 2
-                ? "text-[20px] font-medium text-ink mt-5 mb-2.5"
-                : "text-[18px] font-medium text-ink mt-4 mb-2";
+                ? "text-[20px] font-medium text-ink mt-5 mb-2.5 text-start"
+                : "text-[18px] font-medium text-ink mt-4 mb-2 text-start";
 
             if (depth === 1) {
               return (
@@ -145,7 +145,7 @@ export default function MarkdownView({
             return (
               <p
                 key={idx}
-                className="leading-7 text-ink/95"
+                className="leading-7 text-ink/95 text-start"
                 dangerouslySetInnerHTML={{ __html: innerHtml }}
               />
             );
@@ -159,13 +159,14 @@ export default function MarkdownView({
             return (
               <ListTag
                 key={idx}
-                className={`my-3 space-y-1.5 pl-6 ${listStyle} text-ink/95`}
+                className={`my-3 space-y-1.5 ps-6 pe-2 ${listStyle} text-ink/95 text-start`}
               >
                 {listToken.items.map((item, itemIdx) => {
                   const itemHtml = marked.parseInline(item.text) as string;
                   return (
                     <li
                       key={itemIdx}
+                      className="text-start"
                       dangerouslySetInnerHTML={{ __html: itemHtml }}
                     />
                   );
@@ -180,7 +181,7 @@ export default function MarkdownView({
             return (
               <blockquote
                 key={idx}
-                className="my-3 border-l-2 border-line-soft pl-4 italic text-ink-soft [&>p]:leading-relaxed"
+                className="my-3 border-s-2 border-line-soft ps-4 pe-2 italic text-ink-soft text-start [&>p]:leading-relaxed [&>p]:text-start"
                 dangerouslySetInnerHTML={{ __html: bqHtml }}
               />
             );
@@ -190,7 +191,7 @@ export default function MarkdownView({
             const tableToken = token as Tokens.Table;
             return (
               <div key={idx} className="my-4 overflow-x-auto">
-                <table className="min-w-full border-collapse border border-line text-[14px] font-sans">
+                <table className="min-w-full border-collapse border border-line text-[14px] font-sans text-start">
                   <thead>
                     <tr className="bg-elev-1">
                       {tableToken.header.map((cell, cellIdx) => (
@@ -213,7 +214,7 @@ export default function MarkdownView({
                         {row.map((cell, cellIdx) => (
                           <td
                             key={cellIdx}
-                            className="border border-line px-3.5 py-2 text-ink-soft"
+                            className="border border-line px-3.5 py-2 text-ink-soft text-start"
                             dangerouslySetInnerHTML={{
                               __html: marked.parseInline(cell.text) as string,
                             }}

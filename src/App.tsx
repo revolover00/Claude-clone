@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { BrowserRouter } from "react-router-dom";
 import { UploadCloud } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import MainChat from "./components/MainChat";
+import ErrorBoundary from "./components/shared/ErrorBoundary";
 import { ChatProvider, useChat } from "./context/ChatContext";
 import { ToastProvider } from "./context/ToastContext";
 
@@ -200,14 +202,16 @@ function AppContent() {
 
       {/* Slide-in Artifact Panel (Desktop 45% right column, Mobile sheet) */}
       <Suspense fallback={null}>
-        <ArtifactPanel
-          artifact={activeArtifact}
-          isOpen={artifactPanelOpen}
-          onClose={closeArtifact}
-          onSelectVersion={(v) => {
-            if (activeArtifact) setArtifactVersion(activeArtifact.id, v);
-          }}
-        />
+        <ErrorBoundary fallbackType="artifact">
+          <ArtifactPanel
+            artifact={activeArtifact}
+            isOpen={artifactPanelOpen}
+            onClose={closeArtifact}
+            onSelectVersion={(v) => {
+              if (activeArtifact) setArtifactVersion(activeArtifact.id, v);
+            }}
+          />
+        </ErrorBoundary>
       </Suspense>
 
       {/* Global Modals lazy-loaded with Suspense */}
@@ -239,10 +243,14 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ToastProvider>
-      <ChatProvider>
-        <AppContent />
-      </ChatProvider>
-    </ToastProvider>
+    <ErrorBoundary fallbackType="page">
+      <BrowserRouter>
+        <ToastProvider>
+          <ChatProvider>
+            <AppContent />
+          </ChatProvider>
+        </ToastProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

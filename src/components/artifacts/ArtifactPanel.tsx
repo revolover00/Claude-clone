@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import hljs from "../../utils/hljs";
 import MarkdownView from "../chat/MarkdownView";
+import ErrorBoundary from "../shared/ErrorBoundary";
 import type { Artifact } from "../../types/chat";
 import { useToast } from "../../context/ToastContext";
 
@@ -204,7 +205,7 @@ export default function ArtifactPanel({
   // Syntax highlighted code split into lines for Line Numbers
   const highlightedLines = useMemo(() => {
     if (!activeArt) return [];
-    let html = "";
+    let html: string;
     try {
       if (lang && hljs.getLanguage(lang)) {
         html = hljs.highlight(currentCode, { language: lang }).value;
@@ -384,47 +385,49 @@ export default function ArtifactPanel({
 
         {/* Panel Body: Preview or Code */}
         <div className="relative min-h-0 flex-1 overflow-hidden bg-[#181716]">
-          {tab === "preview" ? (
-            isSvg ? (
-              /* Inline SVG in centered container */
-              <div
-                className="flex h-full w-full items-center justify-center p-8 bg-[#181716] overflow-auto scroll-slim [&>svg]:max-w-[90%] [&>svg]:max-h-[85vh] [&>svg]:drop-shadow-lg"
-                dangerouslySetInnerHTML={{ __html: currentCode }}
-              />
-            ) : isMarkdown ? (
-              /* Markdown rendered with MarkdownView */
-              <div className="scroll-slim h-full overflow-auto p-6 bg-shell">
-                <div className="max-w-2xl mx-auto">
-                  <MarkdownView content={currentCode} />
+          <ErrorBoundary fallbackType="artifact">
+            {tab === "preview" ? (
+              isSvg ? (
+                /* Inline SVG in centered container */
+                <div
+                  className="flex h-full w-full items-center justify-center p-8 bg-[#181716] overflow-auto scroll-slim [&>svg]:max-w-[90%] [&>svg]:max-h-[85vh] [&>svg]:drop-shadow-lg"
+                  dangerouslySetInnerHTML={{ __html: currentCode }}
+                />
+              ) : isMarkdown ? (
+                /* Markdown rendered with MarkdownView */
+                <div className="scroll-slim h-full overflow-auto p-6 bg-shell">
+                  <div className="max-w-2xl mx-auto">
+                    <MarkdownView content={currentCode} />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* Sandboxed iframe for HTML and React */
+                <iframe
+                  srcDoc={previewHtml}
+                  sandbox="allow-scripts"
+                  title={activeArt.title}
+                  className="h-full w-full border-0 bg-transparent"
+                />
+              )
             ) : (
-              /* Sandboxed iframe for HTML and React */
-              <iframe
-                srcDoc={previewHtml}
-                sandbox="allow-scripts"
-                title={activeArt.title}
-                className="h-full w-full border-0 bg-transparent"
-              />
-            )
-          ) : (
-            /* Syntax highlighted code with line numbers */
-            <div className="scroll-slim h-full overflow-auto p-4 text-[13px] font-mono leading-relaxed">
-              <pre className="code-with-lines m-0 text-ink">
-                <code>
-                  {highlightedLines.map((lineHtml, lineIdx) => (
-                    <span
-                      key={lineIdx}
-                      className="code-line"
-                      dangerouslySetInnerHTML={{
-                        __html: lineHtml || "&nbsp;",
-                      }}
-                    />
-                  ))}
-                </code>
-              </pre>
-            </div>
-          )}
+              /* Syntax highlighted code with line numbers */
+              <div className="scroll-slim h-full overflow-auto p-4 text-[13px] font-mono leading-relaxed">
+                <pre className="code-with-lines m-0 text-ink">
+                  <code>
+                    {highlightedLines.map((lineHtml, lineIdx) => (
+                      <span
+                        key={lineIdx}
+                        className="code-line"
+                        dangerouslySetInnerHTML={{
+                          __html: lineHtml || "&nbsp;",
+                        }}
+                      />
+                    ))}
+                  </code>
+                </pre>
+              </div>
+            )}
+          </ErrorBoundary>
         </div>
       </div>
     </aside>
