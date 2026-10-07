@@ -238,18 +238,18 @@ app.post("/api/title", async (req, res) => {
 const isProd = process.env.NODE_ENV === "production";
 if (!isProd) {
   const vite = await createViteServer({
-    server: { middlewareMode: true },
+    server: { middlewareMode: true, host: "0.0.0.0", port: 3000 },
     appType: "spa",
   });
   app.use(vite.middlewares);
 } else {
   app.use(express.static(path.join(__dirname, "dist")));
-  app.get("*", (req, res) => {
+  app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, "dist", "index.html"));
   });
 }
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`);
+const port = Number(process.env.PORT) || 3000;
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Server is running at http://0.0.0.0:${port}`);
 });
