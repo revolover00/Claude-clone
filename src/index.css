@@ -23,6 +23,11 @@
 
   --color-accent: #d97757;
   --color-link: #7db4f5;
+
+  --color-danger: #f08578;
+  --color-danger-bg: rgba(240, 133, 120, 0.12);
+  --color-danger-border: rgba(240, 133, 120, 0.35);
+  --color-danger-hover: #fa9a8f;
 }
 
 /* claude.ai Light palette (warm cream #faf9f5) */
@@ -46,12 +51,18 @@
 
   --color-accent: #d97757;
   --color-link: #306eb5;
+
+  --color-danger: #c5382a;
+  --color-danger-bg: rgba(197, 56, 42, 0.08);
+  --color-danger-border: rgba(197, 56, 42, 0.25);
+  --color-danger-hover: #a82e22;
 }
 
 html,
 body,
 #root {
-  height: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
 }
 
 body {

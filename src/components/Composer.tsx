@@ -244,6 +244,20 @@ export default function Composer({
     };
   }, [handleFiles]);
 
+  // Listen for window-wide dropped files from App.tsx
+  useEffect(() => {
+    const handleGlobalDrop = (e: Event) => {
+      const custom = e as CustomEvent<{ files: File[] }>;
+      if (custom.detail?.files && custom.detail.files.length > 0) {
+        handleFiles(custom.detail.files);
+      }
+    };
+    window.addEventListener("claude:drop-files", handleGlobalDrop);
+    return () => {
+      window.removeEventListener("claude:drop-files", handleGlobalDrop);
+    };
+  }, [handleFiles]);
+
   // Paste image or files from clipboard
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
@@ -439,7 +453,7 @@ export default function Composer({
       )}
 
       {/* Composer Container */}
-      <div className="mx-auto flex min-h-[128px] w-full max-w-[690px] flex-col rounded-[14px] border border-composer-line bg-composer px-4 pb-2.5 pt-3 transition-all duration-200 focus-within:border-[#4c4945] focus-within:shadow-[0_0_0_3px_rgba(217,119,87,0.07)]">
+      <div className="mx-auto flex min-h-[128px] w-full max-w-[690px] flex-col rounded-[14px] border border-composer-line bg-composer px-4 pb-2.5 pt-3 transition-all duration-200 focus-within:border-accent/40 focus-within:shadow-[0_0_0_3px_rgba(217,119,87,0.07)]">
         {/* Attached files preview chips */}
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2 pt-1">
@@ -782,7 +796,7 @@ export default function Composer({
                 type="button"
                 onClick={onStop}
                 title="Stop generation"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white shadow-sm transition-all duration-150 hover:bg-[#c86847] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 scale-100"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white shadow-sm transition-all duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 scale-100"
               >
                 <Square size={13} fill="currentColor" strokeWidth={0} />
               </button>
@@ -795,7 +809,7 @@ export default function Composer({
                 className={cn(
                   "inline-flex h-8 w-8 items-center justify-center rounded-full transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
                   hasContent
-                    ? "bg-accent text-white shadow-sm hover:bg-[#c86847] scale-100 opacity-100 cursor-pointer"
+                    ? "bg-accent text-white shadow-sm hover:opacity-90 scale-100 opacity-100 cursor-pointer"
                     : "bg-elev-3 text-ink-muted opacity-40 scale-90 cursor-not-allowed pointer-events-none"
                 )}
               >

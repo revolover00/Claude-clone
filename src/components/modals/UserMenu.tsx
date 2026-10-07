@@ -7,6 +7,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useChat } from "../../context/ChatContext";
+import { useFocusTrap } from "../../utils/useFocusTrap";
 
 type Props = {
   isOpen: boolean;
@@ -17,6 +18,8 @@ export default function UserMenu({ isOpen, onClose }: Props) {
   const { setSettingsModalOpen, preferences, updatePreferences } = useChat();
   const menuRef = useRef<HTMLDivElement>(null);
 
+  useFocusTrap(menuRef, isOpen, onClose);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -26,15 +29,9 @@ export default function UserMenu({ isOpen, onClose }: Props) {
       }
     };
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-
     window.addEventListener("mousedown", handlePointerDown);
-    window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("mousedown", handlePointerDown);
-      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, onClose]);
 
@@ -43,6 +40,9 @@ export default function UserMenu({ isOpen, onClose }: Props) {
   return (
     <div
       ref={menuRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Account menu"
       className="anim-popover-in absolute bottom-16 left-3 z-50 w-64 origin-bottom-left rounded-xl border border-line bg-elev-1 p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.5)] font-sans"
     >
       {/* User email badge */}

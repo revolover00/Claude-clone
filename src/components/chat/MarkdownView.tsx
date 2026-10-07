@@ -98,10 +98,10 @@ export default function MarkdownView({
             const depth = Math.min(headingToken.depth, 4);
             const sizeClass =
               depth === 1
-                ? "text-[24px] font-medium text-[#edeae4] mt-6 mb-3"
+                ? "text-[24px] font-medium text-ink mt-6 mb-3"
                 : depth === 2
-                ? "text-[20px] font-medium text-[#edeae4] mt-5 mb-2.5"
-                : "text-[18px] font-medium text-[#edeae4] mt-4 mb-2";
+                ? "text-[20px] font-medium text-ink mt-5 mb-2.5"
+                : "text-[18px] font-medium text-ink mt-4 mb-2";
 
             if (depth === 1) {
               return (
@@ -180,7 +180,7 @@ export default function MarkdownView({
             return (
               <blockquote
                 key={idx}
-                className="my-3 border-l-2 border-[#54504b] pl-4 italic text-ink-soft [&>p]:leading-relaxed"
+                className="my-3 border-l-2 border-line-soft pl-4 italic text-ink-soft [&>p]:leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: bqHtml }}
               />
             );

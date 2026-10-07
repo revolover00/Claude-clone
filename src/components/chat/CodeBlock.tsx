@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
-import hljs from "highlight.js";
+import hljs from "../../utils/hljs";
 
 type Props = {
   language?: string;
