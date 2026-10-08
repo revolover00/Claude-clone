@@ -182,21 +182,22 @@ ${projectInstructions ? `Here are the specific project instructions for this wor
 ${knowledgeSection}
 ${language === "ar" ? "Reply primarily in Arabic." : "Reply in the user's language (e.g., Arabic if they ask in Arabic, English if in English, etc.)."}
 
-When the user asks you to build, create, design, draw, or write a page, web application, UI component, SVG illustration, game, or document, you MUST output EXACTLY ONE fenced code block containing the complete, self-contained, and working implementation.
+When the user asks you to build, create, design, draw, or write a page, web application, UI component, SVG illustration, game, or document, or when you are modifying/editing an existing one, you MUST output the complete updated file in EXACTLY ONE fenced code block with the same title in the code's comment, header, or title tag. Do not output partial code, snippets, placeholders, or diffs. Always output the complete file so it is correctly recognized as a new version of the same artifact.
 Supported fenced code block languages are:
 - html (for complete HTML files with Tailwind CSS scripts embedded, etc.)
 - svg (for raw SVG icons, drawings, and vector illustrations)
 - jsx or tsx (for complete React / TypeScript components)
 - markdown (for complete articles or formatted documents)
 
-CRITICAL RULES for generating artifacts/code blocks:
+CRITICAL RULES for generating/updating artifacts/code blocks:
 1. Output only ONE fenced code block. Never output multiple blocks.
-2. The code block must be fully self-contained and ready to run.
-3. You MUST precede the fenced code block with EXACTLY ONE short, clear sentence describing what you built or introducing the code block. Do NOT write extensive explanations or preambles.
+2. The code block must be fully self-contained, complete, and ready to run. NEVER output placeholders or comment-out unmodified parts of the code. Always output the full updated content.
+3. If modifying an existing artifact, you MUST output the complete updated file in ONE fenced block with the same title.
+4. You MUST precede the fenced code block with EXACTLY ONE short, clear sentence describing what you built or introducing the code block. Do NOT write extensive explanations or preambles.
    Example: Here is the responsive interactive dashboard you requested:
-   \`\`\`html
+   ```html
    ...
-   \`\`\`
+   ```
 `;
 }
 
@@ -435,6 +436,62 @@ app.post("/api/title", async (req, res) => {
     console.error("Auto-title generation error:", err);
     const errInfo = mapGeminiError(err);
     res.status(errInfo.status).json({ error: errInfo.message, details: errInfo.technical, code: errInfo.status });
+  }
+});
+
+// Suggested follow-up questions endpoint
+app.post("/api/suggest", apiLimiter, async (req, res) => {
+  if (!apiKey) {
+    res.status(403).json({ error: "API key invalid or missing on the server", code: 403 });
+    return;
+  }
+  
+  const { content, language = "en" } = req.body;
+  if (!content) {
+    res.status(400).json({ error: "Missing content for suggestion generation", code: 400 });
+    return;
+  }
+
+  try {
+    const prompt = `Based on the following AI response, generate exactly 3 short, relevant, engaging follow-up questions that the user might want to ask next. Keep each question short (max 12 words).
+The conversation language is ${language === "ar" ? "Arabic" : "English"}. Respond ONLY with a valid JSON array of 3 strings, e.g. ["Question 1", "Question 2", "Question 3"]. No markdown formatting, no code block backticks.
+
+AI Response:
+${content}`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-lite",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+      }
+    });
+
+    const text = response.text || "[]";
+    try {
+      const suggestions = JSON.parse(text);
+      res.json({ suggestions });
+    } catch {
+      const matches = text.match(/"([^"\\]|\\.)*"/g);
+      if (matches && matches.length >= 3) {
+        const parsed = matches.slice(0, 3).map(m => m.replace(/^"|"$/g, ""));
+        res.json({ suggestions: parsed });
+      } else {
+        res.json({ suggestions: [
+          language === "ar" ? "هل يمكنك توضيح المزيد؟" : "Can you explain further?",
+          language === "ar" ? "ما هي أمثلة ذلك؟" : "What are some examples?",
+          language === "ar" ? "كيف يمكنني تطبيق هذا؟" : "How can I apply this?"
+        ]});
+      }
+    }
+  } catch (err: any) {
+    res.json({
+      suggestions: [
+        language === "ar" ? "هل يمكنك توضيح المزيد؟" : "Can you explain further?",
+        language === "ar" ? "ما هي أمثلة ذلك؟" : "What are some examples?",
+        language === "ar" ? "كيف يمكنني تطبيق هذا؟" : "How can I apply this?"
+      ]
+    });
   }
 });
 

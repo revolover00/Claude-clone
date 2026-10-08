@@ -18,7 +18,7 @@ export default function ChatListItem({
   onToggleMenu,
   onCloseMenu,
 }: Props) {
-  const { toggleStar, renameConversation, deleteConversation } = useChat();
+  const { toggleStar, renameConversation, deleteConversation, generatingChatIds } = useChat();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -28,6 +28,7 @@ export default function ChatListItem({
 
   const editInputRef = useRef<HTMLInputElement>(null);
   const isActive = location.pathname === `/chat/${conversation.id}`;
+  const isGenerating = generatingChatIds?.has(conversation.id);
 
   useEffect(() => {
     if (isEditing) {
@@ -72,10 +73,13 @@ export default function ChatListItem({
           onClick={() => {
             navigate(`/chat/${conversation.id}`);
           }}
-          className="flex-1 truncate text-start"
+          className="flex-1 truncate text-start flex items-center gap-1.5"
           title={conversation.title}
         >
-          <span className="truncate">
+          {isGenerating && (
+            <span className="h-2 w-2 rounded-full bg-accent shrink-0 animate-pulse" title="Claude is thinking..." />
+          )}
+          <span className="truncate flex-1">
             {conversation.title}
             {conversation.isTypingTitle && (
               <span className="inline-block w-1.5 h-3 ms-0.5 bg-accent animate-pulse" />

@@ -7,6 +7,8 @@ export interface Attachment {
   type: string;
   url: string;
   isImage?: boolean;
+  isPastedText?: boolean;
+  wordCount?: number;
 }
 
 export interface ArtifactVersion {
@@ -28,6 +30,7 @@ export interface Artifact {
   versions?: ArtifactVersion[];
   createdAt: number;
   updatedAt: number;
+  isStreaming?: boolean;
 }
 
 export interface Message {
@@ -41,6 +44,7 @@ export interface Message {
   thinking?: string;
   isStreaming?: boolean;
   isThinking?: boolean;
+  isReconnecting?: boolean;
   artifactId?: string;
   createdAt: number;
   isError?: boolean;
@@ -48,6 +52,9 @@ export interface Message {
   errorDetails?: string;
   sources?: Array<{ title: string; url: string }>;
   isSearchingWeb?: boolean;
+  thinkingStartedAt?: number;
+  firstTokenAt?: number;
+  thinkingMs?: number;
 }
 
 export interface Conversation {

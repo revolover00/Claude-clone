@@ -1,4 +1,12 @@
 @import "tailwindcss";
+@import "./styles/motion.css";
+
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+}
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -128,13 +136,13 @@ textarea {
   field-sizing: content;
 }
 
-/* Claude thinking state animations */
+/* Claude thinking & streaming spark animations */
 @keyframes think-rotate-pulse {
   0% {
     transform: rotate(0deg) scale(0.92);
   }
   50% {
-    transform: rotate(180deg) scale(1.05);
+    transform: rotate(180deg) scale(1.06);
   }
   100% {
     transform: rotate(360deg) scale(0.92);
@@ -161,17 +169,32 @@ textarea {
   animation: text-shimmer 1.8s infinite linear;
 }
 
-/* Streaming chunk fade in */
+/* Newly revealed streaming words in the last paragraph fade in (opacity 0.35 -> 1, 140ms) */
 @keyframes chunk-fade {
   from {
-    opacity: 0;
+    opacity: 0.35;
   }
   to {
     opacity: 1;
   }
 }
 .anim-chunk {
-  animation: chunk-fade 150ms ease-out both;
+  animation: chunk-fade 140ms var(--ease-out) both;
+}
+
+/* Live stream spark indicator fade out in 150ms when stream ends */
+@keyframes spark-fade-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+.anim-spark-exit {
+  animation: spark-fade-out 150ms var(--ease-out) forwards;
 }
 
 /* Modal and popover animations */
@@ -354,7 +377,8 @@ button:active:not(:disabled) {
   .anim-popover-in,
   .anim-chat-item-in,
   .anim-dropdown,
-  .anim-sheet-up {
+  .anim-sheet-up,
+  .anim-spark-exit {
     animation: none !important;
     transition: none !important;
   }

@@ -50,7 +50,7 @@ export default function ArtifactCard({
           <div className="flex items-center gap-2">
             {isStreaming ? (
               <span className="anim-thinking-text text-[14px] font-medium">
-                Writing {type}...
+                Writing...
               </span>
             ) : (
               <h4 className="truncate text-[14px] font-medium text-ink group-hover:text-accent transition-colors">
@@ -59,9 +59,14 @@ export default function ArtifactCard({
             )}
 
             {!isStreaming && version > 1 && (
-              <span className="rounded bg-elev-3 px-1.5 py-0.2 text-[10.5px] font-mono font-medium text-ink-muted">
-                v{version}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="rounded bg-accent/15 border border-accent/20 px-1.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase text-accent">
+                  Updated
+                </span>
+                <span className="rounded bg-elev-3 px-1.5 py-0.5 text-[10.5px] font-mono font-medium text-ink-muted">
+                  v{version}
+                </span>
+              </div>
             )}
           </div>
 

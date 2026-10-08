@@ -51,11 +51,11 @@ export function useArtifactsStore() {
   }, []);
 
   const updateActiveArtifactLive = useCallback(
-    (title: string, code: string) => {
+    (title: string, code: string, isStreaming = true) => {
       setActiveArtifact((curr) => {
         if (!curr) return null;
         if (curr.title.toLowerCase() === title.toLowerCase()) {
-          return { ...curr, code };
+          return { ...curr, code, isStreaming };
         }
         return curr;
       });
