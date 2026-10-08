@@ -195,9 +195,9 @@ CRITICAL RULES for generating/updating artifacts/code blocks:
 3. If modifying an existing artifact, you MUST output the complete updated file in ONE fenced block with the same title.
 4. You MUST precede the fenced code block with EXACTLY ONE short, clear sentence describing what you built or introducing the code block. Do NOT write extensive explanations or preambles.
    Example: Here is the responsive interactive dashboard you requested:
-   ```html
+   \`\`\`html
    ...
-   ```
+   \`\`\`
 `;
 }
 
