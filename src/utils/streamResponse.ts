@@ -44,12 +44,29 @@ export function streamRealResponse(
 
       let token = "";
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        let { data: { session } } = await supabase.auth.getSession();
+        
+        // Refresh if session is expired or close to expiring
+        if (session && session.expires_at && session.expires_at < Date.now() / 1000 + 300) {
+          const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) {
+            console.error("Failed to refresh session:", refreshError);
+            await supabase.auth.signOut();
+            throw new Error("Session expired, please sign in again.");
+          }
+          if (refreshedSession) {
+            session = refreshedSession;
+          }
+        }
+        
         if (session?.access_token) {
           token = session.access_token;
+        } else {
+           throw new Error("No active session");
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn("Could not retrieve auth session token:", err);
+        throw err;
       }
 
       const response = await fetch("/api/chat", {
