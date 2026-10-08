@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Mic, ArrowUp, Square, UploadCloud } from "lucide-react";
+import { Mic, ArrowUp, Square, UploadCloud, Quote } from "lucide-react";
 import { cn } from "../utils/cn";
 import IconButton from "./shared/IconButton";
 import { useChat } from "../context/ChatContext";
+import { useToast } from "../context/ToastContext";
 import type { Attachment } from "../types/chat";
 import { AttachmentChips } from "./composer/AttachmentChips";
 import PlusMenu from "./composer/PlusMenu";
@@ -27,7 +28,16 @@ type Props = {
   inChatView?: boolean;
   initialValue?: string;
   onEditLastMessage?: () => void;
+  onChangeValue?: (val: string) => void;
 };
+
+const COMMANDS = [
+  { name: "/clear", desc: "Delete current chat history", action: "clear" },
+  { name: "/model", desc: "Cycle active AI model", action: "model" },
+  { name: "/style", desc: "Cycle response style", action: "style" },
+  { name: "/new", desc: "Start a new chat session", action: "new" },
+  { name: "/export", desc: "Export chat to Markdown", action: "export" },
+];
 
 export default function Composer({
   onSend,
@@ -36,8 +46,19 @@ export default function Composer({
   inChatView = false,
   initialValue = "",
   onEditLastMessage,
+  onChangeValue,
 }: Props) {
-  const { preferences } = useChat();
+  const { 
+    preferences, 
+    activeQuote, 
+    setActiveQuote,
+    activeConversationId,
+    createNewChat,
+    deleteConversation,
+    updatePreferences,
+    activeBranch,
+  } = useChat();
+  const { showToast } = useToast();
 
   const [value, setValue] = useState(initialValue);
   const [model, setModel] = useState<ModelId>("sonnet-5");
@@ -49,6 +70,83 @@ export default function Composer({
 
   // Suggestion examples panel
   const [activeChipExamples, setActiveChipExamples] = useState<string[] | null>(null);
+
+  // Slash commands index
+  const [slashIndex, setSlashIndex] = useState(0);
+
+  // Offline status tracking
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  const isSlashMenuOpen = value.startsWith("/") && !value.includes(" ");
+  const filteredCommands = COMMANDS.filter((cmd) => cmd.name.startsWith(value));
+
+  useEffect(() => {
+    const goOnline = () => setIsOffline(false);
+    const goOffline = () => setIsOffline(true);
+
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
+
+  // Load draft per chat on active conversation switch
+  useEffect(() => {
+    const draftKey = activeConversationId ? `draft_${activeConversationId}` : "draft_new_chat";
+    const saved = localStorage.getItem(draftKey) || "";
+    setValue(saved);
+    onChangeValue?.(saved);
+  }, [activeConversationId]);
+
+  const executeCommand = (action: string) => {
+    if (action === "new") {
+      createNewChat();
+      setValue("");
+      showToast("Started a new chat session", "success");
+    } else if (action === "clear") {
+      if (activeConversationId) {
+        deleteConversation(activeConversationId);
+      }
+      createNewChat();
+      setValue("");
+      showToast("Chat history deleted", "info");
+    } else if (action === "style") {
+      const styles = ["Normal", "Concise", "Explanatory", "Formal"] as const;
+      const currentIdx = styles.indexOf(preferences.responseStyle);
+      const nextIdx = (currentIdx + 1) % styles.length;
+      updatePreferences({ responseStyle: styles[nextIdx] });
+      setValue("");
+      showToast(`Response style set to ${styles[nextIdx]}`, "success");
+    } else if (action === "model") {
+      const modelIds: ModelId[] = ["sonnet-5", "opus-5", "haiku-4-5"];
+      const currentIdx = modelIds.indexOf(model);
+      const nextIdx = (currentIdx + 1) % modelIds.length;
+      setModel(modelIds[nextIdx]);
+      setValue("");
+      const modelNames = { "sonnet-5": "Sonnet 5", "opus-5": "Opus 5", "haiku-4-5": "Haiku 4.5" };
+      showToast(`Active model changed to ${modelNames[modelIds[nextIdx]]}`, "success");
+    } else if (action === "export") {
+      if (activeBranch && activeBranch.length > 0) {
+         const md = activeBranch
+           .map((m) => `### ${m.role === "user" ? "User" : "Assistant"}\n\n${m.content}`)
+           .join("\n\n");
+         const blob = new Blob([md], { type: "text/markdown" });
+         const url = URL.createObjectURL(blob);
+         const a = document.createElement("a");
+         a.href = url;
+         a.download = `chat-export-${Date.now()}.md`;
+         a.click();
+         URL.revokeObjectURL(url);
+         showToast("Chat exported as Markdown", "success");
+      } else {
+        showToast("No chat history to export", "info");
+      }
+      setValue("");
+    }
+  };
 
   const areaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -91,21 +189,48 @@ export default function Composer({
     adjustHeight();
   }, [value]);
 
-  const hasContent = value.trim().length > 0 || attachments.length > 0;
+  const hasContent = value.trim().length > 0 || attachments.length > 0 || Boolean(activeQuote);
+
+  const handleValueChange = (newVal: string) => {
+    setValue(newVal);
+    onChangeValue?.(newVal);
+    if (activeChipExamples) setActiveChipExamples(null);
+    setSlashIndex(0);
+
+    const draftKey = activeConversationId ? `draft_${activeConversationId}` : "draft_new_chat";
+    if (newVal) {
+      localStorage.setItem(draftKey, newVal);
+    } else {
+      localStorage.removeItem(draftKey);
+    }
+  };
 
   const handleSend = () => {
+    if (isOffline) {
+      showToast("You are offline. Please reconnect to send messages.", "error");
+      return;
+    }
     if (isStreaming) {
       onStop?.();
       return;
     }
     if (!hasContent) return;
 
-    const textToSend = value.trim();
+    const rawText = value.trim();
+    const textToSend = activeQuote 
+      ? `> ${activeQuote}\n\n${rawText}` 
+      : rawText;
+      
     const attsToSend = [...attachments];
 
     setValue("");
     clearAttachments();
     setActiveChipExamples(null);
+    setActiveQuote?.(null);
+    onChangeValue?.("");
+
+    const draftKey = activeConversationId ? `draft_${activeConversationId}` : "draft_new_chat";
+    localStorage.removeItem(draftKey);
 
     if (areaRef.current) {
       areaRef.current.style.height = "auto";
@@ -120,6 +245,29 @@ export default function Composer({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isSlashMenuOpen && filteredCommands.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSlashIndex((prev) => (prev + 1) % filteredCommands.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSlashIndex((prev) => (prev - 1 + filteredCommands.length) % filteredCommands.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        executeCommand(filteredCommands[slashIndex].action);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setValue("");
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -137,6 +285,39 @@ export default function Composer({
 
   return (
     <div className="relative w-full font-sans">
+      {/* Slash commands list */}
+      {isSlashMenuOpen && filteredCommands.length > 0 && (
+        <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-full max-w-[690px] rounded-xl border border-composer-line bg-composer p-1.5 shadow-xl anim-popover-in z-50 font-sans">
+          <div className="px-3 py-1.5 text-[11px] font-bold text-accent uppercase tracking-wider select-none">Commands</div>
+          <div className="max-h-56 overflow-y-auto scroll-slim flex flex-col gap-0.5">
+            {filteredCommands.map((cmd, idx) => (
+              <button
+                key={cmd.name}
+                type="button"
+                onClick={() => executeCommand(cmd.action)}
+                onMouseEnter={() => setSlashIndex(idx)}
+                className={cn(
+                  "flex items-center justify-between rounded-lg px-3 py-2 text-start transition-colors duration-150 cursor-pointer w-full text-[13.5px]",
+                  idx === slashIndex 
+                    ? "bg-accent text-white" 
+                    : "text-ink hover:bg-elev-2 text-ink-soft"
+                )}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className={cn("font-semibold font-mono", idx === slashIndex ? "text-white" : "text-accent")}>{cmd.name}</span>
+                  <span className={cn("text-[12.5px]", idx === slashIndex ? "text-white/80" : "text-ink-muted")}>{cmd.desc}</span>
+                </div>
+                <span className={cn("text-[10px] font-mono select-none px-1.5 py-0.5 rounded border uppercase", 
+                  idx === slashIndex ? "border-white/40 bg-white/10 text-white" : "border-line bg-elev-1 text-ink-muted"
+                )}>
+                  {idx === slashIndex ? "↩ Enter" : "Tab"}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -164,6 +345,24 @@ export default function Composer({
 
       {/* Composer Container */}
       <div className="mx-auto flex min-h-[128px] w-full max-w-[690px] flex-col rounded-[14px] border border-composer-line bg-composer px-4 pb-2.5 pt-3 transition-all duration-200 focus-within:border-accent/40 focus-within:shadow-[0_0_0_3px_rgba(217,119,87,0.07)]">
+        {/* Quote Chip if active */}
+        {activeQuote && (
+          <div className="mb-2.5 flex items-center gap-2 rounded-lg border border-[#d97757]/30 bg-[#d97757]/10 px-3 py-2 text-[13px] text-ink shadow-sm relative pr-8 max-w-full">
+            <Quote size={12} className="text-[#d97757] shrink-0" />
+            <span className="font-semibold text-[#d97757] shrink-0 text-[12.5px] select-none">Quote:</span>
+            <span className="truncate flex-1 italic text-ink-soft select-none">"{activeQuote}"</span>
+            <button
+              type="button"
+              onClick={() => setActiveQuote?.(null)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-ink-muted hover:bg-[#d97757]/20 hover:text-ink cursor-pointer flex items-center justify-center h-5 w-5"
+              title="Remove quote"
+              aria-label="Remove quote"
+            >
+              <span className="text-[10px] font-bold">✕</span>
+            </button>
+          </div>
+        )}
+
         {/* Attached files preview chips */}
         <AttachmentChips attachments={attachments} onRemove={removeAttachment} />
 
@@ -171,16 +370,17 @@ export default function Composer({
         <textarea
           ref={areaRef}
           value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
-            if (activeChipExamples) setActiveChipExamples(null);
-          }}
+          onChange={(e) => handleValueChange(e.target.value)}
           onPaste={handlePaste}
           onKeyDown={handleKeyDown}
-          placeholder="How can I help you today?"
+          placeholder={isOffline ? "You are currently offline. Check your internet connection." : "How can I help you today?"}
           rows={2}
+          disabled={isOffline}
           aria-label="Message Claude"
-          className="max-h-44 w-full resize-none overflow-y-auto bg-transparent text-[15.5px] leading-6 text-ink placeholder:text-ink-muted focus:outline-none scroll-slim"
+          className={cn(
+            "max-h-44 w-full resize-none overflow-y-auto bg-transparent text-[15.5px] leading-6 text-ink placeholder:text-ink-muted focus:outline-none scroll-slim",
+            isOffline && "cursor-not-allowed opacity-60"
+          )}
         />
 
         {/* Bottom toolbar */}
@@ -230,11 +430,11 @@ export default function Composer({
               <button
                 type="button"
                 onClick={handleSend}
-                disabled={!hasContent}
-                title={hasContent ? "Send message" : "Type a message or attach a file"}
+                disabled={!hasContent || isOffline}
+                title={isOffline ? "You are offline. Please reconnect to send messages." : (hasContent ? "Send message" : "Type a message or attach a file")}
                 className={cn(
                   "inline-flex h-8 w-8 items-center justify-center rounded-full transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
-                  hasContent
+                  hasContent && !isOffline
                     ? "bg-accent text-white shadow-sm hover:opacity-90 scale-100 opacity-100 cursor-pointer"
                     : "bg-elev-3 text-ink-muted opacity-40 scale-90 cursor-not-allowed pointer-events-none"
                 )}

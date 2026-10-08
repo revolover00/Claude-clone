@@ -20,12 +20,16 @@ export type ConversationAction =
       content: string;
       isStreaming?: boolean;
       isThinking?: boolean;
+      isReconnecting?: boolean;
       thinking?: string;
       isError?: boolean;
       errorText?: string;
       errorDetails?: string;
       sources?: Array<{ title: string; url: string }>;
       isSearchingWeb?: boolean;
+      thinkingStartedAt?: number;
+      firstTokenAt?: number;
+      thinkingMs?: number;
     }
   | {
       type: "SWITCH_VERSION";
@@ -243,12 +247,16 @@ export function conversationsReducer(
             content: action.content,
             isStreaming: action.isStreaming ?? false,
             isThinking: action.isThinking ?? false,
+            ...(action.isReconnecting !== undefined ? { isReconnecting: action.isReconnecting } : {}),
             ...(action.thinking !== undefined ? { thinking: action.thinking } : {}),
             ...(action.isError !== undefined ? { isError: action.isError } : {}),
             ...(action.errorText !== undefined ? { errorText: action.errorText } : {}),
             ...(action.errorDetails !== undefined ? { errorDetails: action.errorDetails } : {}),
             ...(action.sources !== undefined ? { sources: action.sources } : {}),
             ...(action.isSearchingWeb !== undefined ? { isSearchingWeb: action.isSearchingWeb } : {}),
+            ...(action.thinkingStartedAt !== undefined ? { thinkingStartedAt: action.thinkingStartedAt } : {}),
+            ...(action.firstTokenAt !== undefined ? { firstTokenAt: action.firstTokenAt } : {}),
+            ...(action.thinkingMs !== undefined ? { thinkingMs: action.thinkingMs } : {}),
           };
         });
         return {

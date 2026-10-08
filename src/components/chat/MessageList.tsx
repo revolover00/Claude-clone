@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import ChatMessage from "./ChatMessage";
 import type { Message } from "../../types/chat";
 
@@ -6,7 +6,8 @@ interface Props {
   messages: Message[];
   conversationId: string;
   onSaveEdit: (messageId: string, newContent: string) => void;
-  onRetry: (assistantMessageId: string) => void;
+  onRetry: (assistantMessageId: string, options?: { model?: string; modifier?: string }) => void;
+  onContinue?: (assistantMessageId: string) => void;
 }
 
 export const MessageList: React.FC<Props> = ({
@@ -14,7 +15,17 @@ export const MessageList: React.FC<Props> = ({
   conversationId,
   onSaveEdit,
   onRetry,
+  onContinue,
 }) => {
+  const lastAssistantMsgId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "assistant") {
+        return messages[i].id;
+      }
+    }
+    return null;
+  }, [messages]);
+
   return (
     <div className="mx-auto w-full max-w-[720px] pt-6 pb-4">
       {messages.map((msg, index) => {
@@ -37,6 +48,8 @@ export const MessageList: React.FC<Props> = ({
             conversationId={conversationId}
             onSaveEdit={onSaveEdit}
             onRetry={onRetry}
+            onContinue={onContinue}
+            isLastAssistantMessage={msg.id === lastAssistantMsgId}
           />
         );
       })}

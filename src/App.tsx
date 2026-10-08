@@ -6,6 +6,7 @@ import MainChat from "./components/MainChat";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
 import { ChatProvider, useChat } from "./context/ChatContext";
 import { ToastProvider } from "./context/ToastContext";
+import MotionReview from "./components/views/MotionReview";
 
 // Performance: Lazy-load modals and heavy panels with React.lazy
 const ArtifactPanel = lazy(() => import("./components/artifacts/ArtifactPanel"));
@@ -13,6 +14,12 @@ const SearchModal = lazy(() => import("./components/modals/SearchModal"));
 const SettingsModal = lazy(() => import("./components/modals/SettingsModal"));
 
 function AppContent() {
+  const isMotionPage = window.location.pathname === "/motion";
+
+  if (isMotionPage) {
+    return <MotionReview />;
+  }
+
   const {
     activeArtifact,
     artifactPanelOpen,

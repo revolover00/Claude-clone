@@ -87,9 +87,30 @@ export function useAttachments() {
     };
   }, [handleFiles]);
 
-  // Paste image or files from clipboard
+  // Paste image, files, or large text from clipboard
   const handlePaste = useCallback(
     (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      // Check if there is text being pasted that exceeds ~1500 characters
+      const text = e.clipboardData?.getData("text/plain");
+      if (text && text.length > 1500) {
+        e.preventDefault();
+        const wordCount = text.split(/\s+/).filter(Boolean).length;
+        const sizeInBytes = new Blob([text]).size;
+        const newAtt: Attachment = {
+          id: `pasted-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          name: "Pasted text",
+          size: sizeInBytes,
+          type: "text/plain",
+          url: text,
+          isImage: false,
+          isPastedText: true,
+          wordCount,
+        };
+        setAttachments((prev) => [...prev, newAtt]);
+        showToast(`Large text (${wordCount} words) added as an attachment chip`, "success");
+        return;
+      }
+
       const items = e.clipboardData?.items;
       if (!items) return;
 
@@ -106,7 +127,7 @@ export function useAttachments() {
         handleFiles(files);
       }
     },
-    [handleFiles]
+    [handleFiles, showToast]
   );
 
   // Screenshot capture using getDisplayMedia

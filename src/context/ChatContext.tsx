@@ -2,9 +2,11 @@ import React, {
   createContext,
   useContext,
   useReducer,
+  useState,
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import type {
   Conversation,
@@ -47,7 +49,9 @@ export interface ChatContextType {
     thinking?: string,
     errorInfo?: { isError?: boolean; errorText?: string; errorDetails?: string },
     sources?: Array<{ title: string; url: string }>,
-    isSearchingWeb?: boolean
+    isSearchingWeb?: boolean,
+    timing?: { thinkingStartedAt?: number; firstTokenAt?: number; thinkingMs?: number },
+    isReconnecting?: boolean
   ) => void;
   deleteConversation: (id: string) => void;
   toggleStar: (id: string) => void;
@@ -113,10 +117,20 @@ export interface ChatContextType {
     chatId?: string,
     chatTitle?: string
   ) => Artifact;
-  updateActiveArtifactLive: (title: string, code: string) => void;
+  updateActiveArtifactLive: (title: string, code: string, isStreaming?: boolean) => void;
   setArtifactVersion: (artifactId: string, version: number) => void;
   deleteArtifact: (id: string) => void;
   clearAllData: () => void;
+  
+  // Selection Toolbar Quotes
+  activeQuote: string | null;
+  setActiveQuote: (quote: string | null) => void;
+
+  // Background Stream Registry
+  generatingChatIds: Set<string>;
+  registerActiveStream: (chatId: string, abortCtrl: AbortController) => void;
+  unregisterActiveStream: (chatId: string) => void;
+  stopActiveStream: (chatId: string) => void;
 }
 
 const STORAGE_KEY_CONVS = "claude_clone_conversations_v3";
@@ -148,6 +162,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [conversations]);
 
   // Hook stores
+  const [activeQuote, setActiveQuote] = useState<string | null>(null);
   const ui = useUIStore();
   const artifactsStore = useArtifactsStore();
   const preferencesStore = usePreferencesStore();
@@ -197,7 +212,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       thinking?: string,
       errorInfo?: { isError?: boolean; errorText?: string; errorDetails?: string },
       sources?: Array<{ title: string; url: string }>,
-      isSearchingWeb?: boolean
+      isSearchingWeb?: boolean,
+      timing?: { thinkingStartedAt?: number; firstTokenAt?: number; thinkingMs?: number },
+      isReconnecting?: boolean
     ) => {
       dispatch({
         type: "UPDATE_MESSAGE_CONTENT",
@@ -212,6 +229,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         errorDetails: errorInfo?.errorDetails,
         sources,
         isSearchingWeb,
+        thinkingStartedAt: timing?.thinkingStartedAt,
+        firstTokenAt: timing?.firstTokenAt,
+        thinkingMs: timing?.thinkingMs,
+        isReconnecting,
       });
     },
     []
@@ -381,6 +402,36 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(STORAGE_KEY_CONVS);
   }, [ui, projectsStore, artifactsStore]);
 
+  // Background stream registry
+  const [generatingChatIds, setGeneratingChatIds] = useState<Set<string>>(new Set());
+  const activeStreamsRef = useRef<Map<string, AbortController>>(new Map());
+
+  const registerActiveStream = useCallback((chatId: string, abortCtrl: AbortController) => {
+    activeStreamsRef.current.set(chatId, abortCtrl);
+    setGeneratingChatIds((prev) => {
+      const next = new Set(prev);
+      next.add(chatId);
+      return next;
+    });
+  }, []);
+
+  const unregisterActiveStream = useCallback((chatId: string) => {
+    activeStreamsRef.current.delete(chatId);
+    setGeneratingChatIds((prev) => {
+      const next = new Set(prev);
+      next.delete(chatId);
+      return next;
+    });
+  }, []);
+
+  const stopActiveStream = useCallback((chatId: string) => {
+    const ctrl = activeStreamsRef.current.get(chatId);
+    if (ctrl) {
+      ctrl.abort();
+    }
+    unregisterActiveStream(chatId);
+  }, [unregisterActiveStream]);
+
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -447,6 +498,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setArtifactVersion: artifactsStore.setArtifactVersion,
       deleteArtifact: artifactsStore.deleteArtifact,
       clearAllData,
+      activeQuote,
+      setActiveQuote,
+      generatingChatIds,
+      registerActiveStream,
+      unregisterActiveStream,
+      stopActiveStream,
     }),
     [
       conversations,
@@ -493,6 +550,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       artifactsStore.setArtifactVersion,
       artifactsStore.deleteArtifact,
       clearAllData,
+      activeQuote,
+      setActiveQuote,
+      generatingChatIds,
+      registerActiveStream,
+      unregisterActiveStream,
+      stopActiveStream,
     ]
   );
 

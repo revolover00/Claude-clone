@@ -1,0 +1,184 @@
+/* Motion system for Google AI Studio Build */
+
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-user-msg: 220ms;
+  --dur-assist-msg: 200ms;
+  --dur-thinking: 250ms;
+  --dur-hover: 120ms;
+  --dur-popover: 150ms;
+  --dur-modal: 180ms;
+  --dur-panel: 300ms;
+  --dur-spark-rotate: 2.4s;
+  --dur-spark-shimmer: 1.8s;
+  --stagger-step: 60ms;
+}
+
+/* 1. User message enter: translateY(8px) + fade, 220ms ease-out */
+@keyframes user-msg-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.motion-user-enter {
+  animation: user-msg-enter var(--dur-user-msg) var(--ease-out) forwards;
+}
+
+/* 2. Assistant row enter: fade 200ms */
+@keyframes assistant-msg-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.motion-assistant-enter {
+  animation: assistant-msg-enter var(--dur-assist-msg) var(--ease-out) forwards;
+}
+
+/* 3. Thinking collapse/expand: height 250ms ease-out + chevron rotate 200ms */
+.motion-thinking-container {
+  transition: height var(--dur-thinking) var(--ease-out), opacity var(--dur-thinking) var(--ease-out);
+  overflow: hidden;
+}
+.motion-chevron-rotate {
+  transition: transform 200ms var(--ease-out);
+}
+.motion-chevron-rotated {
+  transform: rotate(180deg);
+}
+
+/* 4. Action bar hover: opacity 120ms */
+.motion-action-hover {
+  transition: opacity var(--dur-hover) var(--ease-out), background-color var(--dur-hover) var(--ease-out);
+}
+
+/* 5. Popovers/menus: scale .96 -> 1 + fade 150ms, origin at trigger */
+@keyframes popover-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.motion-popover {
+  transform-origin: top left; /* Default, or overridden inline */
+  animation: popover-enter var(--dur-popover) var(--ease-out) forwards;
+}
+
+/* 6. Modals: backdrop fade 180ms + panel scale .97 -> 1 */
+@keyframes modal-backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes modal-panel-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.motion-modal-backdrop {
+  animation: modal-backdrop-enter var(--dur-modal) var(--ease-out) forwards;
+}
+.motion-modal-panel {
+  animation: modal-panel-enter var(--dur-modal) var(--ease-out) forwards;
+}
+
+/* 7. Send button: scale-in 150ms when text appears; morph to Stop square when generating */
+@keyframes send-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.75);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.motion-send-button {
+  animation: send-scale-in 150ms var(--ease-out) forwards;
+  transition: transform 150ms var(--ease-out), background-color 150ms var(--ease-out), border-radius 150ms var(--ease-out);
+}
+
+/* 8. Chip stagger: 60ms per item */
+.motion-stagger-0 { animation-delay: calc(0 * var(--stagger-step)); }
+.motion-stagger-1 { animation-delay: calc(1 * var(--stagger-step)); }
+.motion-stagger-2 { animation-delay: calc(2 * var(--stagger-step)); }
+.motion-stagger-3 { animation-delay: calc(3 * var(--stagger-step)); }
+.motion-stagger-4 { animation-delay: calc(4 * var(--stagger-step)); }
+.motion-stagger-5 { animation-delay: calc(5 * var(--stagger-step)); }
+
+/* 9. Artifact panel: width transition 300ms ease-out, chat column reflows without a jump */
+.motion-artifact-panel {
+  transition: width var(--dur-panel) var(--ease-out), transform var(--dur-panel) var(--ease-out), opacity var(--dur-panel) var(--ease-out);
+}
+
+/* 10. Spark: rotate 2.4s linear infinite; shimmer 1.8s linear infinite */
+@keyframes spark-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+.motion-spark-rotate {
+  animation: spark-rotate var(--dur-spark-rotate) linear infinite;
+  transform-origin: center;
+}
+
+@keyframes spark-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.motion-spark-shimmer {
+  background: linear-gradient(90deg, var(--color-ink-muted) 0%, var(--color-ink) 50%, var(--color-ink-muted) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: spark-shimmer var(--dur-spark-shimmer) linear infinite;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .motion-user-enter,
+  .motion-assistant-enter,
+  .motion-popover,
+  .motion-modal-backdrop,
+  .motion-modal-panel,
+  .motion-send-button {
+    animation: none !important;
+    transition: none !important;
+  }
+  .motion-thinking-container,
+  .motion-chevron-rotate,
+  .motion-action-hover,
+  .motion-artifact-panel {
+    transition: none !important;
+  }
+  .motion-spark-rotate,
+  .motion-spark-shimmer {
+    animation: none !important;
+  }
+}
