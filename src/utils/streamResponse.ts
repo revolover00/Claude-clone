@@ -7,6 +7,7 @@ export interface StreamCallbacks {
   onSources?: (sources: Array<{ title: string; url: string }>) => void;
   onDone?: (fullText: string) => void;
   onError?: (err: Error & { details?: string; code?: number }) => void;
+  onFinish?: (finish: string) => void;
 }
 
 export interface ChatStreamOptions {
@@ -120,8 +121,11 @@ export function streamRealResponse(
           callbacks.onSources?.(sources);
         },
         onToken: (token) => {
-          accumulatedContent += token;
-          callbacks.onToken?.(token, accumulatedContent);
+           accumulatedContent += token;
+           callbacks.onToken?.(token, accumulatedContent);
+        },
+        onFinish: (finish) => {
+           callbacks.onFinish?.(finish);
         },
         onError: (err) => {
           midStreamError = err;

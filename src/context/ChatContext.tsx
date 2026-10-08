@@ -18,10 +18,12 @@ import type {
 } from "../types/chat";
 import {
   conversationsReducer,
+} from "./stores/conversationsReducer";
+import {
   getActiveBranch,
   getMessageSiblings,
   migrateConversations,
-} from "./stores/conversationsReducer";
+} from "./stores/conversationsHelpers";
 import { useArtifactsStore } from "./stores/useArtifactsStore";
 import { usePreferencesStore } from "./stores/usePreferencesStore";
 import { useProjectsStore } from "./stores/useProjectsStore";
@@ -214,7 +216,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sources?: Array<{ title: string; url: string }>,
       isSearchingWeb?: boolean,
       timing?: { thinkingStartedAt?: number; firstTokenAt?: number; thinkingMs?: number },
-      isReconnecting?: boolean
+      isReconnecting?: boolean,
+      finishReason?: string
     ) => {
       dispatch({
         type: "UPDATE_MESSAGE_CONTENT",
@@ -233,6 +236,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         firstTokenAt: timing?.firstTokenAt,
         thinkingMs: timing?.thinkingMs,
         isReconnecting,
+        finishReason,
       });
     },
     []
