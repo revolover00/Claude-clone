@@ -3,7 +3,7 @@ import { ai, apiKey } from "../lib/gemini";
 
 const router = Router();
 
-router.post("/suggest", async (req, res) => {
+router.post("/", async (req, res) => {
   if (!apiKey) {
     res.status(403).json({ error: "API key invalid or missing on the server", code: 403 });
     return;

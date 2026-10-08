@@ -26,9 +26,9 @@ export default function ThoughtProcess({
   const [elapsedSec, setElapsedSec] = useState<number>(0);
   const thoughtsScrollRef = useRef<HTMLDivElement>(null);
 
-  // Live timer while isThinking and no answer token has arrived
+  // Live timer while no answer token has arrived
   useEffect(() => {
-    if (!isThinking || hasAnswerToken) return;
+    if (hasAnswerToken) return;
     const start = thinkingStartedAt || Date.now();
 
     const interval = setInterval(() => {
@@ -37,14 +37,21 @@ export default function ThoughtProcess({
     }, 500);
 
     return () => clearInterval(interval);
-  }, [isThinking, hasAnswerToken, thinkingStartedAt]);
+  }, [hasAnswerToken, thinkingStartedAt]);
 
   // When reasoning is streaming, auto-scroll internal reasoning text to bottom
   useEffect(() => {
-    if (isThinking && isOpen && thoughtsScrollRef.current) {
+    if (isOpen && thoughtsScrollRef.current) {
       thoughtsScrollRef.current.scrollTop = thoughtsScrollRef.current.scrollHeight;
     }
-  }, [thoughts, isThinking, isOpen]);
+  }, [thoughts, isOpen]);
+
+  // Auto-open accordion when reasoning is live
+  useEffect(() => {
+    if (!hasAnswerToken) {
+      setIsOpen(true);
+    }
+  }, [hasAnswerToken]);
 
   // Auto-collapse (250ms) when first answer token arrives, unless user opened it manually
   const prevHasAnswerTokenRef = useRef(hasAnswerToken);
@@ -72,20 +79,16 @@ export default function ThoughtProcess({
     durationText = `${elapsedSec}s`;
   }
 
-  // STATE A: Waiting for first byte (isThinking=true, no thoughts yet, no answer token yet)
-  if (isThinking && !thoughts && !hasAnswerToken) {
+  const isReasoningLive = !hasAnswerToken;
+
+  // STATE A: Waiting for first byte (no thoughts yet, no answer token yet)
+  if (!thoughts && !hasAnswerToken) {
     return (
       <div className="flex items-center gap-2.5 py-1.5 text-ink-soft select-none font-sans">
         <ClaudeSpark size={18} className="anim-thinking-spark text-accent shrink-0" />
         <span className="anim-thinking-text text-[14.5px] font-medium tracking-wide">
-          Thinking
+          Thinking · {elapsedSec}s
         </span>
-        {/* Elapsed timer that appears after 2s */}
-        {elapsedSec >= 2 && (
-          <span className="text-[13px] text-ink-muted transition-opacity duration-200">
-            · {elapsedSec}s
-          </span>
-        )}
       </div>
     );
   }
@@ -95,8 +98,6 @@ export default function ThoughtProcess({
     setUserOpenedManually(true);
     setIsOpen((prev) => !prev);
   };
-
-  const isReasoningLive = isThinking && !hasAnswerToken;
 
   return (
     <div className="my-2 select-none font-sans">
@@ -117,7 +118,7 @@ export default function ThoughtProcess({
           <div className="flex items-center gap-2">
             <ClaudeSpark size={14} className="anim-thinking-spark text-accent shrink-0" />
             <span className="anim-thinking-text font-medium">
-              Thinking {elapsedSec > 0 ? `· ${elapsedSec}s` : ""}
+              Thinking · {elapsedSec}s
             </span>
           </div>
         ) : (

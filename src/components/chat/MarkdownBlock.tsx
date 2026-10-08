@@ -20,11 +20,6 @@ export interface BlockProps {
   onOpenArtifact?: (artifact: Artifact) => void;
 }
 
-/**
- * Inline 14px ClaudeSpark at the end of the last line:
- * Slowly rotating (2.4s linear) and pulsing (scale .92 -> 1.06).
- * Fades out in 150ms when stream ends.
- */
 export function LiveStreamSpark({ isStreaming }: { isStreaming: boolean }) {
   const [visible, setVisible] = React.useState(isStreaming);
   const [isExiting, setIsExiting] = React.useState(false);

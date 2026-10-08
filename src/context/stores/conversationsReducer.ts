@@ -1,5 +1,7 @@
 import type { Conversation, Message } from "../../types/chat";
-import { getActiveBranch } from "./conversationsHelpers";
+import { getActiveBranch, getMessageSiblings, migrateConversations } from "./conversationsHelpers";
+
+export { getActiveBranch, getMessageSiblings, migrateConversations };
 
 export type ConversationAction =
   | { type: "SET_ALL"; conversations: Conversation[] }

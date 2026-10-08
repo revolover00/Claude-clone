@@ -102,3 +102,68 @@ export function migrateConversations(savedRaw: any[]): Conversation[] {
     };
   });
 }
+
+export function createEditUserBranch(
+  conversations: Conversation[],
+  conversationId: string,
+  targetMessageId: string,
+  newContent: string
+) {
+  const conv = conversations.find((c) => c.id === conversationId);
+  if (!conv) return null;
+  const targetMsg = conv.messages.find((m) => m.id === targetMessageId);
+  if (!targetMsg) return null;
+
+  const parentId = targetMsg.parentId || null;
+  const newUserMsgId = `u-${Date.now()}`;
+  const newAssistantMsgId = `a-${Date.now()}`;
+
+  const newUserMsg: Message = {
+    id: newUserMsgId,
+    parentId,
+    activeChildId: newAssistantMsgId,
+    childrenIds: [newAssistantMsgId],
+    role: "user",
+    content: newContent,
+    attachments: targetMsg.attachments,
+    createdAt: Date.now(),
+  };
+
+  const newAssistantMsg: Message = {
+    id: newAssistantMsgId,
+    parentId: newUserMsgId,
+    role: "assistant",
+    content: "",
+    isStreaming: true,
+    createdAt: Date.now(),
+  };
+
+  return { newUserMsg, newAssistantMsg, parentId };
+}
+
+export function createRetryAssistantBranch(
+  conversations: Conversation[],
+  conversationId: string,
+  assistantMessageId: string
+) {
+  const conv = conversations.find((c) => c.id === conversationId);
+  if (!conv) return null;
+  const targetAssistant = conv.messages.find((m) => m.id === assistantMessageId);
+  if (!targetAssistant || !targetAssistant.parentId) return null;
+
+  const parentUserMsgId = targetAssistant.parentId;
+  const parentUserMsg = conv.messages.find((m) => m.id === parentUserMsgId);
+  if (!parentUserMsg) return null;
+
+  const newAssistantMsgId = `a-${Date.now()}`;
+  const newAssistantMsg: Message = {
+    id: newAssistantMsgId,
+    parentId: parentUserMsgId,
+    role: "assistant",
+    content: "",
+    isStreaming: true,
+    createdAt: Date.now(),
+  };
+
+  return { parentUserMsg, newAssistantMsg, parentUserMsgId };
+}
