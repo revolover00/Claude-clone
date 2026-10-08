@@ -37,8 +37,12 @@ router.post("/", async (req, res) => {
     res.json({ title });
   } catch (err: any) {
     console.error("Auto-title generation error:", err);
-    const errInfo = mapGeminiError(err);
-    res.status(errInfo.status).json({ error: errInfo.message, details: errInfo.technical, code: errInfo.status });
+    const errInfo = mapGeminiError(err, lightModel?.api_model_id);
+    res.status(errInfo.status).json({
+      error: errInfo.error,
+      details: errInfo.details || errInfo.technical,
+      code: errInfo.code || errInfo.status,
+    });
   }
 });
 

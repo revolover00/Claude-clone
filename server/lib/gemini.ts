@@ -15,12 +15,14 @@ export const ai = new GoogleGenAI({
 });
 
 // Map Gemini errors to HTTP status codes & friendly messages
-export function mapGeminiError(err: any): { status: number; message: string; technical: string } {
+export function mapGeminiError(err: any, requestedModelId?: string): { status: number; error: string; technical: string; code?: string; details?: any } {
   const errMsg = err?.message || String(err) || "";
   const errStatus = err?.status || err?.statusCode || (typeof err?.code === "number" ? err.code : undefined);
 
   let status = 500;
   let friendly = "An unexpected error occurred while communicating with the AI model.";
+  let code: string | undefined;
+  let details: any;
 
   if (errStatus === 429 || /429|resource.*exhausted|rate.*limit/i.test(errMsg)) {
     status = 429;
@@ -31,9 +33,11 @@ export function mapGeminiError(err: any): { status: number; message: string; tec
   } else if (errStatus === 403 || /403|api.?key.*invalid|permission_denied|unauthorized/i.test(errMsg)) {
     status = 403;
     friendly = "API key invalid or missing on the server";
-  } else if (errStatus === 404 || /404|not.*found|model.*not.*found/i.test(errMsg)) {
+  } else if (errStatus === 404) {
     status = 404;
     friendly = "Selected model is unavailable";
+    code = "MODEL_NOT_FOUND";
+    details = { requestedModelId };
   } else if (errStatus && errStatus >= 500 && errStatus < 600) {
     status = errStatus;
     friendly = "Upstream AI service temporarily unavailable";
@@ -44,8 +48,10 @@ export function mapGeminiError(err: any): { status: number; message: string; tec
 
   return {
     status,
-    message: friendly,
+    error: friendly,
     technical: errMsg,
+    code,
+    details,
   };
 }
 

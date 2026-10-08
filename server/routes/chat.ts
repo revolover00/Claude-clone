@@ -199,19 +199,20 @@ router.post("/", async (req, res) => {
         config,
       });
     } catch (err: any) {
-      const errInfo = mapGeminiError(err);
+      const errInfo = mapGeminiError(err, modelId);
       res.status(errInfo.status).json({
-        error: errInfo.message,
-        details: errInfo.technical,
-        code: errInfo.status,
+        error: errInfo.error,
+        details: errInfo.details || errInfo.technical,
+        code: errInfo.code || errInfo.status,
       });
       return;
     }
 
     // Set SSE response headers now that connection is established
     res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders?.();
 
     const collectedSources: Array<{ title: string; url: string }> = [];
@@ -276,15 +277,15 @@ router.post("/", async (req, res) => {
       return;
     }
     console.error("Gemini API stream error:", err);
-    const errInfo = mapGeminiError(err);
+    const errInfo = mapGeminiError(err, modelId);
     if (!res.headersSent) {
       res.status(errInfo.status).json({
-        error: errInfo.message,
-        details: errInfo.technical,
-        code: errInfo.status,
+        error: errInfo.error,
+        details: errInfo.details || errInfo.technical,
+        code: errInfo.code || errInfo.status,
       });
     } else {
-      res.write(`data: ${JSON.stringify({ error: errInfo.message, details: errInfo.technical, code: errInfo.status })}\n\n`);
+      res.write(`data: ${JSON.stringify({ error: errInfo.error, details: errInfo.details || errInfo.technical, code: errInfo.code || errInfo.status })}\n\n`);
       res.end();
     }
   }
