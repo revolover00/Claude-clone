@@ -1,15 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { 
   Play, 
   RotateCw, 
-  MessageSquare, 
   Sparkles, 
   ChevronDown, 
   MoreHorizontal, 
   Send, 
   Square, 
-  HelpCircle,
-  Layout,
   X
 } from "lucide-react";
 
@@ -19,7 +16,6 @@ export default function MotionReview() {
   const [assistantRowKey, setAssistantRowKey] = useState(0);
   const [popoverKey, setPopoverKey] = useState(0);
   const [modalKey, setModalKey] = useState(0);
-  const [sendBtnKey, setSendBtnKey] = useState(0);
   const [chipsKey, setChipsKey] = useState(0);
 
   // Dynamic animation states
@@ -30,8 +26,8 @@ export default function MotionReview() {
   const [generating, setGenerating] = useState(false);
   const [panelWidth, setPanelWidth] = useState(500);
 
-  // Stagger chips state
-  const [chips, setChips] = useState(["Tailwind", "React", "Babel", "Lucide", "Recharts"]);
+  // Stagger chips constant array
+  const chips = ["Tailwind", "React", "Babel", "Lucide", "Recharts"];
 
   const triggerUserMsg = () => setUserMsgKey(k => k + 1);
   const triggerAssistantRow = () => setAssistantRowKey(k => k + 1);
