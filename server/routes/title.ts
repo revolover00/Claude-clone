@@ -3,7 +3,7 @@ import { ai, apiKey, mapGeminiError } from "../lib/gemini";
 
 const router = Router();
 
-router.post("/title", async (req, res) => {
+router.post("/", async (req, res) => {
   const { firstUserMsg, firstReply } = req.body;
 
   if (!apiKey) {

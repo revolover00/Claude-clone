@@ -1,6 +1,4 @@
 import React, {
-  createContext,
-  useContext,
   useReducer,
   useState,
   useEffect,
@@ -9,143 +7,34 @@ import React, {
   useRef,
 } from "react";
 import type {
-  Conversation,
   Message,
-  Project,
-  ProjectKnowledgeItem,
-  Artifact,
-  UserPreferences,
 } from "../types/chat";
-import {
-  conversationsReducer,
-} from "./stores/conversationsReducer";
+import { conversationsReducer } from "./stores/conversationsReducer";
 import {
   getActiveBranch,
   getMessageSiblings,
   migrateConversations,
+  createEditUserBranch,
+  createRetryAssistantBranch,
 } from "./stores/conversationsHelpers";
 import { useArtifactsStore } from "./stores/useArtifactsStore";
 import { usePreferencesStore } from "./stores/usePreferencesStore";
 import { useProjectsStore } from "./stores/useProjectsStore";
 import { useUIStore, type ActiveView } from "./stores/useUIStore";
+import { runAutoTitle } from "./stores/autoTitleHelper";
+import { useChatKeyboardShortcuts } from "./useChatKeyboardShortcuts";
+import { ChatContext, type ChatContextType, useChat } from "./ChatContextCore";
 
-export { getActiveBranch, getMessageSiblings, migrateConversations };
-export type { ActiveView };
-
-export interface ChatContextType {
-  // Conversations
-  conversations: Conversation[];
-  activeConversationId: string | null;
-  activeConversation: Conversation | null;
-  activeBranch: Message[];
-  setActiveConversationId: (id: string | null) => void;
-  createNewChat: (projectId?: string | null) => void;
-  saveMessage: (conversationId: string, message: Message, projectId?: string | null) => void;
-  setConversationMessages: (conversationId: string, messages: Message[]) => void;
-  updateMessageContent: (
-    conversationId: string,
-    messageId: string,
-    content: string,
-    isStreaming?: boolean,
-    isThinking?: boolean,
-    thinking?: string,
-    errorInfo?: { isError?: boolean; errorText?: string; errorDetails?: string },
-    sources?: Array<{ title: string; url: string }>,
-    isSearchingWeb?: boolean,
-    timing?: { thinkingStartedAt?: number; firstTokenAt?: number; thinkingMs?: number },
-    isReconnecting?: boolean
-  ) => void;
-  deleteConversation: (id: string) => void;
-  toggleStar: (id: string) => void;
-  renameConversation: (id: string, newTitle: string) => void;
-  triggerAutoTitle: (conversationId: string, firstUserMsg: string, firstReply: string) => Promise<void>;
-
-  // Message Branching & Versioning
-  switchMessageVersion: (conversationId: string, messageId: string, targetVersionIndex: number) => void;
-  branchEditUserMessage: (
-    conversationId: string,
-    targetMessageId: string,
-    newContent: string
-  ) => { newUserMsg: Message; newAssistantMsg: Message } | null;
-  branchRetryAssistantMessage: (
-    conversationId: string,
-    assistantMessageId: string
-  ) => { parentUserMsg: Message; newAssistantMsg: Message } | null;
-
-  // History navigation
-  canGoBack: boolean;
-  canGoForward: boolean;
-  goBack: () => void;
-  goForward: () => void;
-
-  // Views & Routing
-  activeView: ActiveView;
-  setActiveView: (view: ActiveView) => void;
-
-  // Search Modal
-  searchModalOpen: boolean;
-  setSearchModalOpen: (open: boolean) => void;
-
-  // Settings Modal
-  settingsModalOpen: boolean;
-  setSettingsModalOpen: (open: boolean) => void;
-
-  // User Preferences
-  preferences: UserPreferences;
-  updatePreferences: (partial: Partial<UserPreferences>) => void;
-
-  // Projects
-  projects: Project[];
-  addProject: (name: string, description: string) => Project;
-  updateProject: (id: string, partial: Partial<Project>) => void;
-  deleteProject: (id: string) => void;
-  addProjectKnowledge: (
-    projectId: string,
-    item: Omit<ProjectKnowledgeItem, "id" | "createdAt">
-  ) => void;
-  deleteProjectKnowledge: (projectId: string, knowledgeId: string) => void;
-
-  // Artifacts
-  artifacts: Artifact[];
-  activeArtifact: Artifact | null;
-  artifactPanelOpen: boolean;
-  openArtifact: (artifact: Artifact) => void;
-  closeArtifact: () => void;
-  saveOrUpdateArtifact: (
-    title: string,
-    language: string,
-    type: string,
-    code: string,
-    chatId?: string,
-    chatTitle?: string
-  ) => Artifact;
-  updateActiveArtifactLive: (title: string, code: string, isStreaming?: boolean) => void;
-  setArtifactVersion: (artifactId: string, version: number) => void;
-  deleteArtifact: (id: string) => void;
-  clearAllData: () => void;
-  
-  // Selection Toolbar Quotes
-  activeQuote: string | null;
-  setActiveQuote: (quote: string | null) => void;
-
-  // Background Stream Registry
-  generatingChatIds: Set<string>;
-  registerActiveStream: (chatId: string, abortCtrl: AbortController) => void;
-  unregisterActiveStream: (chatId: string) => void;
-  stopActiveStream: (chatId: string) => void;
-}
+export { getActiveBranch, getMessageSiblings, migrateConversations, useChat };
+export type { ActiveView, ChatContextType };
 
 const STORAGE_KEY_CONVS = "claude_clone_conversations_v3";
 
-const ChatContext = createContext<ChatContextType | null>(null);
-
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load initial conversations with automatic migration
   const [conversations, dispatch] = useReducer(conversationsReducer, [], () => {
     try {
       const savedV3 = localStorage.getItem(STORAGE_KEY_CONVS);
       if (savedV3) return migrateConversations(JSON.parse(savedV3));
-
       const savedV2 = localStorage.getItem("claude_clone_conversations_v2");
       if (savedV2) return migrateConversations(JSON.parse(savedV2));
     } catch {
@@ -154,7 +43,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return [];
   });
 
-  // Save conversations to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_CONVS, JSON.stringify(conversations));
@@ -163,7 +51,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [conversations]);
 
-  // Hook stores
   const [activeQuote, setActiveQuote] = useState<string | null>(null);
   const ui = useUIStore();
   const artifactsStore = useArtifactsStore();
@@ -175,228 +62,83 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [conversations, ui.activeConversationId]);
 
   const activeBranch = useMemo(() => {
-    return getActiveBranch(
-      activeConversation?.messages || [],
-      activeConversation?.rootMessageId
-    );
+    return getActiveBranch(activeConversation?.messages || [], activeConversation?.rootMessageId);
   }, [activeConversation]);
 
-  const saveMessage = useCallback(
-    (conversationId: string, message: Message, projectId?: string | null) => {
-      dispatch({
-        type: "SAVE_MESSAGE",
-        conversationId,
-        message,
-        projectId,
-      });
-    },
-    []
-  );
-
-  const setConversationMessages = useCallback(
-    (conversationId: string, messages: Message[]) => {
-      dispatch({
-        type: "SET_CONVERSATION_MESSAGES",
-        conversationId,
-        messages,
-      });
-    },
-    []
-  );
-
-  const updateMessageContent = useCallback(
-    (
-      conversationId: string,
-      messageId: string,
-      content: string,
-      isStreaming = false,
-      isThinking = false,
-      thinking?: string,
-      errorInfo?: { isError?: boolean; errorText?: string; errorDetails?: string },
-      sources?: Array<{ title: string; url: string }>,
-      isSearchingWeb?: boolean,
-      timing?: { thinkingStartedAt?: number; firstTokenAt?: number; thinkingMs?: number },
-      isReconnecting?: boolean,
-      finishReason?: string
-    ) => {
-      dispatch({
-        type: "UPDATE_MESSAGE_CONTENT",
-        conversationId,
-        messageId,
-        content,
-        isStreaming,
-        isThinking,
-        thinking,
-        isError: errorInfo?.isError,
-        errorText: errorInfo?.errorText,
-        errorDetails: errorInfo?.errorDetails,
-        sources,
-        isSearchingWeb,
-        thinkingStartedAt: timing?.thinkingStartedAt,
-        firstTokenAt: timing?.firstTokenAt,
-        thinkingMs: timing?.thinkingMs,
-        isReconnecting,
-        finishReason,
-      });
-    },
-    []
-  );
-
-  const switchMessageVersion = useCallback(
-    (conversationId: string, messageId: string, targetVersionIndex: number) => {
-      dispatch({
-        type: "SWITCH_VERSION",
-        conversationId,
-        messageId,
-        targetVersionIndex,
-      });
-    },
-    []
-  );
-
-  const branchEditUserMessage = useCallback(
-    (conversationId: string, targetMessageId: string, newContent: string) => {
-      const conv = conversations.find((c) => c.id === conversationId);
-      if (!conv) return null;
-      const targetMsg = conv.messages.find((m) => m.id === targetMessageId);
-      if (!targetMsg) return null;
-
-      const parentId = targetMsg.parentId || null;
-      const newUserMsgId = `u-${Date.now()}`;
-      const newAssistantMsgId = `a-${Date.now()}`;
-
-      const newUserMsg: Message = {
-        id: newUserMsgId,
-        parentId,
-        activeChildId: newAssistantMsgId,
-        childrenIds: [newAssistantMsgId],
-        role: "user",
-        content: newContent,
-        attachments: targetMsg.attachments,
-        createdAt: Date.now(),
-      };
-
-      const newAssistantMsg: Message = {
-        id: newAssistantMsgId,
-        parentId: newUserMsgId,
-        role: "assistant",
-        content: "",
-        isStreaming: true,
-        createdAt: Date.now(),
-      };
-
-      dispatch({
-        type: "BRANCH_EDIT_USER",
-        conversationId,
-        newUserMsg,
-        newAssistantMsg,
-        parentId,
-      });
-
-      return { newUserMsg, newAssistantMsg };
-    },
-    [conversations]
-  );
-
-  const branchRetryAssistantMessage = useCallback(
-    (conversationId: string, assistantMessageId: string) => {
-      const conv = conversations.find((c) => c.id === conversationId);
-      if (!conv) return null;
-      const targetAssistant = conv.messages.find((m) => m.id === assistantMessageId);
-      if (!targetAssistant || !targetAssistant.parentId) return null;
-
-      const parentUserMsgId = targetAssistant.parentId;
-      const parentUserMsg = conv.messages.find((m) => m.id === parentUserMsgId);
-      if (!parentUserMsg) return null;
-
-      const newAssistantMsgId = `a-${Date.now()}`;
-      const newAssistantMsg: Message = {
-        id: newAssistantMsgId,
-        parentId: parentUserMsgId,
-        role: "assistant",
-        content: "",
-        isStreaming: true,
-        createdAt: Date.now(),
-      };
-
-      dispatch({
-        type: "BRANCH_RETRY_ASSISTANT",
-        conversationId,
-        newAssistantMsg,
-        parentUserMsgId,
-      });
-
-      return { parentUserMsg, newAssistantMsg };
-    },
-    [conversations]
-  );
-
-  const deleteConversation = useCallback(
-    (id: string) => {
-      dispatch({ type: "DELETE_CONVERSATION", id });
-      if (ui.activeConversationId === id) {
-        ui.setActiveConversationId(null);
-      }
-    },
-    [ui]
-  );
-
-  const toggleStar = useCallback((id: string) => {
-    dispatch({ type: "TOGGLE_STAR", id });
+  const saveMessage = useCallback((conversationId: string, message: Message, projectId?: string | null) => {
+    dispatch({ type: "SAVE_MESSAGE", conversationId, message, projectId });
   }, []);
 
-  const renameConversation = useCallback((id: string, newTitle: string) => {
-    dispatch({ type: "RENAME_CONVERSATION", id, newTitle });
+  const setConversationMessages = useCallback((conversationId: string, messages: Message[]) => {
+    dispatch({ type: "SET_CONVERSATION_MESSAGES", conversationId, messages });
   }, []);
 
-  const triggerAutoTitle = useCallback(
-    async (conversationId: string, firstUserMsg: string, firstReply: string) => {
-      let targetTitle = "New conversation";
-      try {
-        const res = await fetch("/api/title", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ firstUserMsg, firstReply }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.title) {
-            targetTitle = data.title;
-          }
-        }
-      } catch (err) {
-        console.error("Auto-title error:", err);
-        const trimmed = firstUserMsg.trim();
-        targetTitle = trimmed.length <= 36 ? trimmed : trimmed.slice(0, 36) + "...";
-      }
+  const updateMessageContent = useCallback((
+    conversationId: string,
+    messageId: string,
+    content: string,
+    isStreaming = false,
+    isThinking = false,
+    thinking?: string,
+    errorInfo?: { isError?: boolean; errorText?: string; errorDetails?: string },
+    sources?: Array<{ title: string; url: string }>,
+    isSearchingWeb?: boolean,
+    timing?: { thinkingStartedAt?: number; firstTokenAt?: number; thinkingMs?: number },
+    isReconnecting?: boolean,
+    finishReason?: string
+  ) => {
+    dispatch({
+      type: "UPDATE_MESSAGE_CONTENT",
+      conversationId,
+      messageId,
+      content,
+      isStreaming,
+      isThinking,
+      thinking,
+      isError: errorInfo?.isError,
+      errorText: errorInfo?.errorText,
+      errorDetails: errorInfo?.errorDetails,
+      sources,
+      isSearchingWeb,
+      thinkingStartedAt: timing?.thinkingStartedAt,
+      firstTokenAt: timing?.firstTokenAt,
+      thinkingMs: timing?.thinkingMs,
+      isReconnecting,
+      finishReason,
+    });
+  }, []);
 
-      dispatch({
-        type: "SET_TYPING_TITLE",
-        conversationId,
-        title: "",
-        isTypingTitle: true,
-      });
+  const switchMessageVersion = useCallback((conversationId: string, messageId: string, targetVersionIndex: number) => {
+    dispatch({ type: "SWITCH_VERSION", conversationId, messageId, targetVersionIndex });
+  }, []);
 
-      for (let i = 1; i <= targetTitle.length; i++) {
-        await new Promise((r) => setTimeout(r, 22));
-        const partial = targetTitle.slice(0, i);
-        dispatch({
-          type: "SET_TYPING_TITLE",
-          conversationId,
-          title: partial,
-          isTypingTitle: true,
-        });
-      }
+  const branchEditUserMessage = useCallback((conversationId: string, targetMessageId: string, newContent: string) => {
+    const res = createEditUserBranch(conversations, conversationId, targetMessageId, newContent);
+    if (!res) return null;
+    const { newUserMsg, newAssistantMsg, parentId } = res;
+    dispatch({ type: "BRANCH_EDIT_USER", conversationId, newUserMsg, newAssistantMsg, parentId });
+    return { newUserMsg, newAssistantMsg };
+  }, [conversations]);
 
-      dispatch({
-        type: "SET_TYPING_TITLE",
-        conversationId,
-        title: targetTitle,
-        isTypingTitle: false,
-      });
-    },
-    []
-  );
+  const branchRetryAssistantMessage = useCallback((conversationId: string, assistantMessageId: string) => {
+    const res = createRetryAssistantBranch(conversations, conversationId, assistantMessageId);
+    if (!res) return null;
+    const { parentUserMsg, newAssistantMsg, parentUserMsgId } = res;
+    dispatch({ type: "BRANCH_RETRY_ASSISTANT", conversationId, newAssistantMsg, parentUserMsgId });
+    return { parentUserMsg, newAssistantMsg };
+  }, [conversations]);
+
+  const deleteConversation = useCallback((id: string) => {
+    dispatch({ type: "DELETE_CONVERSATION", id });
+    if (ui.activeConversationId === id) ui.setActiveConversationId(null);
+  }, [ui]);
+
+  const toggleStar = useCallback((id: string) => dispatch({ type: "TOGGLE_STAR", id }), []);
+  const renameConversation = useCallback((id: string, newTitle: string) => dispatch({ type: "RENAME_CONVERSATION", id, newTitle }), []);
+
+  const triggerAutoTitle = useCallback(async (conversationId: string, firstUserMsg: string, firstReply: string) => {
+    await runAutoTitle(conversationId, firstUserMsg, firstReply, dispatch);
+  }, []);
 
   const clearAllData = useCallback(() => {
     dispatch({ type: "SET_ALL", conversations: [] });
@@ -406,7 +148,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(STORAGE_KEY_CONVS);
   }, [ui, projectsStore, artifactsStore]);
 
-  // Background stream registry
   const [generatingChatIds, setGeneratingChatIds] = useState<Set<string>>(new Set());
   const activeStreamsRef = useRef<Map<string, AbortController>>(new Map());
 
@@ -430,146 +171,77 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const stopActiveStream = useCallback((chatId: string) => {
     const ctrl = activeStreamsRef.current.get(chatId);
-    if (ctrl) {
-      ctrl.abort();
-    }
+    if (ctrl) ctrl.abort();
     unregisterActiveStream(chatId);
   }, [unregisterActiveStream]);
 
-  // Global keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+  useChatKeyboardShortcuts(ui);
 
-      if (isCmdOrCtrl && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        ui.setSearchModalOpen(!ui.searchModalOpen);
-      }
-
-      if (isCmdOrCtrl && e.shiftKey && e.key.toLowerCase() === "o") {
-        e.preventDefault();
-        ui.createNewChat();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [ui]);
-
-  const value = useMemo<ChatContextType>(
-    () => ({
-      conversations,
-      activeConversationId: ui.activeConversationId,
-      activeConversation,
-      activeBranch,
-      setActiveConversationId: ui.setActiveConversationId,
-      createNewChat: ui.createNewChat,
-      saveMessage,
-      setConversationMessages,
-      updateMessageContent,
-      deleteConversation,
-      toggleStar,
-      renameConversation,
-      triggerAutoTitle,
-      switchMessageVersion,
-      branchEditUserMessage,
-      branchRetryAssistantMessage,
-      canGoBack: ui.canGoBack,
-      canGoForward: ui.canGoForward,
-      goBack: ui.goBack,
-      goForward: ui.goForward,
-      activeView: ui.activeView,
-      setActiveView: ui.setActiveView,
-      searchModalOpen: ui.searchModalOpen,
-      setSearchModalOpen: ui.setSearchModalOpen,
-      settingsModalOpen: ui.settingsModalOpen,
-      setSettingsModalOpen: ui.setSettingsModalOpen,
-      preferences: preferencesStore.preferences,
-      updatePreferences: preferencesStore.updatePreferences,
-      projects: projectsStore.projects,
-      addProject: projectsStore.addProject,
-      updateProject: projectsStore.updateProject,
-      deleteProject: projectsStore.deleteProject,
-      addProjectKnowledge: projectsStore.addProjectKnowledge,
-      deleteProjectKnowledge: projectsStore.deleteProjectKnowledge,
-      artifacts: artifactsStore.artifacts,
-      activeArtifact: artifactsStore.activeArtifact,
-      artifactPanelOpen: artifactsStore.artifactPanelOpen,
-      openArtifact: artifactsStore.openArtifact,
-      closeArtifact: artifactsStore.closeArtifact,
-      saveOrUpdateArtifact: artifactsStore.saveOrUpdateArtifact,
-      updateActiveArtifactLive: artifactsStore.updateActiveArtifactLive,
-      setArtifactVersion: artifactsStore.setArtifactVersion,
-      deleteArtifact: artifactsStore.deleteArtifact,
-      clearAllData,
-      activeQuote,
-      setActiveQuote,
-      generatingChatIds,
-      registerActiveStream,
-      unregisterActiveStream,
-      stopActiveStream,
-    }),
-    [
-      conversations,
-      ui.activeConversationId,
-      activeConversation,
-      activeBranch,
-      ui.setActiveConversationId,
-      ui.createNewChat,
-      saveMessage,
-      setConversationMessages,
-      updateMessageContent,
-      deleteConversation,
-      toggleStar,
-      renameConversation,
-      triggerAutoTitle,
-      switchMessageVersion,
-      branchEditUserMessage,
-      branchRetryAssistantMessage,
-      ui.canGoBack,
-      ui.canGoForward,
-      ui.goBack,
-      ui.goForward,
-      ui.activeView,
-      ui.setActiveView,
-      ui.searchModalOpen,
-      ui.setSearchModalOpen,
-      ui.settingsModalOpen,
-      ui.setSettingsModalOpen,
-      preferencesStore.preferences,
-      preferencesStore.updatePreferences,
-      projectsStore.projects,
-      projectsStore.addProject,
-      projectsStore.updateProject,
-      projectsStore.deleteProject,
-      projectsStore.addProjectKnowledge,
-      projectsStore.deleteProjectKnowledge,
-      artifactsStore.artifacts,
-      artifactsStore.activeArtifact,
-      artifactsStore.artifactPanelOpen,
-      artifactsStore.openArtifact,
-      artifactsStore.closeArtifact,
-      artifactsStore.saveOrUpdateArtifact,
-      artifactsStore.updateActiveArtifactLive,
-      artifactsStore.setArtifactVersion,
-      artifactsStore.deleteArtifact,
-      clearAllData,
-      activeQuote,
-      setActiveQuote,
-      generatingChatIds,
-      registerActiveStream,
-      unregisterActiveStream,
-      stopActiveStream,
-    ]
-  );
+  const value = useMemo<ChatContextType>(() => ({
+    conversations,
+    activeConversationId: ui.activeConversationId,
+    activeConversation,
+    activeBranch,
+    setActiveConversationId: ui.setActiveConversationId,
+    createNewChat: ui.createNewChat,
+    saveMessage,
+    setConversationMessages,
+    updateMessageContent,
+    deleteConversation,
+    toggleStar,
+    renameConversation,
+    triggerAutoTitle,
+    switchMessageVersion,
+    branchEditUserMessage,
+    branchRetryAssistantMessage,
+    canGoBack: ui.canGoBack,
+    canGoForward: ui.canGoForward,
+    goBack: ui.goBack,
+    goForward: ui.goForward,
+    activeView: ui.activeView,
+    setActiveView: ui.setActiveView,
+    searchModalOpen: ui.searchModalOpen,
+    setSearchModalOpen: ui.setSearchModalOpen,
+    settingsModalOpen: ui.settingsModalOpen,
+    setSettingsModalOpen: ui.setSettingsModalOpen,
+    preferences: preferencesStore.preferences,
+    updatePreferences: preferencesStore.updatePreferences,
+    projects: projectsStore.projects,
+    addProject: projectsStore.addProject,
+    updateProject: projectsStore.updateProject,
+    deleteProject: projectsStore.deleteProject,
+    addProjectKnowledge: projectsStore.addProjectKnowledge,
+    deleteProjectKnowledge: projectsStore.deleteProjectKnowledge,
+    artifacts: artifactsStore.artifacts,
+    activeArtifact: artifactsStore.activeArtifact,
+    artifactPanelOpen: artifactsStore.artifactPanelOpen,
+    openArtifact: artifactsStore.openArtifact,
+    closeArtifact: artifactsStore.closeArtifact,
+    saveOrUpdateArtifact: artifactsStore.saveOrUpdateArtifact,
+    updateActiveArtifactLive: artifactsStore.updateActiveArtifactLive,
+    setArtifactVersion: artifactsStore.setArtifactVersion,
+    deleteArtifact: artifactsStore.deleteArtifact,
+    clearAllData,
+    activeQuote,
+    setActiveQuote,
+    generatingChatIds,
+    registerActiveStream,
+    unregisterActiveStream,
+    stopActiveStream,
+  }), [
+    conversations, ui.activeConversationId, activeConversation, activeBranch, ui.setActiveConversationId,
+    ui.createNewChat, saveMessage, setConversationMessages, updateMessageContent, deleteConversation,
+    toggleStar, renameConversation, triggerAutoTitle, switchMessageVersion, branchEditUserMessage,
+    branchRetryAssistantMessage, ui.canGoBack, ui.canGoForward, ui.goBack, ui.goForward, ui.activeView,
+    ui.setActiveView, ui.searchModalOpen, ui.setSearchModalOpen, ui.settingsModalOpen, ui.setSettingsModalOpen,
+    preferencesStore.preferences, preferencesStore.updatePreferences, projectsStore.projects,
+    projectsStore.addProject, projectsStore.updateProject, projectsStore.deleteProject,
+    projectsStore.addProjectKnowledge, projectsStore.deleteProjectKnowledge, artifactsStore.artifacts,
+    artifactsStore.activeArtifact, artifactsStore.artifactPanelOpen, artifactsStore.openArtifact,
+    artifactsStore.closeArtifact, artifactsStore.saveOrUpdateArtifact, artifactsStore.updateActiveArtifactLive,
+    artifactsStore.setArtifactVersion, artifactsStore.deleteArtifact, clearAllData, activeQuote,
+    setActiveQuote, generatingChatIds, registerActiveStream, unregisterActiveStream, stopActiveStream,
+  ]);
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
-};
-
-export const useChat = () => {
-  const ctx = useContext(ChatContext);
-  if (!ctx) {
-    throw new Error("useChat must be used within a ChatProvider");
-  }
-  return ctx;
 };

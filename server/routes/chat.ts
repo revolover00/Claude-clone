@@ -3,7 +3,7 @@ import { ai, apiKey, mapGeminiError, formatMessage, buildSystemInstruction } fro
 
 const router = Router();
 
-router.post("/chat", async (req, res) => {
+router.post("/", async (req, res) => {
   const {
     messages,
     style,
