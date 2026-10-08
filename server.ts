@@ -5,6 +5,19 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 
+// Polyfill localStorage for Node.js server environment in dev/test fallback modes
+if (typeof global.localStorage === "undefined") {
+  const mockLocalStorage: Record<string, string> = {};
+  (global as any).localStorage = {
+    getItem: (key: string) => mockLocalStorage[key] || null,
+    setItem: (key: string, value: string) => { mockLocalStorage[key] = value; },
+    removeItem: (key: string) => { delete mockLocalStorage[key]; },
+    clear: () => { Object.keys(mockLocalStorage).forEach(key => delete mockLocalStorage[key]); },
+    length: 0,
+    key: () => null,
+  };
+}
+
 // Import route handlers & middleware
 import healthRouter from "./server/routes/health";
 import chatRouter from "./server/routes/chat";
@@ -15,6 +28,17 @@ import memoryRouter from "./server/routes/memory";
 import { requireAuth } from "./server/middleware/auth";
 
 dotenv.config();
+
+if (process.env.NODE_ENV === "production") {
+  const missing = [];
+  if (!process.env.SUPABASE_URL) missing.push("SUPABASE_URL");
+  if (!process.env.SUPABASE_ANON_KEY) missing.push("SUPABASE_ANON_KEY");
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+  if (missing.length > 0) {
+    console.error(`CRITICAL ERROR: Missing required production environment variables: ${missing.join(", ")}. Refusing to start.`);
+    process.exit(1);
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
