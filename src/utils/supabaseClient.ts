@@ -16,14 +16,15 @@ function getMockSession() {
     if (saved) return JSON.parse(saved);
   } catch {}
   
-  // Default logged-in guest session so that the user doesn't even have to log in!
+  // Default logged-in guest session using a non-shared unique ID
+  const guestId = crypto.randomUUID();
   const defaultSession = {
-    access_token: "mock-jwt-token-12345",
+    access_token: `mock-jwt-token-${guestId}`,
     token_type: "bearer",
     expires_in: 3600,
     refresh_token: "mock-refresh-token",
     user: {
-      id: "00000000-0000-0000-0000-000000000000",
+      id: guestId,
       email: "guest@example.com",
       user_metadata: { name: "Guest User" },
       role: "authenticated",
@@ -123,7 +124,7 @@ const mockSupabase = {
     if (table === "models") {
       list = getMockModels();
     } else if (table === "app_admins") {
-      list = [{ user_id: "00000000-0000-0000-0000-000000000000" }];
+      list = [{ user_id: getMockSession().user.id }];
     } else if (table === "memories") {
       try {
         const saved = localStorage.getItem("claude_clone_mock_memories");
@@ -152,7 +153,7 @@ const mockSupabase = {
         if (table === "profiles") {
           return {
             data: {
-              id: "00000000-0000-0000-0000-000000000000",
+              id: getMockSession().user.id,
               display_name: "Guest User",
               avatar_url: null,
               locale: "en",
@@ -163,7 +164,7 @@ const mockSupabase = {
         if (table === "user_preferences") {
           return {
             data: {
-              user_id: "00000000-0000-0000-0000-000000000000",
+              user_id: getMockSession().user.id,
               response_style: "Normal",
               profile_instructions: "",
               settings: {},

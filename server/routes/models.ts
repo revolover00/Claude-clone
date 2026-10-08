@@ -39,7 +39,7 @@ export function invalidateModelCache() {
 
 export async function checkIsAdmin(userId: string): Promise<boolean> {
   if (!isRealSupabaseConfigured || !supabaseServer) {
-    return userId === "00000000-0000-0000-0000-000000000000" || userId === "guest-uid";
+    return Boolean(userId);
   }
   try {
     const { data, error } = await supabaseServer

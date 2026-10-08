@@ -24,16 +24,43 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  if (!isRealSupabaseConfigured || !supabaseServer) {
+  const authHeader = req.headers.authorization;
+  const isProd = process.env.NODE_ENV === "production";
+  const allowGuest = process.env.ALLOW_GUEST === "true";
+
+  // Check if it's a mock guest token in development/test
+  if (!isProd && allowGuest && authHeader && authHeader.startsWith("Bearer mock-jwt-token-")) {
+    const token = authHeader.split(" ")[1];
+    const guestId = token.substring("mock-jwt-token-".length) || "guest-random";
     req.user = {
-      id: "00000000-0000-0000-0000-000000000000",
+      id: guestId,
       email: "guest@example.com",
     };
     next();
     return;
   }
 
-  const authHeader = req.headers.authorization;
+  if (!isRealSupabaseConfigured || !supabaseServer) {
+    if (isProd || !allowGuest) {
+      res.status(401).json({ error: "Unauthorized: Supabase not configured and guest mode is disabled." });
+      return;
+    }
+    // Default fallback if no token provided in guest mode
+    let guestId = "guest-fallback";
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      if (token.startsWith("mock-jwt-token-")) {
+        guestId = token.substring("mock-jwt-token-".length);
+      }
+    }
+    req.user = {
+      id: guestId,
+      email: "guest@example.com",
+    };
+    next();
+    return;
+  }
+
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({ error: "Missing or invalid authorization header" });
     return;
