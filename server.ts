@@ -24,6 +24,9 @@ const ai = new GoogleGenAI({
 
 const app = express();
 
+// Trust proxy settings for secure rate limiting behind load balancers/proxies
+app.set("trust proxy", 1);
+
 // Restrict cors to ALLOWED_ORIGIN env var (default same-origin only)
 const allowedOrigin = process.env.ALLOWED_ORIGIN;
 app.use(cors(allowedOrigin ? { origin: allowedOrigin } : { origin: false }));
