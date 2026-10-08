@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { ChevronDown, Download } from "lucide-react";
 import UserMenu from "../modals/UserMenu";
-import { useChat } from "../../context/ChatContext";
+import { useAuth } from "../../context/AuthContext";
 
 export default function UserRow() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { preferences } = useChat();
-  const displayName = preferences.userName?.trim() || "You";
+  const { profile, preferences } = useAuth();
+  const displayName = profile?.display_name || preferences?.userName?.trim() || "You";
   const initial = displayName.charAt(0).toUpperCase() || "Y";
+  const avatarUrl = profile?.avatar_url;
 
   return (
     <div className="relative -mx-3 flex h-16 shrink-0 items-center justify-between border-t border-line-soft px-3 font-sans">
@@ -16,8 +17,12 @@ export default function UserRow() {
         onClick={() => setUserMenuOpen((v) => !v)}
         className="flex min-w-0 flex-1 items-center gap-2 rounded-md py-1.5 pe-1 text-start transition-colors duration-150 hover:bg-elev-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
       >
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-elev-3 text-[11px] font-semibold text-ink-soft">
-          {initial}
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-elev-3 text-[11px] font-semibold text-ink-soft overflow-hidden">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+          ) : (
+            initial
+          )}
         </span>
         <span className="truncate text-[13px] font-medium text-ink">
           {displayName}

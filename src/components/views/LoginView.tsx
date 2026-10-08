@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/supabaseClient";
 import { useToast } from "../../context/ToastContext";
 import { Sparkles, Mail, Lock, LogIn, UserPlus, KeyRound } from "lucide-react";
 
-export default function LoginView() {
+export default function LoginView({ from = "/" }: { from?: string }) {
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const [mode, setFormMode] = useState<"login" | "signup" | "reset">("login");
   const [email, setEmail] = useState("");
@@ -24,6 +26,7 @@ export default function LoginView() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         showToast("Signed in successfully", "success");
+        navigate(from);
       } else if (mode === "signup") {
         if (!password || password.length < 6) {
           showToast("Password must be at least 6 characters", "error");
