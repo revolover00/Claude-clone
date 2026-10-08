@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, useLocation } from "react-router-dom";
 import { UploadCloud, AlertTriangle, X } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import MainChat from "./components/MainChat";
@@ -7,16 +7,32 @@ import ErrorBoundary from "./components/shared/ErrorBoundary";
 import { ChatProvider, useChat } from "./context/ChatContext";
 import { ToastProvider } from "./context/ToastContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import LoginView from "./components/views/LoginView";
-import MotionReview from "./components/views/MotionReview";
+import { isRealSupabaseConfigured } from "./utils/supabaseClient";
 
 const ArtifactPanel = lazy(() => import("./components/artifacts/ArtifactPanel"));
 const SearchModal = lazy(() => import("./components/modals/SearchModal"));
 const SettingsModal = lazy(() => import("./components/modals/SettingsModal"));
+const LoginView = lazy(() => import("./components/views/LoginView"));
+const MotionReview = lazy(() => import("./components/views/MotionReview"));
+
+function BackendNotConfiguredPage() {
+  return (
+    <div className="flex h-screen w-screen flex-col items-center justify-center bg-shell p-6 text-center">
+      <AlertTriangle size={64} className="mb-6 text-rose-500" />
+      <h1 className="text-2xl font-semibold text-ink">Backend not configured</h1>
+      <p className="mt-2 text-ink-muted">The application is not connected to a backend. Please check your environment configuration.</p>
+    </div>
+  );
+}
 
 function AppContent() {
+  const location = useLocation();
   const isMotionPage = window.location.pathname === "/motion";
-  if (isMotionPage) return <MotionReview />;
+  if (isMotionPage) return <Suspense fallback={null}><MotionReview /></Suspense>;
+
+  if ((import.meta as any).env.PROD && !isRealSupabaseConfigured) {
+    return <BackendNotConfiguredPage />;
+  }
 
   const { loading, user } = useAuth();
   const {
@@ -137,7 +153,7 @@ function AppContent() {
     );
   }
 
-  if (!user) return <LoginView />;
+  if (!user) return <Suspense fallback={null}><LoginView from={location.pathname} /></Suspense>;
 
   return (
     <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-shell text-ink font-sans">
