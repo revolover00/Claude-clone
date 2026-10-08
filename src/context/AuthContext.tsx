@@ -62,13 +62,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: any, s: any) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, s: any) => {
       setSession(s);
       setUser(s?.user ?? null);
-      if (s?.user) {
+      if (event === "SIGNED_IN" && s?.user) {
         await fetchUserData(s.user.id);
         // Trigger check/migration
         await importLocalChatsToSupabase(s.user.id);
+      } else if (s?.user) {
+        await fetchUserData(s.user.id);
       } else {
         setProfile(null);
         setPreferences(null);
