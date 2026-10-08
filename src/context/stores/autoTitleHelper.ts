@@ -1,3 +1,5 @@
+import { supabase } from "../../utils/supabaseClient";
+
 export async function runAutoTitle(
   conversationId: string,
   firstUserMsg: string,
@@ -6,9 +8,22 @@ export async function runAutoTitle(
 ) {
   let targetTitle = "New conversation";
   try {
+    let token = "";
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        token = session.access_token;
+      }
+    } catch (err) {
+      console.warn("Could not retrieve auth session token for auto title:", err);
+    }
+
     const res = await fetch("/api/title", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ firstUserMsg, firstReply }),
     });
     if (res.ok) {

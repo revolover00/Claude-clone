@@ -1,4 +1,5 @@
 import { SSEParser } from "./sseParser";
+import { supabase } from "./supabaseClient";
 
 export interface StreamCallbacks {
   onThinkingStart?: () => void;
@@ -40,10 +41,21 @@ export function streamRealResponse(
     try {
       callbacks.onThinkingStart?.();
 
+      let token = "";
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          token = session.access_token;
+        }
+      } catch (err) {
+        console.warn("Could not retrieve auth session token:", err);
+      }
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           messages: [
