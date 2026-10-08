@@ -56,6 +56,7 @@ export interface Message {
   firstTokenAt?: number;
   thinkingMs?: number;
   finishReason?: string;
+  memoryUpdated?: boolean;
 }
 
 export interface Conversation {
@@ -68,6 +69,7 @@ export interface Conversation {
   updatedAt: number;
   starred?: boolean;
   isTypingTitle?: boolean;
+  isIncognito?: boolean;
 }
 
 export interface ProjectKnowledgeItem {
@@ -98,4 +100,6 @@ export interface UserPreferences {
   responseStyle: ResponseStyle;
   theme: "dark" | "light";
   language: "en" | "ar";
+  memory_enabled?: boolean;
+  sensitive_memory?: boolean;
 }

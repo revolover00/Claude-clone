@@ -10,6 +10,7 @@ export type ConversationAction =
       conversationId: string;
       message: Message;
       projectId?: string | null;
+      isIncognito?: boolean;
     }
   | {
       type: "SET_CONVERSATION_MESSAGES";
@@ -34,6 +35,7 @@ export type ConversationAction =
       firstTokenAt?: number;
       thinkingMs?: number;
       finishReason?: string;
+      memoryUpdated?: boolean;
     }
   | {
       type: "SWITCH_VERSION";
@@ -73,7 +75,7 @@ export function conversationsReducer(
       return action.conversations;
 
     case "SAVE_MESSAGE": {
-      const { conversationId, message, projectId } = action;
+      const { conversationId, message, projectId, isIncognito } = action;
       const existing = state.find((c) => c.id === conversationId);
 
       if (existing) {
@@ -126,6 +128,7 @@ export function conversationsReducer(
           createdAt: Date.now(),
           updatedAt: Date.now(),
           starred: false,
+          isIncognito: isIncognito || false,
         };
         return [newConv, ...state];
       }

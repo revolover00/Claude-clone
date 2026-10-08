@@ -62,7 +62,7 @@ export function useSlashCommands({
       const nextIdx = (modelIds.indexOf(model) + 1) % modelIds.length;
       setModel(modelIds[nextIdx]);
       setValue("");
-      const modelNames = { "sonnet-5": "Sonnet 5", "opus-5": "Opus 5", "haiku-4-5": "Haiku 4.5" };
+      const modelNames: Record<string, string> = { "sonnet-5": "Sonnet 5", "opus-5": "Opus 5", "haiku-4-5": "Haiku 4.5" };
       showToast(`Active model changed to ${modelNames[modelIds[nextIdx]]}`, "success");
     } else if (action === "export") {
       if (activeBranch && activeBranch.length > 0) {

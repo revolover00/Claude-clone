@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { ai, apiKey, mapGeminiError } from "../lib/gemini";
+import { getModelsFromDB } from "./models";
 
 const router = Router();
 
@@ -18,10 +19,17 @@ router.post("/", async (req, res) => {
   safeReply = safeReply.replace(/[\\"\n\r]/g, " ").trim();
 
   try {
+    const enabledModels = await getModelsFromDB(false);
+    const lightModel = enabledModels.find(m => m.kind === "light") || enabledModels.find(m => m.is_default) || enabledModels[0];
+    if (!lightModel) {
+      res.status(500).json({ error: "No enabled models available." });
+      return;
+    }
+
     const prompt = `Generate a 3-6 word title for a chat conversation based on the user's first message: "${safeUserMsg}" and the assistant's reply: "${safeReply}". The title MUST be in the same language as the chat conversation. Return ONLY the plain title text, with no quotation marks, no markdown, and no preamble.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite", // Extremely cheap & fast model for titles
+      model: lightModel.api_model_id,
       contents: prompt,
     });
 

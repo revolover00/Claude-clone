@@ -45,7 +45,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY_CONVS, JSON.stringify(conversations));
+      const nonIncognito = conversations.filter((c) => !c.isIncognito);
+      localStorage.setItem(STORAGE_KEY_CONVS, JSON.stringify(nonIncognito));
     } catch {
       // ignore
     }
@@ -65,8 +66,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return getActiveBranch(activeConversation?.messages || [], activeConversation?.rootMessageId);
   }, [activeConversation]);
 
-  const saveMessage = useCallback((conversationId: string, message: Message, projectId?: string | null) => {
-    dispatch({ type: "SAVE_MESSAGE", conversationId, message, projectId });
+  const saveMessage = useCallback((conversationId: string, message: Message, projectId?: string | null, isIncognito?: boolean) => {
+    dispatch({ type: "SAVE_MESSAGE", conversationId, message, projectId, isIncognito });
   }, []);
 
   const setConversationMessages = useCallback((conversationId: string, messages: Message[]) => {

@@ -15,8 +15,8 @@ export interface ChatContextType {
   activeConversation: Conversation | null;
   activeBranch: Message[];
   setActiveConversationId: (id: string | null) => void;
-  createNewChat: (projectId?: string | null) => void;
-  saveMessage: (conversationId: string, message: Message, projectId?: string | null) => void;
+  createNewChat: (projectId?: string | null, isIncognito?: boolean) => void;
+  saveMessage: (conversationId: string, message: Message, projectId?: string | null, isIncognito?: boolean) => void;
   setConversationMessages: (conversationId: string, messages: Message[]) => void;
   updateMessageContent: (
     conversationId: string,
