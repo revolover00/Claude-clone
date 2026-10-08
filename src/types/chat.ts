@@ -55,6 +55,7 @@ export interface Message {
   thinkingStartedAt?: number;
   firstTokenAt?: number;
   thinkingMs?: number;
+  finishReason?: string;
 }
 
 export interface Conversation {

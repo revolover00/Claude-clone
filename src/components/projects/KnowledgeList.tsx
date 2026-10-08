@@ -1,12 +1,5 @@
 import React, { useState, useRef } from "react";
-import {
-  FileText,
-  FileCode,
-  Upload,
-  Plus,
-  Trash2,
-  X,
-} from "lucide-react";
+import { FileText, FileCode, Upload, Plus, Trash2, X } from "lucide-react";
 import { useFocusTrap } from "../../utils/useFocusTrap";
 import { useToast } from "../../context/ToastContext";
 import type { ProjectKnowledgeItem } from "../../types/chat";
@@ -123,7 +116,6 @@ export const KnowledgeList: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Knowledge Items Grid */}
       <div className="mt-4">
         {knowledge.length === 0 ? (
           <div className="py-8 text-center">
@@ -182,7 +174,6 @@ export const KnowledgeList: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Add Knowledge Modal */}
       {addModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
@@ -208,7 +199,6 @@ export const KnowledgeList: React.FC<Props> = ({
                 <X size={18} />
               </button>
             </div>
-
             <form onSubmit={handleAddSnippet} className="mt-4 space-y-3.5">
               <div>
                 <label className="text-[12.5px] font-medium text-ink-muted">Title</label>
@@ -221,7 +211,6 @@ export const KnowledgeList: React.FC<Props> = ({
                   className="mt-1 w-full rounded-lg border border-line bg-elev-2 px-3 py-1.5 text-[14px] text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none"
                 />
               </div>
-
               <div>
                 <label className="text-[12.5px] font-medium text-ink-muted">Content</label>
                 <textarea
@@ -254,7 +243,6 @@ export const KnowledgeList: React.FC<Props> = ({
         </div>
       )}
 
-      {/* View Knowledge Item Modal */}
       {viewingItem && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"

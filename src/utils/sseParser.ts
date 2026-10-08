@@ -4,6 +4,7 @@ export interface SSEParserOptions {
   onSources?: (sources: Array<{ title: string; url: string }>) => void;
   onError?: (err: Error & { details?: string; code?: number }) => void;
   onDone?: () => void;
+  onFinish?: (finish: string) => void;
 }
 
 export class SSEParser {
@@ -58,6 +59,10 @@ export class SSEParser {
 
         if (data?.token) {
           this.handlers.onToken?.(data.token);
+        }
+
+        if (data?.finish) {
+          this.handlers.onFinish?.(data.finish);
         }
       }
     }
