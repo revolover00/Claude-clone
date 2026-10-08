@@ -59,13 +59,13 @@ export function useUIStore() {
   );
 
   const createNewChat = useCallback(
-    (projectId?: string | null) => {
+    (projectId?: string | null, isIncognito = false) => {
       setActiveConversationIdState(null);
       setActiveViewState("chat");
       if (projectId) {
-        navigate(`/?project=${projectId}`);
+        navigate(`/?project=${projectId}${isIncognito ? "&incognito=true" : ""}`);
       } else {
-        navigate("/");
+        navigate(isIncognito ? "/?incognito=true" : "/");
       }
     },
     [navigate]

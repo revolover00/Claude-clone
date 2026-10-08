@@ -31,6 +31,9 @@ export default function ChatHeader({
 }: Props) {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  
+  const queryParams = new URLSearchParams(window.location.search);
+  const isIncognitoNewChat = queryParams.get("incognito") === "true";
   const {
     toggleStar,
     renameConversation,
@@ -134,7 +137,7 @@ export default function ChatHeader({
         )}
 
         {/* Active conversation title / project badge */}
-        {activeConversation && (
+        {activeConversation ? (
           <div className="flex items-center gap-2 min-w-0">
             {currentProject && (
               <button
@@ -176,8 +179,25 @@ export default function ChatHeader({
                 {activeConversation.title}
               </h2>
             )}
+
+            {activeConversation.isIncognito && (
+              <span className="flex items-center gap-1 rounded bg-[#211f1d]/50 dark:bg-elev-3 border border-line px-1.5 py-0.5 text-[11px] font-medium text-ink-muted select-none">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                Incognito
+              </span>
+            )}
           </div>
-        )}
+        ) : isIncognitoNewChat ? (
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className="truncate text-[14px] font-medium text-ink select-none">
+              New Incognito Conversation
+            </h2>
+            <span className="flex items-center gap-1 rounded bg-[#211f1d]/50 dark:bg-elev-3 border border-line px-1.5 py-0.5 text-[11px] font-medium text-ink-muted select-none">
+              <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+              Incognito
+            </span>
+          </div>
+        ) : null}
       </div>
 
       {/* Right Header Actions: Star & More menu */}

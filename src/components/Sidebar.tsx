@@ -139,16 +139,29 @@ export default function Sidebar({ open, onToggle }: Props) {
         </div>
 
         {/* New chat button */}
-        <button
-          type="button"
-          onClick={() => {
-            createNewChat();
-          }}
-          className="mt-3 flex h-[34px] w-full items-center gap-2.5 rounded-lg bg-elev-3 px-2.5 text-[14px] font-medium text-ink transition-colors duration-150 hover:bg-elev-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-        >
-          <Plus size={16} strokeWidth={2} />
-          New chat
-        </button>
+        <div className="flex flex-col gap-1.5 mt-3">
+          <button
+            type="button"
+            onClick={() => {
+              createNewChat();
+            }}
+            className="flex h-[34px] w-full items-center gap-2.5 rounded-lg bg-elev-3 px-2.5 text-[14px] font-medium text-ink transition-colors duration-150 hover:bg-elev-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
+          >
+            <Plus size={16} strokeWidth={2} />
+            New chat
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => {
+              createNewChat(null, true);
+            }}
+            className="flex h-[30px] w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-line/80 bg-transparent px-2.5 text-[12px] font-medium text-ink-muted hover:text-ink hover:bg-elev-2 hover:border-line transition-all duration-150 cursor-pointer"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-ink-muted/50" />
+            New Incognito Chat
+          </button>
+        </div>
 
         {/* Primary nav: Projects, Artifacts, Customize */}
         <nav className="mt-1.5 flex flex-col gap-0.5">
@@ -187,12 +200,12 @@ export default function Sidebar({ open, onToggle }: Props) {
         {/* Chats header */}
         <div className="mt-6 flex items-center justify-between px-2 pb-1">
           <span className="text-[12.5px] font-medium text-ink-muted">
-            Chats ({conversations.length})
+            Chats ({conversations.filter(c => !c.isIncognito).length})
           </span>
         </div>
 
         {/* Grouped conversations list */}
-        <ChatList conversations={conversations} isLoading={isLoading} />
+        <ChatList conversations={conversations.filter(c => !c.isIncognito)} isLoading={isLoading} />
 
         {/* User profile row with popup menu */}
         <UserRow />

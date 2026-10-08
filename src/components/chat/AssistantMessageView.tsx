@@ -35,7 +35,7 @@ export default function AssistantMessageView({
   const { showToast } = useToast();
   const {
     activeConversation, openArtifact, saveOrUpdateArtifact, updateActiveArtifactLive,
-    switchMessageVersion, setActiveQuote, artifactPanelOpen, activeArtifact,
+    switchMessageVersion, setActiveQuote, artifactPanelOpen, activeArtifact, setSettingsModalOpen,
   } = useChat();
 
   const [copied, setCopied] = useState(false);
@@ -45,6 +45,28 @@ export default function AssistantMessageView({
   const [retryDropdownOpen, setRetryDropdownOpen] = useState(false);
   const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
   const [selection, setSelection] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [showMemoryUpdatedChip, setShowMemoryUpdatedChip] = useState(false);
+
+  useEffect(() => {
+    if (!isLastAssistantMessage) return;
+
+    const handleMemoryUpdated = () => {
+      setShowMemoryUpdatedChip(true);
+      const timer = setTimeout(() => {
+        setShowMemoryUpdatedChip(false);
+      }, 6000);
+      return () => clearTimeout(timer);
+    };
+
+    window.addEventListener("claude:memory-updated", handleMemoryUpdated);
+    return () => window.removeEventListener("claude:memory-updated", handleMemoryUpdated);
+  }, [isLastAssistantMessage]);
+
+  const handleManageMemory = () => {
+    localStorage.setItem("claude_clone_settings_tab", "memory");
+    setSettingsModalOpen(true);
+    setShowMemoryUpdatedChip(false);
+  };
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const isArabic = isArabicText(message.content);
@@ -231,6 +253,19 @@ export default function AssistantMessageView({
                 </div>
 
                 <GroundingSourcesView sources={message.sources || []} />
+                
+                {showMemoryUpdatedChip && (
+                  <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-accent/20 bg-accent/5 px-2.5 py-1 text-[11.5px] text-accent animate-fade-in select-none">
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                    <span>Memory updated</span>
+                    <button
+                      onClick={handleManageMemory}
+                      className="font-semibold underline cursor-pointer hover:text-accent/80 ml-1"
+                    >
+                      Manage
+                    </button>
+                  </div>
+                )}
               </>
             ) : message.isThinking ? null : message.isStreaming ? (
               <span className="inline-flex items-center align-middle ms-1 select-none">

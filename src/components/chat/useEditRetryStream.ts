@@ -2,6 +2,7 @@ import { SmoothStreamer } from "../../utils/smoothStreamer";
 import { streamRealResponse } from "../../utils/streamResponse";
 import type { Message, Project } from "../../types/chat";
 import { useRetryStream } from "./useRetryStream";
+import { useChat } from "../../context/ChatContext";
 
 interface EditRetryStreamOptions {
   activeConversationId: string | null;
@@ -46,6 +47,8 @@ export function useEditRetryStream(options: EditRetryStreamOptions) {
     streamerRef,
     lastOptions,
   } = options;
+
+  const { activeConversation } = useChat();
 
   const messages = activeBranch;
 
@@ -138,6 +141,7 @@ export function useEditRetryStream(options: EditRetryStreamOptions) {
         webSearch: lastOptions.webSearch,
         extendedThinking: lastOptions.extendedThinking,
         language: preferences.language,
+        memoryEnabled: preferences.memory_enabled !== false,
       },
       {
         onThinkingStart: () => {
@@ -196,8 +200,31 @@ export function useEditRetryStream(options: EditRetryStreamOptions) {
         onFinish: (finish) => {
           latestFinishReason = finish;
         },
-        onDone: () => {
+        onDone: (fullText) => {
           streamer.markDone();
+          
+          if (preferences.memory_enabled !== false && activeConversation && !activeConversation.isIncognito) {
+            fetch("/api/memory/extract", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                conversationId: activeConversationId,
+                lastMessages: [
+                  { role: "user", content: newContent },
+                  { role: "assistant", content: fullText || streamer.getDisplayedText() }
+                ]
+              })
+            })
+            .then(async (res) => {
+              if (res.ok) {
+                const data = await res.json();
+                if (data.success && data.changes && data.changes.length > 0) {
+                  window.dispatchEvent(new CustomEvent("claude:memory-updated"));
+                }
+              }
+            })
+            .catch(() => {});
+          }
         },
         onError: (err) => {
           streamer.stop();

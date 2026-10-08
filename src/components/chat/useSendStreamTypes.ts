@@ -5,7 +5,7 @@ export interface SendStreamOptions {
   activeConversationId: string | null;
   activeConversation: any;
   activeBranch: Message[];
-  saveMessage: (conversationId: string, message: Message, projectId?: string | null) => void;
+  saveMessage: (conversationId: string, message: Message, projectId?: string | null, isIncognito?: boolean) => void;
   updateMessageContent: (
     conversationId: string,
     messageId: string,

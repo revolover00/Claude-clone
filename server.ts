@@ -10,6 +10,8 @@ import healthRouter from "./server/routes/health";
 import chatRouter from "./server/routes/chat";
 import titleRouter from "./server/routes/title";
 import suggestRouter from "./server/routes/suggest";
+import modelsRouter from "./server/routes/models";
+import memoryRouter from "./server/routes/memory";
 import { requireAuth } from "./server/middleware/auth";
 
 dotenv.config();
@@ -47,6 +49,8 @@ const apiLimiter = rateLimit({
 app.use("/api/chat", requireAuth, apiLimiter, chatRouter);
 app.use("/api/title", requireAuth, apiLimiter, titleRouter);
 app.use("/api/suggest", requireAuth, apiLimiter, suggestRouter);
+app.use("/api/models", modelsRouter);
+app.use("/api/memory", memoryRouter);
 
 // Open healthcheck route
 app.use("/api", healthRouter);

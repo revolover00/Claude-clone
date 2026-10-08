@@ -30,13 +30,30 @@ export const HomeHero: React.FC<Props> = ({
   onSend,
   onStop,
 }) => {
-  const { preferences } = useChat();
+  const { preferences, updatePreferences } = useChat();
+  
+  const [showFirstRunCard, setShowFirstRunCard] = React.useState(() => {
+    return localStorage.getItem("claude_clone_memory_first_run_seen") !== "true";
+  });
+
   const greetingPrefix = getTimeGreeting();
   const userName = preferences.userName?.trim();
   const greetingText =
     userName && userName !== "You"
       ? `${greetingPrefix}, ${userName}`
       : `${greetingPrefix}, how are things?`;
+
+  const handleEnableMemory = () => {
+    updatePreferences({ memory_enabled: true });
+    localStorage.setItem("claude_clone_memory_first_run_seen", "true");
+    setShowFirstRunCard(false);
+  };
+
+  const handleNotNow = () => {
+    updatePreferences({ memory_enabled: false });
+    localStorage.setItem("claude_clone_memory_first_run_seen", "true");
+    setShowFirstRunCard(false);
+  };
 
   return (
     <div
@@ -68,6 +85,37 @@ export const HomeHero: React.FC<Props> = ({
             isStreaming={isStreaming}
             inChatView={false}
           />
+        </div>
+      )}
+
+      {/* First-run Memory Card */}
+      {!inChatView && showFirstRunCard && (
+        <div className="mt-8 w-full max-w-[690px] rounded-xl border border-line bg-elev-1 p-4 shadow-sm animate-fade-in font-sans">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
+              <ClaudeSpark size={18} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-[14.5px] font-semibold text-ink">Personal Memory is now available</h3>
+              <p className="mt-1 text-[12.5px] leading-relaxed text-ink-muted">
+                Claude can securely remember key facts about yourself, your tools, and your workflow across conversations so you get highly personalized, expert assistance without repeating yourself. You're in full control.
+              </p>
+              <div className="mt-3 flex items-center gap-3">
+                <button
+                  onClick={handleEnableMemory}
+                  className="rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-accent/90 transition-colors cursor-pointer"
+                >
+                  Enable Memory
+                </button>
+                <button
+                  onClick={handleNotNow}
+                  className="rounded-lg bg-elev-3 border border-line px-3 py-1.5 text-[12px] font-medium text-ink hover:bg-elev-4 transition-colors cursor-pointer"
+                >
+                  Not now
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

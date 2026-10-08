@@ -22,6 +22,7 @@ export interface ChatStreamOptions {
   webSearch: boolean;
   extendedThinking: boolean;
   language: string;
+  memoryEnabled?: boolean;
 }
 
 export function streamRealResponse(
@@ -75,6 +76,7 @@ export function streamRealResponse(
           webSearch: options.webSearch,
           extendedThinking: options.extendedThinking,
           language: options.language,
+          memoryEnabled: options.memoryEnabled !== false,
         }),
         signal,
       });

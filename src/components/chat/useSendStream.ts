@@ -87,8 +87,12 @@ export function useSendStream({
     let firstTokenTimestamp: number | undefined;
     let thinkingDurationMs: number | undefined;
 
-    saveMessage(conversationId, userMsg, currentProjectId);
-    saveMessage(conversationId, assistantMsg, currentProjectId);
+    const queryParams = new URLSearchParams(window.location.search);
+    const isIncognitoFromUrl = queryParams.get("incognito") === "true";
+    const isIncognito = activeConversation?.isIncognito || (!activeConversationId && isIncognitoFromUrl);
+
+    saveMessage(conversationId, userMsg, currentProjectId, isIncognito);
+    saveMessage(conversationId, assistantMsg, currentProjectId, isIncognito);
 
     if (!activeConversationId) {
       setActiveConversationId(conversationId);
@@ -101,10 +105,7 @@ export function useSendStream({
     const existingMessages = activeBranch || [];
 
     const projInstructions = currentProject?.instructions || undefined;
-    const projKnowledge = currentProject?.knowledge?.map((k) => ({
-      title: k.title,
-      content: k.content,
-    })) || undefined;
+    const projKnowledge = currentProject?.knowledge?.map((k) => ({ title: k.title, content: k.content })) || undefined;
 
     let receivedSources: Array<{ title: string; url: string }> | undefined;
     let accumulatedThoughts = "";
@@ -191,6 +192,7 @@ export function useSendStream({
           webSearch: sOpts.webSearch,
           extendedThinking: sOpts.extendedThinking,
           language: preferences.language,
+          memoryEnabled: preferences.memory_enabled !== false,
         },
         {
           onThinkingStart: () => {
@@ -220,6 +222,24 @@ export function useSendStream({
             streamer.markDone();
             if (isFirstExchange) {
               triggerAutoTitle(convId, pText, fullText);
+            }
+            
+            if (preferences.memory_enabled !== false && !isIncognito) {
+              fetch("/api/memory/extract", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  conversationId: convId,
+                  lastMessages: [
+                    { role: "user", content: pText },
+                    { role: "assistant", content: fullText }
+                  ]
+                })
+              })
+              .then(async (res) => {
+                const data = res.ok ? await res.json() : null;
+                if (data?.success && data?.changes?.length > 0) window.dispatchEvent(new CustomEvent("claude:memory-updated"));
+              }).catch(() => {});
             }
           },
           onError: (err) => {
@@ -253,11 +273,7 @@ export function useSendStream({
               false,
               accumulatedThoughts || undefined,
               receivedSources,
-              {
-                isError: true,
-                errorText: err.message || "An unexpected error occurred.",
-                errorDetails: (err as any).details || (err.stack ? String(err.stack) : undefined),
-              }
+              { isError: true, errorText: err.message || "An unexpected error occurred.", errorDetails: (err as any).details || (err.stack ? String(err.stack) : undefined) }
             );
             unregisterActiveStream(convId);
             triggerQueuedMessage();
@@ -271,13 +287,5 @@ export function useSendStream({
 
   const { queuedMessage, setQueuedMessage, triggerQueuedMessage } = useSendQueue(handleSend);
 
-  return {
-    handleSend,
-    followups,
-    setFollowups,
-    lastOptions,
-    setLastOptions,
-    queuedMessage,
-    setQueuedMessage,
-  };
+  return { handleSend, followups, setFollowups, lastOptions, setLastOptions, queuedMessage, setQueuedMessage };
 }
