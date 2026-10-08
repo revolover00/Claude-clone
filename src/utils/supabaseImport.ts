@@ -16,80 +16,117 @@ function generateUuid() {
   });
 }
 
+import { supabase } from "./supabaseClient";
+import type { Conversation } from "../types/chat";
+
+let inFlightPromise: Promise<void> | null = null;
+
+// Deterministic UUID v5-like generator for idempotency
+async function getDeterministicUuid(userId: string, oldId: string): Promise<string> {
+  const enc = new TextEncoder();
+  const data = enc.encode(`${userId}:${oldId}`);
+  const hashBuffer = await crypto.subtle.digest("SHA-1", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `${hex.substring(0, 8)}-${hex.substring(8, 12)}-4${hex.substring(13, 16)}-a${hex.substring(17, 20)}-${hex.substring(20, 32)}`;
+}
+
 export async function importLocalChatsToSupabase(userId: string) {
-  try {
-    const STORAGE_KEY_CONVS = "claude_clone_conversations_v3";
-    const rawLocal = localStorage.getItem(STORAGE_KEY_CONVS);
-    if (!rawLocal) return;
+  if (inFlightPromise) return inFlightPromise;
 
-    let localConversations: Conversation[] = [];
+  const IMPORT_KEY = `claude-clone:imported:${userId}`;
+  if (localStorage.getItem(IMPORT_KEY)) return;
+
+  inFlightPromise = (async () => {
     try {
-      localConversations = JSON.parse(rawLocal);
-    } catch {
-      return;
-    }
-
-    if (!localConversations || localConversations.length === 0) return;
-
-    for (const conv of localConversations) {
-      // Map old conversation ID to a valid UUID if it is not already
-      const convUuid = isUuid(conv.id) ? conv.id : generateUuid();
-
-      // Insert conversation
-      const { error: convErr } = await supabase.from("conversations").insert({
-        id: convUuid,
-        user_id: userId,
-        project_id: null, // Local storage chats don't have Supabase projects
-        title: conv.title || "Imported Chat",
-        starred: conv.starred || false,
-        model_id: "gemini-3.8-flash",
-        created_at: new Date(conv.createdAt || Date.now()).toISOString(),
-        updated_at: new Date(conv.updatedAt || Date.now()).toISOString(),
-      });
-
-      if (convErr) {
-        console.error("Conversation import error:", convErr);
-        continue; // Skip this conversation if we cannot insert it
+      const STORAGE_KEY_CONVS = "claude_clone_conversations_v3";
+      const rawLocal = localStorage.getItem(STORAGE_KEY_CONVS);
+      if (!rawLocal) {
+        localStorage.setItem(IMPORT_KEY, "true");
+        return;
       }
 
-      // Map message IDs to UUIDs to maintain parent_id relationships
-      const idMap: Record<string, string> = {};
-      conv.messages.forEach((msg) => {
-        idMap[msg.id] = isUuid(msg.id) ? msg.id : generateUuid();
-      });
+      let localConversations: Conversation[] = [];
+      try {
+        localConversations = JSON.parse(rawLocal);
+      } catch {
+        return;
+      }
 
-      // Insert messages sequentially to respect parent references
-      for (const msg of conv.messages) {
-        const mappedId = idMap[msg.id];
-        const mappedParentId = msg.parentId ? idMap[msg.parentId] : null;
+      if (!localConversations || localConversations.length === 0) {
+        localStorage.setItem(IMPORT_KEY, "true");
+        return;
+      }
 
-        const { error: msgErr } = await supabase.from("messages").insert({
-          id: mappedId,
-          conversation_id: convUuid,
-          user_id: userId,
-          parent_id: mappedParentId,
-          role: msg.role,
-          content: msg.content || "",
-          thinking: msg.thinking || "",
-          thinking_ms: msg.thinkingMs || null,
-          finish_reason: msg.finishReason || null,
-          model_id: "gemini-3.8-flash",
-          attachments: msg.attachments || [],
-          feedback: null,
-          created_at: new Date(msg.createdAt || Date.now()).toISOString(),
-        });
+      for (const conv of localConversations) {
+        const convUuid = await getDeterministicUuid(userId, conv.id);
 
-        if (msgErr) {
-          console.error("Message import error:", msgErr);
+        const { error: convErr } = await supabase.from("conversations").upsert(
+          {
+            id: convUuid,
+            user_id: userId,
+            project_id: null,
+            title: conv.title || "Imported Chat",
+            starred: conv.starred || false,
+            model_id: "gemini-3.8-flash",
+            created_at: new Date(conv.createdAt || Date.now()).toISOString(),
+            updated_at: new Date(conv.updatedAt || Date.now()).toISOString(),
+            active_leaf_id: null, // We'll set this after messages
+          },
+          { onConflict: "id" }
+        );
+
+        if (convErr) {
+          console.error("Conversation upsert error:", convErr);
+          continue;
+        }
+
+        const idMap: Record<string, string> = {};
+        for (const msg of conv.messages) {
+          idMap[msg.id] = await getDeterministicUuid(userId, msg.id);
+        }
+
+        let lastMessageId = null;
+        for (const msg of conv.messages) {
+          const mappedId = idMap[msg.id];
+          const mappedParentId = msg.parentId ? idMap[msg.parentId] : null;
+          lastMessageId = mappedId;
+
+          await supabase.from("messages").upsert(
+            {
+              id: mappedId,
+              conversation_id: convUuid,
+              user_id: userId,
+              parent_id: mappedParentId,
+              role: msg.role,
+              content: msg.content || "",
+              thinking: msg.thinking || null,
+              thinking_ms: msg.thinkingMs || null,
+              finish_reason: msg.finishReason || null,
+              model_id: "gemini-3.8-flash",
+              attachments: msg.attachments || [],
+              feedback: null,
+              created_at: new Date(msg.createdAt || Date.now()).toISOString(),
+            },
+            { onConflict: "id" }
+          );
+        }
+
+        if (lastMessageId) {
+          await supabase.from("conversations").update({ active_leaf_id: lastMessageId }).eq("id", convUuid);
         }
       }
-    }
 
-    // Migration complete, clear local storage
-    localStorage.removeItem(STORAGE_KEY_CONVS);
-    localStorage.removeItem("claude_clone_conversations_v2");
-    console.log("Local conversations migrated successfully to Supabase.");
-  } catch (err) {
-    console.error("Failed to run local chats migration:", err);
-  }
+      localStorage.removeItem(STORAGE_KEY_CONVS);
+      localStorage.removeItem("claude_clone_conversations_v2");
+      localStorage.setItem(IMPORT_KEY, "true");
+      console.log("Local conversations migrated successfully.");
+    } catch (err) {
+      console.error("Failed to run local chats migration:", err);
+    } finally {
+      inFlightPromise = null;
+    }
+  })();
+
+  return inFlightPromise;
 }
