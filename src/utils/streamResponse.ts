@@ -99,30 +99,34 @@ export function streamRealResponse(
       });
 
       if (!response.ok) {
+        const contentType = response.headers.get("content-type");
         let serverErrorMsg = "";
         let serverDetails = "";
         let serverCode = response.status;
-        try {
-          const errData = await response.json();
-          if (errData?.error) serverErrorMsg = errData.error;
-          if (errData?.details) serverDetails = errData.details;
-          if (errData?.code) serverCode = errData.code;
-        } catch {
-          // Response body was not JSON
+        let isJson = false;
+
+        if (contentType && contentType.includes("application/json")) {
+          try {
+            const errData = await response.json();
+            isJson = true;
+            if (errData?.error) serverErrorMsg = errData.error;
+            if (errData?.details) serverDetails = errData.details;
+            if (errData?.code) serverCode = errData.code;
+          } catch {
+            // Failed to parse JSON even though content-type was application/json
+          }
         }
 
-        // Read real error message from server response, or map status code
-        let friendlyMsg = serverErrorMsg;
-        if (!friendlyMsg) {
-          if (response.status === 429) {
-            friendlyMsg = "Rate limit reached, try again in a minute";
-          } else if (response.status === 403) {
-            friendlyMsg = "API key invalid or missing on the server";
-          } else if (response.status === 404) {
+        let friendlyMsg = "";
+        if (isJson) {
+          if (serverCode === "MODEL_NOT_FOUND") {
             friendlyMsg = "Selected model is unavailable";
           } else {
-            friendlyMsg = `HTTP Error ${response.status}: Failed to reach the AI gateway.`;
+            friendlyMsg = serverErrorMsg || `HTTP Error ${response.status}: ${response.statusText}`;
           }
+        } else {
+          friendlyMsg = `The AI endpoint returned HTTP ${response.status} (not an API response). The backend may not be deployed.`;
+          serverDetails = `Method: ${response.type}, URL: ${response.url}, Status: ${response.status}, Content-Type: ${contentType || "none"}`;
         }
 
         const httpErr = new Error(friendlyMsg);

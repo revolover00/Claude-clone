@@ -81,22 +81,26 @@ app.use("/api", healthRouter);
 
 // Serve frontend with Vite middlewares in dev or static files in production
 const isProd = process.env.NODE_ENV === "production";
-if (!isProd) {
+const isVercel = !!process.env.VERCEL;
+
+if (!isProd && !isVercel) {
   const { createServer: createViteServer } = await import("vite");
   const vite = await createViteServer({
     server: { middlewareMode: true, host: "0.0.0.0", port: 3000 },
     appType: "spa",
   });
   app.use(vite.middlewares);
-} else {
+} else if (!isVercel) {
   app.use(express.static(path.join(__dirname, "dist")));
   app.get(/.*/, (_req, res) => {
     res.sendFile(path.join(__dirname, "dist", "index.html"));
   });
 }
 
-const port = Number(process.env.PORT) || 3000;
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Server is running at http://0.0.0.0:${port}`);
-});
+if (!isVercel) {
+  const port = Number(process.env.PORT) || 3000;
+  app.listen(port, "0.0.0.0", () => {
+    console.log(`Server is running at http://0.0.0.0:${port}`);
+  });
+}
 export default app;

@@ -50,18 +50,28 @@ function AppContent() {
 
   const [windowDragActive, setWindowDragActive] = useState(false);
   const [backendNotConfigured, setBackendNotConfigured] = useState(false);
+  const [backendUnreachable, setBackendUnreachable] = useState(false);
   const [zeroEnabledModels, setZeroEnabledModels] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const dragCounterRef = useRef(0);
 
   useEffect(() => {
     fetch("/api/health")
-      .then((res) => res.json())
-      .then((data) => { 
-        if (data && data.hasKey === false) setBackendNotConfigured(true); 
-        if (data && data.enabledModelsCount === 0) setZeroEnabledModels(true);
+      .then(async (res) => {
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+           throw new Error("Backend unreachable");
+        }
+        return res.json();
       })
-      .catch((err) => console.warn("Health check error:", err));
+      .then((data) => { 
+        if (data && data.hasGeminiKey === false) setBackendNotConfigured(true); 
+        if (data && Array.isArray(data.enabledModels) && data.enabledModels.length === 0) setZeroEnabledModels(true);
+      })
+      .catch((err) => {
+        console.warn("Health check error:", err);
+        setBackendUnreachable(true);
+      });
 
     fetch("/api/models?all=true")
       .then((res) => {
@@ -167,6 +177,23 @@ function AppContent() {
             type="button"
             onClick={() => setBackendNotConfigured(false)}
             className="rounded p-1 text-amber-300 transition-colors hover:bg-amber-500/20 cursor-pointer"
+            aria-label="Dismiss banner"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {backendUnreachable && (
+        <div className="relative z-50 flex shrink-0 items-center justify-between border-b border-rose-500/30 bg-rose-500/15 px-4 py-2 text-[13px] text-rose-200">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={15} className="shrink-0 text-rose-400" />
+            <span>Backend not reachable</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBackendUnreachable(false)}
+            className="rounded p-1 text-rose-300 transition-colors hover:bg-rose-500/20 cursor-pointer"
             aria-label="Dismiss banner"
           >
             <X size={14} />

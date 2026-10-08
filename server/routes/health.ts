@@ -7,13 +7,21 @@ const router = Router();
 router.get("/health", async (_req, res) => {
   try {
     const enabledModels = await getModelsFromDB(false);
+    const hasSupabase = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_ANON_KEY;
     res.json({
       ok: true,
-      hasKey: Boolean(apiKey),
-      enabledModelsCount: enabledModels.length,
+      hasGeminiKey: Boolean(apiKey),
+      hasSupabase,
+      db: "reachable",
+      enabledModels: enabledModels.map(m => m.id),
+      runtime: process.env.VERCEL ? "vercel" : "node",
     });
   } catch (err: any) {
-    res.status(500).json({ ok: false, error: err.message });
+    res.json({
+      ok: false,
+      hasGeminiKey: Boolean(apiKey),
+      db: "error",
+    });
   }
 });
 
