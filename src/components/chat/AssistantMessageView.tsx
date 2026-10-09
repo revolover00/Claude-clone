@@ -212,6 +212,8 @@ export default function AssistantMessageView({
               firstTokenAt={message.firstTokenAt}
               thinkingMs={message.thinkingMs}
               hasAnswerToken={!message.isThinking}
+              isSearchingWeb={message.isSearchingWeb}
+              sources={message.sources}
             />
           </div>
         )}

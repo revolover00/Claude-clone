@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { ai, apiKey, mapGeminiError, formatMessage, buildSystemInstruction } from "../lib/gemini";
+import { apiKey, mapGeminiError, formatMessage, buildSystemInstruction, buildThinkingConfig, startGeminiStream } from "../lib/gemini";
 import { getModelsFromDB } from "./models";
 import { generateEmbedding, cosineSimilarity } from "../lib/memoryHelpers";
 import { createClient } from "@supabase/supabase-js";
@@ -57,6 +57,7 @@ router.post("/", async (req, res) => {
     abortCtrl.abort();
   });
 
+  let modelId = "";
   try {
     // Resolve model from DB/mock
     const enabledModels = await getModelsFromDB(false);
@@ -70,7 +71,7 @@ router.post("/", async (req, res) => {
       return;
     }
 
-    const modelId = resolvedModel.api_model_id;
+    modelId = resolvedModel.api_model_id;
 
     // Format all messages to the standard SDK format
     let formattedMessages = messages.map(formatMessage);
@@ -82,16 +83,11 @@ router.post("/", async (req, res) => {
       }));
     }
 
-    // Setup Supabase variables for memory fetching
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-    const isRealSupabaseConfigured = Boolean(
-      supabaseUrl && 
-      supabaseServiceKey && 
-      !supabaseUrl.includes("YOUR_") && 
-      !supabaseServiceKey.includes("YOUR_")
-    );
-    const supabaseServer = isRealSupabaseConfigured ? createClient(supabaseUrl, supabaseServiceKey) : null;
+  // Setup Supabase variables for memory fetching
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  const isRealSupabaseConfigured = Boolean(supabaseUrl && supabaseServiceKey && !supabaseUrl.includes("YOUR_") && !supabaseServiceKey.includes("YOUR_"));
+  const supabaseServer = isRealSupabaseConfigured ? createClient(supabaseUrl, supabaseServiceKey) : null;
 
     let memoryPromptSection = "";
     try {
@@ -177,27 +173,15 @@ router.post("/", async (req, res) => {
     }
 
     // Configure extended thinking for models that support it
-    const supportsThinking = resolvedModel.supports_thinking;
+    const supportsThinking = Boolean(resolvedModel.supports_thinking);
     if (extendedThinking && supportsThinking) {
-      let thinkingBudget = 4096; // Medium default
-      if (effort === "Low") {
-        thinkingBudget = 1024;
-      } else if (effort === "High") {
-        thinkingBudget = 16384;
-      }
-      config.thinkingConfig = {
-        thinkingBudget,
-      };
+      config.thinkingConfig = buildThinkingConfig(modelId, effort);
     }
 
     // Initiate Gemini streaming call before opening SSE headers
     let stream;
     try {
-      stream = await ai.models.generateContentStream({
-        model: modelId,
-        contents: formattedMessages,
-        config,
-      });
+      stream = await startGeminiStream(modelId, formattedMessages, config);
     } catch (err: any) {
       const errInfo = mapGeminiError(err, modelId);
       res.status(errInfo.status).json({
@@ -214,6 +198,10 @@ router.post("/", async (req, res) => {
     res.setHeader("Connection", "keep-alive");
     res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders?.();
+
+    if (extendedThinking && !supportsThinking) {
+      res.write(`data: ${JSON.stringify({ warning: "This model doesn't support extended thinking" })}\n\n`);
+    }
 
     const collectedSources: Array<{ title: string; url: string }> = [];
     const seenUrls = new Set<string>();
@@ -249,6 +237,12 @@ router.post("/", async (req, res) => {
         }
       }
 
+      // Forward usageMetadata.thoughtsTokenCount when present
+      const thoughtsTokenCount = (chunk as any)?.usageMetadata?.thoughtsTokenCount ?? (candidate as any)?.usageMetadata?.thoughtsTokenCount;
+      if (typeof thoughtsTokenCount === "number") {
+        res.write(`data: ${JSON.stringify({ thoughtsTokenCount })}\n\n`);
+      }
+
       // Extract and forward finishReason if present
       const finishReason = candidate?.finishReason;
       if (finishReason) {
@@ -258,10 +252,8 @@ router.post("/", async (req, res) => {
       const parts = candidate?.content?.parts || [];
       for (const part of parts) {
         if (part.thought) {
-          // Streaming thoughts/reasoning
-          res.write(`data: ${JSON.stringify({ thinking: part.text })}\n\n`);
+          res.write(`data: ${JSON.stringify({ thinking: part.text || "" })}\n\n`);
         } else if (part.text) {
-          // Streaming response content
           res.write(`data: ${JSON.stringify({ token: part.text })}\n\n`);
         }
       }

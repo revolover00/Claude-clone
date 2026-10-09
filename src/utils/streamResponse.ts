@@ -9,6 +9,7 @@ export interface StreamCallbacks {
   onDone?: (fullText: string) => void;
   onError?: (err: Error & { details?: string; code?: number }) => void;
   onFinish?: (finish: string) => void;
+  onThoughtsTokenCount?: (count: number) => void;
 }
 
 export interface ChatStreamOptions {
@@ -161,6 +162,12 @@ export function streamRealResponse(
         },
         onFinish: (finish) => {
            callbacks.onFinish?.(finish);
+        },
+        onThoughtsTokenCount: (count) => {
+          callbacks.onThoughtsTokenCount?.(count);
+        },
+        onWarning: (warning) => {
+          window.dispatchEvent(new CustomEvent("claude:toast", { detail: { message: warning, type: "info" } }));
         },
         onError: (err) => {
           midStreamError = err;

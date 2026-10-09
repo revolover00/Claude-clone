@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { Check, Info, AlertCircle } from "lucide-react";
 
 interface Toast {
@@ -29,6 +29,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     []
   );
+
+  useEffect(() => {
+    const handleToastEvent = (e: any) => {
+      if (e?.detail?.message) {
+        showToast(e.detail.message, e.detail.type || "info");
+      }
+    };
+    window.addEventListener("claude:toast", handleToastEvent);
+    return () => window.removeEventListener("claude:toast", handleToastEvent);
+  }, [showToast]);
 
   return (
     <ToastContext.Provider value={{ showToast }}>

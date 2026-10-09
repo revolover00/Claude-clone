@@ -2,50 +2,85 @@ export interface ThinkingStage {
   title: string;
   body: string;
   done: boolean;
-  type?: 'thinking' | 'tool';
-  toolStatus?: 'searching' | 'completed';
+  type?: "thinking" | "tool";
+  toolStatus?: "searching" | "completed";
   resultCount?: number;
+  queries?: string[];
 }
 
-export function parseThinkingStages(accumulatedText: string): ThinkingStage[] {
-  if (!accumulatedText.trim()) return [];
+export function isRtlText(text: string): boolean {
+  return /[\u0600-\u06FF]/.test(text);
+}
 
-  const stageRegex = /\*\*([^\*]+)\*\*/g;
-  const stages: ThinkingStage[] = [];
-  let lastIndex = 0;
-  let match;
+export function formatThinkingDuration(ms: number): string {
+  const totalSeconds = Math.max(1, Math.round(ms / 1000));
+  if (totalSeconds < 60) {
+    return `${totalSeconds}s`;
+  }
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  return `${mins}m ${secs}s`;
+}
 
-  // Find all headings
-  const matches: { title: string; index: number }[] = [];
-  while ((match = stageRegex.exec(accumulatedText)) !== null) {
-    matches.push({ title: match[1].trim(), index: match.index });
+export function parseThinkingStages(accumulatedText: string, isThinking = true): ThinkingStage[] {
+  if (!accumulatedText || !accumulatedText.trim()) return [];
+
+  // Normalize any literal escaped newlines (e.g. from JSX string attributes)
+  const normalizedText = accumulatedText.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
+
+  // Match bold titles that start on their own line (or start of stream)
+  // e.g. "**Planning the layout**\n\nbody..."
+  const headingRegex = /(?:^|\r?\n)[ \t]*\*\*([^*\r\n]+)\*\*[ \t]*(?:\r?\n|$)/g;
+  const matches: { title: string; startIndex: number; endIndex: number }[] = [];
+  let m: RegExpExecArray | null;
+
+  while ((m = headingRegex.exec(normalizedText)) !== null) {
+    matches.push({
+      title: m[1].trim(),
+      startIndex: m.index,
+      endIndex: headingRegex.lastIndex,
+    });
   }
 
-  // Text before first heading is the "Thinking" stage
-  let startIndex = 0;
+  // An unclosed "**title" at the end of the stream is not shown until it closes
+  const trailingUnclosedRegex = /(?:^|\r?\n)[ \t]*\*\*[^*\r\n]*$/;
+  const cleanedText = normalizedText.replace(trailingUnclosedRegex, "");
+
+  const stages: ThinkingStage[] = [];
+
+  // If there are no closed headings
   if (matches.length === 0) {
-    stages.push({ title: "Thinking", body: accumulatedText.trim(), done: false });
+    const body = cleanedText.trim();
+    if (body) {
+      stages.push({
+        title: "Thinking",
+        body,
+        done: !isThinking,
+      });
+    }
     return stages;
   }
 
-  // Handle first stage
-  if (matches[0].index > 0) {
+  // Text before the first heading becomes a stage titled "Thinking"
+  const textBefore = normalizedText.slice(0, matches[0].startIndex).trim();
+  if (textBefore) {
     stages.push({
       title: "Thinking",
-      body: accumulatedText.slice(0, matches[0].index).trim(),
+      body: textBefore,
       done: true,
     });
   }
 
-  // Process all matched stages
+  // Process each closed heading
   for (let i = 0; i < matches.length; i++) {
-    const start = matches[i].index + matches[i].title.length + 4; // ** + title + **
-    const end = i < matches.length - 1 ? matches[i + 1].index : accumulatedText.length;
-    
+    const cur = matches[i];
+    const nextStart = i < matches.length - 1 ? matches[i + 1].startIndex : cleanedText.length;
+    const body = cleanedText.slice(cur.endIndex, nextStart).trim();
+
     stages.push({
-      title: matches[i].title,
-      body: accumulatedText.slice(start, end).trim(),
-      done: i < matches.length - 1,
+      title: cur.title,
+      body,
+      done: i < matches.length - 1 ? true : !isThinking,
     });
   }
 
