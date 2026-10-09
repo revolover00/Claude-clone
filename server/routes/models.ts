@@ -59,7 +59,7 @@ export async function getModelsFromDB(all = false): Promise<any[]> {
     return cachedModels;
   }
 
-  let models: any[] = [];
+  let models: any[];
   if (isRealSupabaseConfigured && supabaseServer) {
     try {
       const { data, error } = await supabaseServer

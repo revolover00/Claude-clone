@@ -102,7 +102,7 @@ export function streamRealResponse(
         const contentType = response.headers.get("content-type");
         let serverErrorMsg = "";
         let serverDetails = "";
-        let serverCode = response.status;
+        let serverCode: number | string = response.status;
         let isJson = false;
 
         if (contentType && contentType.includes("application/json")) {

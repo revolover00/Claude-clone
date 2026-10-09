@@ -11,6 +11,13 @@ describe('error mapping', () => {
     expect(result.details).toEqual({ requestedModelId: 'model-id' });
   });
 
+  it('handles non-JSON error or non-404', () => {
+    const err = { status: 500, message: 'Server error' };
+    const result = mapGeminiError(err, 'model-id');
+    expect(result.status).toBe(500);
+    expect(result.code).not.toBe('MODEL_NOT_FOUND');
+  });
+
   it('maps 429', () => {
     const err = { status: 429, message: 'Rate limit' };
     const result = mapGeminiError(err);

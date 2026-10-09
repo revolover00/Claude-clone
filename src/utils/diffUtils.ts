@@ -64,7 +64,7 @@ export function computeHighlightedDiffLines(
 ): Array<{ type: "added" | "removed" | "normal"; html: string }> {
   const diff = computeLineDiff(previousCode, currentCode);
   const oldLines = previousCode.split("\n");
-  let oldHighlighted: string[] = [];
+  let oldHighlighted: string[];
   try {
     if (lang && hljs.getLanguage(lang)) {
       oldHighlighted = hljs.highlight(previousCode, { language: lang }).value.split("\n");

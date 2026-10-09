@@ -55,7 +55,7 @@ ${content}`;
         ]});
       }
     }
-  } catch (err: any) {
+  } catch {
     res.json({
       suggestions: [
         language === "ar" ? "هل يمكنك توضيح المزيد؟" : "Can you explain further?",

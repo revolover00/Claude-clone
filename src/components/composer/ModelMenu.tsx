@@ -68,7 +68,7 @@ export default function ModelMenu({
 
   useEffect(() => {
     loadModels();
-  }, []);
+  }, [loadModels]);
 
   const currentModelObj = chatModels.find((m) => m.slug === model || m.id === model) || chatModels[0] || {
     display_name: "Sonnet 5",

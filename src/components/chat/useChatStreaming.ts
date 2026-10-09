@@ -151,7 +151,7 @@ export function useChatStreaming({
     const promptToSend = "Continue generating the response exactly from where you left off. Do not repeat any part of your previous response. Just continue typing the remainder immediately.";
     const contextBranch = messages.slice(0, parentUserMsgIdx >= 0 ? parentUserMsgIdx + 1 : undefined);
 
-    let currentContent = assistantMsg.content;
+    const currentContent = assistantMsg.content;
     let latestContinueFinishReason: string | undefined;
 
     const streamer = new SmoothStreamer({

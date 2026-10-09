@@ -1,23 +1,6 @@
 import { supabase } from "./supabaseClient";
 import type { Conversation } from "../types/chat";
 
-// Helper to check if a string is a valid UUID
-function isUuid(str: string) {
-  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return regex.test(str);
-}
-
-// Generates a valid pseudo-random UUID
-function generateUuid() {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
-import { supabase } from "./supabaseClient";
-import type { Conversation } from "../types/chat";
 
 let inFlightPromise: Promise<void> | null = null;
 

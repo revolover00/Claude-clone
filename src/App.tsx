@@ -27,13 +27,6 @@ function BackendNotConfiguredPage() {
 
 function AppContent() {
   const location = useLocation();
-  const isMotionPage = window.location.pathname === "/motion";
-  if (isMotionPage) return <Suspense fallback={null}><MotionReview /></Suspense>;
-
-  if ((import.meta as any).env.PROD && !isRealSupabaseConfigured) {
-    return <BackendNotConfiguredPage />;
-  }
-
   const { loading, user } = useAuth();
   const {
     activeArtifact, artifactPanelOpen, closeArtifact, setArtifactVersion,
@@ -154,6 +147,13 @@ function AppContent() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [artifactPanelOpen, closeArtifact, searchModalOpen, setSearchModalOpen, settingsModalOpen, setSettingsModalOpen, sidebarOpen]);
+
+  const isMotionPage = window.location.pathname === "/motion";
+  if (isMotionPage) return <Suspense fallback={null}><MotionReview /></Suspense>;
+
+  if ((import.meta as any).env.PROD && !isRealSupabaseConfigured) {
+    return <BackendNotConfiguredPage />;
+  }
 
   if (loading) {
     return (
