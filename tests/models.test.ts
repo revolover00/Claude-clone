@@ -8,15 +8,17 @@ vi.mock("@supabase/supabase-js", () => ({
 import { getModelsFromDB, invalidateModelCache } from "../server/routes/models";
 
 // Mock localStorage for server side node environment test support
-const mockLocalStorage: Record<string, string> = {};
-global.localStorage = {
-  getItem: (key: string) => mockLocalStorage[key] || null,
-  setItem: (key: string, value: string) => { mockLocalStorage[key] = value; },
-  removeItem: (key: string) => { delete mockLocalStorage[key]; },
-  clear: () => { Object.keys(mockLocalStorage).forEach(key => delete mockLocalStorage[key]); },
-  length: 0,
-  key: () => null,
-} as any;
+if (typeof localStorage === "undefined") {
+  const mockLocalStorage: Record<string, string> = {};
+  (global as any).localStorage = {
+    getItem: (key: string) => mockLocalStorage[key] || null,
+    setItem: (key: string, value: string) => { mockLocalStorage[key] = value; },
+    removeItem: (key: string) => { delete mockLocalStorage[key]; },
+    clear: () => { Object.keys(mockLocalStorage).forEach(key => delete mockLocalStorage[key]); },
+    length: 0,
+    key: () => null,
+  } as any;
+}
 
 describe("Data-driven Models and Fallback Behavior", () => {
   beforeEach(() => {

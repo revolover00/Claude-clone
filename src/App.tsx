@@ -14,6 +14,7 @@ const SearchModal = lazy(() => import("./components/modals/SearchModal"));
 const SettingsModal = lazy(() => import("./components/modals/SettingsModal"));
 const LoginView = lazy(() => import("./components/views/LoginView"));
 const MotionReview = lazy(() => import("./components/views/MotionReview"));
+const ResetPasswordView = lazy(() => import("./components/views/ResetPasswordView"));
 
 function BackendNotConfiguredPage() {
   return (
@@ -150,6 +151,9 @@ function AppContent() {
 
   const isMotionPage = window.location.pathname === "/motion";
   if (isMotionPage) return <Suspense fallback={null}><MotionReview /></Suspense>;
+
+  const isResetPage = window.location.pathname === "/reset-password";
+  if (isResetPage) return <Suspense fallback={null}><ResetPasswordView /></Suspense>;
 
   if ((import.meta as any).env.PROD && !isRealSupabaseConfigured) {
     return <BackendNotConfiguredPage />;

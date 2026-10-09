@@ -3,7 +3,7 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 // Polyfill localStorage for Node.js server environment in dev/test fallback modes
 if (typeof global.localStorage === "undefined") {
@@ -62,7 +62,7 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: any) => {
-    return req.user?.id || req.ip || "anonymous";
+    return req.user?.id || ipKeyGenerator(req);
   },
   handler: (_req, res) => {
     res.status(429).json({ error: "Rate limit reached, try again in a minute", code: 429 });
@@ -86,7 +86,7 @@ const isVercel = !!process.env.VERCEL;
 if (!isProd && !isVercel) {
   const { createServer: createViteServer } = await import("vite");
   const vite = await createViteServer({
-    server: { middlewareMode: true, host: "0.0.0.0", port: 3000 },
+    server: { middlewareMode: true, host: "0.0.0.0", port: 3000, hmr: false },
     appType: "spa",
   });
   app.use(vite.middlewares);
