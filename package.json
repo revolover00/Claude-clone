@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "check": "tsc --noEmit && eslint src server --max-warnings=0 && vitest run && vite build"
   },
   "dependencies": {
     "@google/genai": "^2.27.0",

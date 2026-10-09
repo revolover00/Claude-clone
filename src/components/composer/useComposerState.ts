@@ -38,7 +38,7 @@ export function useComposerState({
     const saved = localStorage.getItem(draftKey) || "";
     setValue(saved);
     onChangeValue?.(saved);
-  }, [activeConversationId]);
+  }, [activeConversationId, onChangeValue]);
 
   const handleValueChange = (newVal: string) => {
     setValue(newVal);

@@ -6,7 +6,7 @@ function getMockSession() {
     try {
       const saved = localStorage.getItem("claude_clone_mock_session");
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { /* ignored */ }
     
     // Default logged-in guest session using a non-shared unique ID
     const guestId = crypto.randomUUID();
@@ -24,7 +24,7 @@ function getMockSession() {
     };
     try {
       localStorage.setItem("claude_clone_mock_session", JSON.stringify(defaultSession));
-    } catch {}
+    } catch { /* ignored */ }
     return defaultSession;
   }
   return null;
@@ -44,17 +44,17 @@ function getMockModels() {
   try {
     const saved = localStorage.getItem("claude_clone_mock_models");
     if (saved) return JSON.parse(saved);
-  } catch {}
+  } catch { /* ignored */ }
   try {
     localStorage.setItem("claude_clone_mock_models", JSON.stringify(SEED_MODELS));
-  } catch {}
+  } catch { /* ignored */ }
   return SEED_MODELS;
 }
 
 function saveMockModels(models: any[]) {
   try {
     localStorage.setItem("claude_clone_mock_models", JSON.stringify(models));
-  } catch {}
+  } catch { /* ignored */ }
 }
 
 export const mockSupabase = {
@@ -259,7 +259,7 @@ export const mockSupabase = {
                 const current = saved ? JSON.parse(saved) : [];
                 const filtered = current.filter((item: any) => item[field] !== value);
                 localStorage.setItem("claude_clone_mock_memories", JSON.stringify(filtered));
-              } catch {}
+              } catch { /* ignored */ }
             }
             return { error: null };
           },

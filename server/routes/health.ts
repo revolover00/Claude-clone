@@ -16,7 +16,7 @@ router.get("/health", async (_req, res) => {
       enabledModels: enabledModels.map(m => m.id),
       runtime: process.env.VERCEL ? "vercel" : "node",
     });
-  } catch (err: any) {
+  } catch {
     res.json({
       ok: false,
       hasGeminiKey: Boolean(apiKey),

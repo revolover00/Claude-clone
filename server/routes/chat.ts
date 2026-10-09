@@ -113,7 +113,7 @@ router.post("/", async (req, res) => {
               const saved = localStorage.getItem("claude_clone_mock_memories");
               const parsed = saved ? JSON.parse(saved) : [];
               activeMemories = parsed.filter((m: any) => m.status === "active" && m.user_id === uId);
-            } catch {}
+            } catch { /* ignored */ }
           }
 
           if (activeMemories.length > 0) {
