@@ -69,6 +69,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await fetchUserData(s.user.id);
         // Trigger check/migration
         await importLocalChatsToSupabase(s.user.id);
+      } else if (event === "PASSWORD_RECOVERY") {
+        // Stay on reset screen
       } else if (s?.user) {
         await fetchUserData(s.user.id);
       } else {
