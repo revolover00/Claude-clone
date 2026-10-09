@@ -86,7 +86,7 @@ const isVercel = !!process.env.VERCEL;
 if (!isProd && !isVercel) {
   const { createServer: createViteServer } = await import("vite");
   const vite = await createViteServer({
-    server: { middlewareMode: true, host: "0.0.0.0", port: 3000, hmr: false },
+    server: { middlewareMode: true, host: "0.0.0.0", port: 3000, hmr: { port: 24679 } },
     appType: "spa",
   });
   app.use(vite.middlewares);
