@@ -5,6 +5,8 @@ export interface SSEParserOptions {
   onError?: (err: Error & { details?: string; code?: number }) => void;
   onDone?: () => void;
   onFinish?: (finish: string) => void;
+  onThoughtsTokenCount?: (count: number) => void;
+  onWarning?: (warning: string) => void;
 }
 
 export class SSEParser {
@@ -63,6 +65,14 @@ export class SSEParser {
 
         if (data?.finish) {
           this.handlers.onFinish?.(data.finish);
+        }
+
+        if (typeof data?.thoughtsTokenCount === "number") {
+          this.handlers.onThoughtsTokenCount?.(data.thoughtsTokenCount);
+        }
+
+        if (data?.warning) {
+          this.handlers.onWarning?.(data.warning);
         }
       }
     }

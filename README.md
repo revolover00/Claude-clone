@@ -128,6 +128,14 @@ To manually test and verify the Claude.ai message version switcher in the UI:
 
 ---
 
+## Extended Thinking & Model Configuration
+
+Extended thinking produces reasoning and thought summaries during response streaming. By default, `Opus 5` (`gemini-3.1-pro-preview`) is configured with `supports_thinking: true`.
+
+> **Note for Administrators**: An admin can enable extended thinking (`supports_thinking`) per model in **Settings > Models** after testing and verifying that the target model supports thinking capabilities.
+
+---
+
 ## Deployment Notes
 
 This application uses a full-stack architecture where `server.ts` hosts the Express backend API (`/api/chat`, `/api/title`, `/api/health`) and serves the static production build files from `./dist`.

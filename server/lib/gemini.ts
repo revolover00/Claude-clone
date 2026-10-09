@@ -112,6 +112,86 @@ export function formatMessage(msg: any) {
   };
 }
 
+export const APP_NAME = process.env.APP_NAME || "Claude Clone";
+
+export function getTodayDateString(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+export function getBaseSystemPrompt(appName = process.env.APP_NAME || "Claude Clone", date = getTodayDateString()): string {
+  return `You are ${appName}, an AI assistant. You are not made by Anthropic and you are not Claude; if asked which model you are, say you are ${appName}, powered by a Google Gemini model. Today's date is ${date}.
+
+Character: warm, direct, curious and intellectually honest. Treat the user as a capable adult. Never open with praise or filler ("Great question", "Certainly!", "Of course"). Do not over-apologize or lecture. Disagree politely when you have good reason.
+
+Language: reply in the language and dialect the user writes in (Egyptian, Saudi, Gulf, Levantine or Modern Standard Arabic; English; etc.) and keep that language unless asked to switch. Keep code, identifiers, API names and product names in English. For Arabic, write natural, idiomatic text, not literal translation.
+
+Format: conversation is prose. Use short paragraphs, not headers or bullet lists, for ordinary answers, explanations and advice. Use lists only when the content is truly a list or the user asks; headers only for long documents; tables only to compare several items across several attributes; bold sparingly; emojis only if the user uses them. Put all code in fenced blocks with a language tag. Never use nested bullet hierarchies for simple answers.
+
+Length: match the question. A simple question gets a short, direct answer first. Complex questions get a thorough but tight answer, with no restating the question and no closing recap. Ask at most one clarifying question, and only when you truly cannot proceed; otherwise state a brief assumption and answer.
+
+Honesty: say when you are unsure or when information may be outdated. Never invent facts, quotes, citations, statistics or URLs. If you used web search, ground claims in the results. If the user is wrong, say so kindly and explain.
+
+Safety: if you must decline, do it briefly and without moralizing, and offer a safe alternative when possible.
+
+Memory: use remembered facts about the user only when they clearly improve the answer. Never say "according to my memory" or list what you remember; if the user asks you to ignore or forget something, comply.`;
+}
+
+export interface ThinkingConfigResult {
+  includeThoughts: boolean;
+  thinkingLevel?: string;
+  thinkingBudget?: number;
+}
+
+export function buildThinkingConfig(modelId: string, effort?: string): ThinkingConfigResult {
+  const isGemini3 = /gemini-3/i.test(modelId);
+
+  if (isGemini3) {
+    let thinkingLevel = "medium";
+    if (effort === "Low") thinkingLevel = "low";
+    else if (effort === "High") thinkingLevel = "high";
+    return {
+      includeThoughts: true,
+      thinkingLevel,
+    };
+  }
+
+  // Gemini 2.5 or other models supporting thinkingBudget
+  let thinkingBudget = 4096;
+  if (effort === "Low") thinkingBudget = 1024;
+  else if (effort === "High") thinkingBudget = 16384;
+
+  return {
+    includeThoughts: true,
+    thinkingBudget,
+  };
+}
+
+export async function startGeminiStream(modelId: string, formattedMessages: any[], config: any) {
+  if (!config?.thinkingConfig) {
+    return await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config });
+  }
+
+  try {
+    return await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config });
+  } catch (err: any) {
+    console.warn("Gemini API call failed with thinkingConfig, retrying once...", err?.message || err);
+    const retryConfig = { ...config };
+    if (retryConfig.thinkingConfig?.thinkingLevel || retryConfig.thinkingConfig?.thinkingBudget) {
+      retryConfig.thinkingConfig = { includeThoughts: true };
+      try {
+        return await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config: retryConfig });
+      } catch (err2: any) {
+        console.warn("Retry with includeThoughts failed, falling back without thinkingConfig...", err2?.message || err2);
+        delete retryConfig.thinkingConfig;
+        return await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config: retryConfig });
+      }
+    } else {
+      delete retryConfig.thinkingConfig;
+      return await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config: retryConfig });
+    }
+  }
+}
+
 // Builds systemic prompting instructions adapted to response styles, profile settings, and project context
 export function buildSystemInstruction(
   style: string,
@@ -120,33 +200,27 @@ export function buildSystemInstruction(
   projectKnowledge?: Array<{ title: string; content: string }>,
   language?: string
 ) {
-  let styleInstruction: string;
+  let styleInstruction = "";
   if (style === "Concise") {
     styleInstruction = "Provide extremely concise answers. Avoid fluff, keep paragraphs short, and get straight to the point.";
   } else if (style === "Explanatory") {
     styleInstruction = "Provide clear, detailed, educational explanations with step-by-step reasoning and deep-dive conceptual insights.";
   } else if (style === "Formal") {
     styleInstruction = "Maintain a highly professional, formal, polite, and authoritative tone.";
-  } else {
-    styleInstruction = "Maintain a natural, helpful, balanced, and conversational tone (similar to Claude).";
   }
 
   let knowledgeSection = "";
   if (projectKnowledge && projectKnowledge.length > 0) {
     knowledgeSection = `\n--- PROJECT KNOWLEDGE BASE ---\n` +
-      projectKnowledge
-        .map((k) => `[Document: ${k.title}]\n${k.content}`)
-        .join("\n\n") +
+      projectKnowledge.map((k) => `[Document: ${k.title}]\n${k.content}`).join("\n\n") +
       `\n-------------------------------\n`;
   }
 
-  return `You are a helpful, professional AI assistant (similar to Claude) with a reasoning capability.
-${styleInstruction}
+  const basePrompt = getBaseSystemPrompt();
 
-${profileInstructions ? `Here are some user profile instructions to tailor your responses:\n${profileInstructions}\n` : ""}
-${projectInstructions ? `Here are the specific project instructions for this workspace:\n${projectInstructions}\n` : ""}
-${knowledgeSection}
-${language === "ar" ? "Reply primarily in Arabic." : "Reply in the user's language (e.g., Arabic if they ask in Arabic, English if in English, etc.)."}
+  return `${basePrompt}
+
+${styleInstruction ? `${styleInstruction}\n` : ""}${profileInstructions ? `Here are some user profile instructions to tailor your responses:\n${profileInstructions}\n` : ""}${projectInstructions ? `Here are the specific project instructions for this workspace:\n${projectInstructions}\n` : ""}${knowledgeSection}${language === "ar" ? "Reply primarily in Arabic." : ""}
 
 When the user asks you to build, create, design, draw, or write a page, web application, UI component, SVG illustration, game, or document, or when you are modifying/editing an existing one, you MUST output the complete updated file in EXACTLY ONE fenced code block with the same title in the code's comment, header, or title tag. Do not output partial code, snippets, placeholders, or diffs. Always output the complete file so it is correctly recognized as a new version of the same artifact.
 Supported fenced code block languages are:

@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "eval": "tsx evals/claude-style.eval.ts",
     "lint": "tsc --noEmit",
     "check": "tsc --noEmit && eslint src server --max-warnings=0 && vitest run && vite build"
   },
