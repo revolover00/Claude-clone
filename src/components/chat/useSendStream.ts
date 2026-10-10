@@ -196,15 +196,17 @@ export function useSendStream({
         },
         {
           onThinkingStart: () => {
-            callUpdate("", true, sOpts.extendedThinking, "");
+            if (!tStartTime) tStartTime = Date.now();
+            callUpdate("", true, true, "");
           },
           onThinkingUpdate: (thoughts) => {
+            if (!tStartTime) tStartTime = Date.now();
             accumulatedThoughts = thoughts;
-            callUpdate("", true, sOpts.extendedThinking && !firstTokenTimestamp, thoughts);
+            callUpdate("", true, !firstTokenTimestamp, thoughts);
           },
           onSources: (sources) => {
             receivedSources = sources;
-            callUpdate("", true, sOpts.extendedThinking && !firstTokenTimestamp, accumulatedThoughts || undefined, sources);
+            callUpdate("", true, !firstTokenTimestamp, accumulatedThoughts || undefined, sources);
           },
           onToken: (token) => {
             if (!firstTokenTimestamp) {

@@ -22,6 +22,7 @@ describe("ThoughtProcess", () => {
         isThinking={false}
         thoughts="**Planning**\n\nDone thinking"
         hasAnswerToken={true}
+        thinkingStartedAt={Date.now() - 4000}
         thinkingMs={4000}
       />
     );
@@ -62,6 +63,7 @@ describe("ThoughtProcess", () => {
         isThinking={false}
         thoughts="Deep thought"
         hasAnswerToken={true}
+        thinkingStartedAt={Date.now() - 65000}
         thinkingMs={65000}
       />
     );
@@ -74,5 +76,63 @@ describe("ThoughtProcess", () => {
       <ThoughtProcess isThinking={false} thoughts="" hasAnswerToken={true} />
     );
     expect(container.firstChild).toBeNull();
+  });
+
+  it("shows correct duration when thinking arrives with toggle off (thinkingStartedAt set dynamically)", () => {
+    vi.useFakeTimers();
+    try {
+      const startTime = Date.now();
+      const { rerender } = render(
+        <ThoughtProcess
+          isThinking={true}
+          thoughts=""
+          hasAnswerToken={false}
+        />
+      );
+
+      // Initially no thinkingStartedAt, so no duration shown
+      expect(screen.queryByText(/s$/)).toBeNull();
+
+      // Thinking arrives with toggle off (thinkingStartedAt populated)
+      rerender(
+        <ThoughtProcess
+          isThinking={true}
+          thoughts="**Thinking phase**\n\nProcessing..."
+          thinkingStartedAt={startTime}
+          hasAnswerToken={false}
+        />
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      expect(screen.getByText(/· 3s/)).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows correct duration when thinking arrives with toggle on", () => {
+    vi.useFakeTimers();
+    try {
+      const startTime = Date.now();
+      render(
+        <ThoughtProcess
+          isThinking={true}
+          thoughts="**Thinking phase**\n\nProcessing..."
+          thinkingStartedAt={startTime}
+          hasAnswerToken={false}
+        />
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+
+      expect(screen.getByText(/· 5s/)).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
