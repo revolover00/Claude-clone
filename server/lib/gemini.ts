@@ -120,7 +120,8 @@ export function getTodayDateString(): string {
 }
 
 export function getBaseSystemPrompt(appName = APP_NAME, date = getTodayDateString(), modelName?: string): string {
-  return `You are ${appName}, an AI assistant. You are not made by Anthropic and you are not Claude; if asked which model you are, say you are ${appName}, powered by a ${modelName || "Google Gemini model"}. Today's date is ${date}.
+  const modelDisplayName = modelName || "Gemini 3.8 Flash";
+  const template = `You are ${appName}, an AI assistant. You are not made by Anthropic and you are not Claude; if asked which model you are, say you are ${appName}, powered by {{MODEL_NAME}}. Today's date is ${date}.
 
 Character: warm, direct, curious and intellectually honest. Treat the user as a capable adult. Never open with praise or filler ("Great question", "Certainly!", "Of course"). Do not over-apologize or lecture. Disagree politely when you have good reason.
 
@@ -135,6 +136,8 @@ Honesty: say when you are unsure or when information may be outdated. Never inve
 Safety: if you must decline, do it briefly and without moralizing, and offer a safe alternative when possible.
 
 Memory: use remembered facts about the user only when they clearly improve the answer. Never say "according to my memory" or list what you remember; if the user asks you to ignore or forget something, comply.`;
+
+  return template.replace(/\{\{MODEL_NAME\}\}/g, modelDisplayName);
 }
 
 export interface ThinkingConfigResult {
@@ -212,7 +215,8 @@ export function buildSystemInstruction(
   profileInstructions: string,
   projectInstructions?: string,
   projectKnowledge?: Array<{ title: string; content: string }>,
-  language?: string
+  language?: string,
+  modelName?: string
 ) {
   let styleInstruction = "";
   if (style === "Concise") {
@@ -230,7 +234,7 @@ export function buildSystemInstruction(
       `\n-------------------------------\n`;
   }
 
-  const basePrompt = getBaseSystemPrompt();
+  const basePrompt = getBaseSystemPrompt(APP_NAME, getTodayDateString(), modelName);
 
   return `${basePrompt}
 

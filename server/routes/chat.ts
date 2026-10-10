@@ -2,6 +2,7 @@ import { Router } from "express";
 import { mapGeminiError, formatMessage, buildSystemInstruction, startGeminiStream } from "../lib/gemini";
 import { getThinkingPlanAndConfig } from "../lib/thinkingRouter";
 import { getModelsFromDB } from "./models";
+import { normalizeSlug } from "../../src/hooks/useModels";
 import { generateEmbedding, cosineSimilarity } from "../lib/memoryHelpers";
 import { createClient } from "@supabase/supabase-js";
 
@@ -48,9 +49,13 @@ router.post("/", async (req, res) => {
 
   let modelId = "";
   try {
-    // Resolve model from DB/mock
+    // Resolve model from DB/mock, supporting both legacy and new slugs
+    const requestedSlug = model ? normalizeSlug(model) : model;
     const enabledModels = await getModelsFromDB(false);
-    let resolvedModel = enabledModels.find(m => m.slug === model || m.id === model);
+    let resolvedModel = enabledModels.find(m => {
+      const normSlug = normalizeSlug(m.slug);
+      return normSlug === requestedSlug || m.slug === model || m.id === model;
+    });
     if (!resolvedModel) {
       resolvedModel = enabledModels.find(m => m.is_default) || enabledModels[0];
     }

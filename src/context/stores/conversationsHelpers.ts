@@ -64,15 +64,20 @@ export function getMessageSiblings(
   };
 }
 
+import { normalizeSlug } from "../../hooks/useModels";
+
 /**
- * Automatically migrates existing legacy flat message arrays to linked tree nodes.
+ * Automatically migrates existing legacy flat message arrays to linked tree nodes and normalizes model slugs.
  */
 export function migrateConversations(savedRaw: any[]): Conversation[] {
   if (!Array.isArray(savedRaw)) return [];
   return savedRaw.map((c) => {
+    const convModelId = c.model_id ? normalizeSlug(c.model_id) : c.model_id;
+
     if (!c.messages || !Array.isArray(c.messages) || c.messages.length === 0) {
       return {
         ...c,
+        model_id: convModelId,
         messages: [],
         rootMessageId: null,
       };
@@ -80,7 +85,14 @@ export function migrateConversations(savedRaw: any[]): Conversation[] {
 
     const hasTreeStructure = c.messages.some((m: any) => "parentId" in m);
     if (hasTreeStructure) {
-      return c;
+      return {
+        ...c,
+        model_id: convModelId,
+        messages: c.messages.map((m: any) => ({
+          ...m,
+          ...(m.model_id ? { model_id: normalizeSlug(m.model_id) } : {}),
+        })),
+      };
     }
 
     // Convert sequential flat messages to linked tree nodes
@@ -89,6 +101,7 @@ export function migrateConversations(savedRaw: any[]): Conversation[] {
       const nextId = idx < c.messages.length - 1 ? c.messages[idx + 1].id : null;
       return {
         ...m,
+        ...(m.model_id ? { model_id: normalizeSlug(m.model_id) } : {}),
         parentId: prevId,
         activeChildId: nextId,
         childrenIds: nextId ? [nextId] : [],
@@ -97,6 +110,7 @@ export function migrateConversations(savedRaw: any[]): Conversation[] {
 
     return {
       ...c,
+      model_id: convModelId,
       messages,
       rootMessageId: messages[0]?.id || null,
     };

@@ -3,6 +3,7 @@ import { ai, apiKey } from "../lib/gemini";
 import { createClient } from "@supabase/supabase-js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
 import { runThinkingDiagnostic } from "../lib/testThinking";
+import { FALLBACK_MODELS, normalizeSlug } from "../../src/hooks/useModels";
 
 const router = Router();
 
@@ -19,15 +20,6 @@ const isRealSupabaseConfigured = Boolean(
 const supabaseServer = isRealSupabaseConfigured
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null;
-
-// Stateful seed models fallback when DB is real but empty
-const DEFAULT_SEED_MODELS = [
-  { slug: "gemini-3-8-flash", display_name: "Gemini 3.8 Flash", description: "Fast and highly balanced intelligence, ideal for general chat and multimodal tasks.", provider: "google", api_model_id: "gemini-3.8-flash", kind: "chat", supports_thinking: false, supports_search: true, supports_vision: true, enabled: true, is_default: true, sort_order: 1 },
-  { slug: "gemini-3-1-pro", display_name: "Gemini 3.1 Pro", description: "State-of-the-art capability for complex tasks and deep reasoning.", provider: "google", api_model_id: "gemini-3.1-pro-preview", kind: "chat", supports_thinking: true, supports_search: true, supports_vision: true, enabled: true, is_default: false, sort_order: 2 },
-  { slug: "gemini-3-1-flash-lite", display_name: "Gemini 3.1 Flash-Lite", description: "Incredible speed and low latency for quick conversations and summaries.", provider: "google", api_model_id: "gemini-3.1-flash-lite", kind: "chat", supports_thinking: false, supports_search: false, supports_vision: true, enabled: true, is_default: false, sort_order: 3 },
-  { slug: "gemini-light", display_name: "Gemini Light", description: "Internal model optimized for automated metadata, tags, and suggestions.", provider: "google", api_model_id: "gemini-3.1-flash-lite", kind: "light", supports_thinking: false, supports_search: false, supports_vision: false, enabled: true, is_default: false, sort_order: 4 },
-  { slug: "gemini-embedding", display_name: "Gemini Embedding", description: "High-performance text embeddings for semantic search and knowledge.", provider: "google", api_model_id: "text-embedding-004", kind: "embedding", supports_thinking: false, supports_search: false, supports_vision: false, enabled: true, is_default: false, sort_order: 5 }
-];
 
 // In-memory cache for GET /api/models
 let cachedModels: any[] | null = null;
@@ -70,10 +62,10 @@ export async function getModelsFromDB(all = false): Promise<any[]> {
       if (!error && data && data.length > 0) {
         models = data;
       } else {
-        models = DEFAULT_SEED_MODELS;
+        models = FALLBACK_MODELS;
       }
     } catch {
-      models = DEFAULT_SEED_MODELS;
+      models = FALLBACK_MODELS;
     }
   } else {
     // Mock database read
@@ -82,15 +74,21 @@ export async function getModelsFromDB(all = false): Promise<any[]> {
       if (saved) {
         models = JSON.parse(saved);
       } else {
-        models = DEFAULT_SEED_MODELS;
+        models = FALLBACK_MODELS;
       }
     } catch {
-      models = DEFAULT_SEED_MODELS;
+      models = FALLBACK_MODELS;
     }
   }
 
+  // Normalize legacy slugs on read so clients receive updated slugs
+  models = models.map((m: any) => ({
+    ...m,
+    slug: normalizeSlug(m.slug),
+  }));
+
   if (!all) {
-    const enabledOnly = models.filter(m => m.enabled);
+    const enabledOnly = models.filter((m) => m.enabled);
     cachedModels = enabledOnly;
     cacheExpiry = Date.now() + 60000;
     return enabledOnly;
@@ -120,7 +118,11 @@ router.post("/", requireAuth, async (req: AuthenticatedRequest, res: Response) =
       return;
     }
 
-    const modelData = req.body;
+    const modelData = { ...req.body };
+    if (modelData.slug) {
+      modelData.slug = normalizeSlug(modelData.slug);
+    }
+
     if (isRealSupabaseConfigured && supabaseServer) {
       const { data, error } = await supabaseServer.from("models").insert(modelData).select();
       if (error) throw error;
@@ -129,7 +131,7 @@ router.post("/", requireAuth, async (req: AuthenticatedRequest, res: Response) =
     } else {
       // Mock db insertion
       const saved = localStorage.getItem("claude_clone_mock_models");
-      const current = saved ? JSON.parse(saved) : DEFAULT_SEED_MODELS;
+      const current = saved ? JSON.parse(saved) : FALLBACK_MODELS;
       const newItem = {
         id: `m-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         ...modelData
@@ -153,7 +155,10 @@ router.patch("/:id", requireAuth, async (req: AuthenticatedRequest, res: Respons
     }
 
     const { id } = req.params;
-    const modelData = req.body;
+    const modelData = { ...req.body };
+    if (modelData.slug) {
+      modelData.slug = normalizeSlug(modelData.slug);
+    }
 
     if (isRealSupabaseConfigured && supabaseServer) {
       const { data, error } = await supabaseServer.from("models").update(modelData).eq("id", id).select();
@@ -162,10 +167,10 @@ router.patch("/:id", requireAuth, async (req: AuthenticatedRequest, res: Respons
       res.json(data[0]);
     } else {
       const saved = localStorage.getItem("claude_clone_mock_models");
-      const current = saved ? JSON.parse(saved) : DEFAULT_SEED_MODELS;
+      const current = saved ? JSON.parse(saved) : FALLBACK_MODELS;
       let updatedItem = null;
       const updated = current.map((item: any) => {
-        if (item.id === id) {
+        if (item.id === id || item.slug === id || normalizeSlug(item.slug) === normalizeSlug(id)) {
           updatedItem = { ...item, ...modelData };
           return updatedItem;
         }
@@ -198,8 +203,8 @@ router.delete("/:id", requireAuth, async (req: AuthenticatedRequest, res: Respon
       res.json({ success: true });
     } else {
       const saved = localStorage.getItem("claude_clone_mock_models");
-      const current = saved ? JSON.parse(saved) : DEFAULT_SEED_MODELS;
-      const filtered = current.filter((item: any) => item.id !== id);
+      const current = saved ? JSON.parse(saved) : FALLBACK_MODELS;
+      const filtered = current.filter((item: any) => item.id !== id && item.slug !== id && normalizeSlug(item.slug) !== normalizeSlug(id));
       localStorage.setItem("claude_clone_mock_models", JSON.stringify(filtered));
       invalidateModelCache();
       res.json({ success: true });
@@ -245,7 +250,7 @@ router.post("/:id/test", requireAuth, async (req: AuthenticatedRequest, res: Res
       return;
     }
     const all = await getModelsFromDB(true);
-    const targetModel = all.find(m => m.id === req.params.id || m.slug === req.params.id);
+    const targetModel = all.find(m => m.id === req.params.id || m.slug === req.params.id || normalizeSlug(m.slug) === normalizeSlug(req.params.id));
     if (!targetModel) {
       res.status(404).json({ error: "Model not found" });
       return;
@@ -275,7 +280,7 @@ router.post("/:slug/test-thinking", requireAuth, async (req: AuthenticatedReques
       return;
     }
     const all = await getModelsFromDB(true);
-    const target = all.find(m => m.slug === req.params.slug || m.id === req.params.slug);
+    const target = all.find(m => m.slug === req.params.slug || normalizeSlug(m.slug) === normalizeSlug(req.params.slug) || m.id === req.params.slug);
     if (!target) {
       res.status(404).json({ error: "Model not found" });
       return;

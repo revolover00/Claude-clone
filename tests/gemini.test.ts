@@ -36,6 +36,16 @@ describe("System Prompt Builder", () => {
     expect(prompt).toContain("You are TestBot");
     expect(prompt).toContain(`Today's date is ${mockDate}.`);
   });
+
+  it("injects real model display name into system prompt", () => {
+    const prompt = getBaseSystemPrompt("TestBot", mockDate, "Gemini 3.8 Flash");
+    expect(prompt).toContain("powered by Gemini 3.8 Flash");
+  });
+
+  it("injects specified model display name when talking to preview model", () => {
+    const prompt = getBaseSystemPrompt("TestBot", mockDate, "Gemini 3.1 Pro (Preview)");
+    expect(prompt).toContain("powered by Gemini 3.1 Pro (Preview)");
+  });
 });
 
 describe("Loud Fallback Tracking", () => {

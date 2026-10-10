@@ -1,3 +1,5 @@
+import { FALLBACK_MODELS, normalizeSlug } from "../hooks/useModels";
+
 const isDev = (import.meta as any).env.DEV;
 const allowLocalMode = (import.meta as any).env.VITE_ALLOW_LOCAL_MODE === "true";
 
@@ -32,23 +34,23 @@ function getMockSession() {
 
 const authListeners = new Set<(event: string, session: any) => void>();
 
-const SEED_MODELS = [
-  { id: "m1", slug: "sonnet-5", display_name: "Sonnet 5", description: "Fast and highly balanced intelligence, ideal for general chat and multimodal tasks.", provider: "google", api_model_id: "gemini-3.8-flash", kind: "chat", supports_thinking: false, supports_search: true, supports_vision: true, enabled: true, is_default: true, sort_order: 1 },
-  { id: "m2", slug: "opus-5", display_name: "Opus 5", description: "State-of-the-art capability for complex tasks and deep reasoning.", provider: "google", api_model_id: "gemini-3.1-pro-preview", kind: "chat", supports_thinking: true, supports_search: true, supports_vision: true, enabled: true, is_default: false, sort_order: 2 },
-  { id: "m3", slug: "haiku-4-5", display_name: "Haiku 4.5", description: "Incredible speed and low latency for quick conversations and summaries.", provider: "google", api_model_id: "gemini-3.1-flash-lite", kind: "chat", supports_thinking: false, supports_search: false, supports_vision: true, enabled: true, is_default: false, sort_order: 3 },
-  { id: "m4", slug: "gemini-light", display_name: "Gemini Light", description: "Internal model optimized for automated metadata, tags, and suggestions.", provider: "google", api_model_id: "gemini-3.1-flash-lite", kind: "light", supports_thinking: false, supports_search: false, supports_vision: false, enabled: true, is_default: false, sort_order: 4 },
-  { id: "m5", slug: "gemini-embedding", display_name: "Gemini Embedding", description: "High-performance text embeddings for semantic search and knowledge.", provider: "google", api_model_id: "text-embedding-004", kind: "embedding", supports_thinking: false, supports_search: false, supports_vision: false, enabled: true, is_default: false, sort_order: 5 }
-];
-
 function getMockModels() {
   try {
     const saved = localStorage.getItem("claude_clone_mock_models");
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((m: any) => ({
+          ...m,
+          slug: normalizeSlug(m.slug),
+        }));
+      }
+    }
   } catch { /* ignored */ }
   try {
-    localStorage.setItem("claude_clone_mock_models", JSON.stringify(SEED_MODELS));
+    localStorage.setItem("claude_clone_mock_models", JSON.stringify(FALLBACK_MODELS));
   } catch { /* ignored */ }
-  return SEED_MODELS;
+  return FALLBACK_MODELS;
 }
 
 function saveMockModels(models: any[]) {

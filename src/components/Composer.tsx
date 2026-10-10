@@ -12,7 +12,8 @@ import { SuggestionPanel } from "./composer/SuggestionPanel";
 import { useAttachments } from "./composer/useAttachments";
 import { useDictation } from "./composer/useDictation";
 import SlashMenu from "./composer/SlashMenu";
-import { COMMANDS, useSlashCommands } from "./composer/useSlashCommands";
+import { getSlashCommands, useSlashCommands } from "./composer/useSlashCommands";
+import { useModels } from "../hooks/useModels";
 import DragOverlay from "./composer/DragOverlay";
 import QuoteBanner from "./composer/QuoteBanner";
 import { useComposerState } from "./composer/useComposerState";
@@ -50,6 +51,7 @@ export default function Composer({
     createNewChat, deleteConversation, updatePreferences, activeBranch,
   } = useChat();
   const { showToast } = useToast();
+  const { models } = useModels();
 
   const {
     value, setValue, model, setModel, effort, setEffort,
@@ -58,8 +60,18 @@ export default function Composer({
     isOffline, handleValueChange,
   } = useComposerState({ activeConversationId, initialValue, onChangeValue });
 
-  const isSlashMenuOpen = value.startsWith("/") && !value.includes(" ");
-  const filteredCommands = COMMANDS.filter((cmd) => cmd.name.startsWith(value));
+  const allCommands = getSlashCommands(models);
+  const isSlashMenuOpen = value.startsWith("/") && (!value.includes(" ") || value.startsWith("/model"));
+  const filteredCommands = allCommands.filter((cmd) => {
+    if (value === "/") return true;
+    if (value.startsWith("/model")) {
+      return (
+        cmd.name.toLowerCase().startsWith(value.toLowerCase()) ||
+        cmd.action.startsWith("model")
+      );
+    }
+    return cmd.name.toLowerCase().startsWith(value.toLowerCase());
+  });
 
   const { executeCommand } = useSlashCommands({
     activeConversationId, activeBranch, preferences, model, setModel,

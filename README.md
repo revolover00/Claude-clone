@@ -130,7 +130,7 @@ To manually test and verify the Claude.ai message version switcher in the UI:
 
 ## Extended Thinking & Model Configuration
 
-Extended thinking produces reasoning and thought summaries during response streaming. By default, `Opus 5` (`gemini-3.1-pro-preview`) is configured with `supports_thinking: true`.
+Extended thinking produces reasoning and thought summaries during response streaming. By default, `Gemini 3.1 Pro (Preview)` (`gemini-3.1-pro-preview`) is configured with `supports_thinking: true`.
 
 > **Note for Administrators**: An admin can enable extended thinking (`supports_thinking`) per model in **Settings > Models** after testing and verifying that the target model supports thinking capabilities.
 
