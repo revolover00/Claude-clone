@@ -48,8 +48,8 @@ export function LiveStreamSpark({ isStreaming }: { isStreaming: boolean }) {
       aria-hidden="true"
     >
       <ClaudeSpark
-        size={14}
-        className="anim-thinking-spark text-accent inline-block"
+        size={11}
+        className="inline-block text-accent/70 animate-pulse motion-reduce:animate-none"
       />
     </span>
   );

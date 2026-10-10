@@ -7,14 +7,26 @@ const mockDate = "2026-10-09";
 import { buildThinkingConfig, getBaseSystemPrompt } from "../server/lib/gemini";
 
 describe("Thinking Config Builder", () => {
-  it("builds Gemini 3 thinking config", () => {
-    const config = buildThinkingConfig("gemini-3.8-flash", "Medium");
-    expect(config).toEqual({ includeThoughts: true, thinkingLevel: "medium" });
+  it("builds Gemini 3 thinking config with toggle on (respects effort levels)", () => {
+    expect(buildThinkingConfig("gemini-3.8-flash", "Low", true)).toEqual({ includeThoughts: true, thinkingLevel: "low" });
+    expect(buildThinkingConfig("gemini-3.8-flash", "Medium", true)).toEqual({ includeThoughts: true, thinkingLevel: "medium" });
+    expect(buildThinkingConfig("gemini-3.8-flash", "High", true)).toEqual({ includeThoughts: true, thinkingLevel: "high" });
   });
 
-  it("builds Gemini 2.5 thinking config", () => {
-    const config = buildThinkingConfig("gemini-2.5-flash", "Medium");
-    expect(config).toEqual({ includeThoughts: true, thinkingBudget: 4096 });
+  it("builds Gemini 3 thinking config with toggle off (always includeThoughts with low level)", () => {
+    const config = buildThinkingConfig("gemini-3.8-flash", "High", false);
+    expect(config).toEqual({ includeThoughts: true, thinkingLevel: "low" });
+  });
+
+  it("builds Gemini 2.5 thinking config with toggle on (respects effort budgets)", () => {
+    expect(buildThinkingConfig("gemini-2.5-flash", "Low", true)).toEqual({ includeThoughts: true, thinkingBudget: 1024 });
+    expect(buildThinkingConfig("gemini-2.5-flash", "Medium", true)).toEqual({ includeThoughts: true, thinkingBudget: 4096 });
+    expect(buildThinkingConfig("gemini-2.5-flash", "High", true)).toEqual({ includeThoughts: true, thinkingBudget: 16384 });
+  });
+
+  it("builds Gemini 2.5 thinking config with toggle off (always includeThoughts with budget 1024)", () => {
+    const config = buildThinkingConfig("gemini-2.5-flash", "High", false);
+    expect(config).toEqual({ includeThoughts: true, thinkingBudget: 1024 });
   });
 });
 

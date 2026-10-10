@@ -90,25 +90,59 @@ export default function SettingsModal() {
           )}
 
           {activeTab === "appearance" && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
                 <h3 className="text-[15.5px] font-medium text-ink">Theme</h3>
                 <p className="text-[12.5px] text-ink-muted">Choose the appearance of the interface</p>
+                <div className="mt-3 grid grid-cols-2 gap-4">
+                  {[
+                    { id: "dark", label: "Dark", desc: "Warm dark obsidian", bg: "bg-[#211f1d]", icon: <Moon size={18} /> },
+                    { id: "light", label: "Light", desc: "Claude warm cream", bg: "bg-[#faf9f5]", icon: <Sun size={18} /> }
+                  ].map(t => (
+                    <button key={t.id} type="button" onClick={() => updatePreferences({ theme: t.id as any })} className={`flex flex-col items-start rounded-xl border p-4 text-start transition-all cursor-pointer ${preferences.theme === t.id ? "border-accent bg-elev-2 ring-1 ring-accent" : "border-line bg-elev-1 hover:border-line-soft"}`}>
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${t.bg} text-accent mb-3 border border-line`}>{t.icon}</div>
+                      <div className="flex items-center gap-1 font-medium text-ink text-[13.5px]">
+                        <span>{t.label}</span>
+                        {preferences.theme === t.id && <Check size={13} className="text-accent" />}
+                      </div>
+                      <span className="text-[11.5px] text-ink-muted mt-0.5">{t.desc}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { id: "dark", label: "Dark", desc: "Warm dark obsidian", bg: "bg-[#211f1d]", icon: <Moon size={18} /> },
-                  { id: "light", label: "Light", desc: "Claude warm cream", bg: "bg-[#faf9f5]", icon: <Sun size={18} /> }
-                ].map(t => (
-                  <button key={t.id} type="button" onClick={() => updatePreferences({ theme: t.id as any })} className={`flex flex-col items-start rounded-xl border p-4 text-start transition-all ${preferences.theme === t.id ? "border-accent bg-elev-2 ring-1 ring-accent" : "border-line bg-elev-1 hover:border-line-soft"}`}>
-                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${t.bg} text-accent mb-3 border border-line`}>{t.icon}</div>
-                    <div className="flex items-center gap-1 font-medium text-ink text-[13.5px]">
-                      <span>{t.label}</span>
-                      {preferences.theme === t.id && <Check size={13} className="text-accent" />}
-                    </div>
-                    <span className="text-[11.5px] text-ink-muted mt-0.5">{t.desc}</span>
-                  </button>
-                ))}
+
+              <div className="pt-2 border-t border-line/60">
+                <h3 className="text-[15.5px] font-medium text-ink">Show thinking</h3>
+                <p className="text-[12.5px] text-ink-muted">Choose how reasoning and thought processes are displayed</p>
+                <div className="mt-3 space-y-2">
+                  {[
+                    { id: "auto", label: "Auto (recommended)", desc: "Expands during thinking, collapses when the answer begins" },
+                    { id: "expanded", label: "Always expanded", desc: "Keeps the thought timeline open before and after finishing" },
+                    { id: "collapsed", label: "Always collapsed", desc: "Keeps the thought timeline collapsed as a single summary pill" }
+                  ].map(opt => {
+                    const activeVal = preferences.settings?.show_thinking || (typeof localStorage !== "undefined" ? localStorage.getItem("claude_show_thinking") : null) || "auto";
+                    const isSelected = activeVal === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          updatePreferences({ settings: { ...(preferences.settings || {}), show_thinking: opt.id as any } });
+                          try { localStorage.setItem("claude_show_thinking", opt.id); } catch { /* ignore */ }
+                        }}
+                        className={`flex w-full items-center justify-between rounded-xl border p-3 text-start transition-all cursor-pointer ${isSelected ? "border-accent bg-elev-2 ring-1 ring-accent" : "border-line bg-elev-1 hover:bg-elev-2"}`}
+                      >
+                        <div>
+                          <div className="flex items-center gap-1.5 text-[13.5px] font-medium text-ink">
+                            <span>{opt.label}</span>
+                          </div>
+                          <p className="text-[11.5px] text-ink-muted">{opt.desc}</p>
+                        </div>
+                        {isSelected && <Check size={14} className="text-accent shrink-0 ms-2" />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
