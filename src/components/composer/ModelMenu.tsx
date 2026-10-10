@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronDown, Check, Brain, Globe, Eye } from "lucide-react";
 import { cn } from "../../utils/cn";
 import { useToast } from "../../context/ToastContext";
+import { useModels } from "../../hooks/useModels";
+import type { Model } from "../../types/chat";
 
 export const EFFORTS = ["Low", "Medium", "High"] as const;
 export type Effort = (typeof EFFORTS)[number];
@@ -23,58 +25,29 @@ export default function ModelMenu({
   onOpenStateChange,
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
-  const [chatModels, setChatModels] = useState<any[]>([]);
+  const { models, defaultModel, normalizeSlug } = useModels();
   const menuRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
 
-  const loadModels = useCallback(async () => {
-    try {
-      const res = await fetch("/api/models");
-      if (!res.ok) throw new Error("Could not load models");
-      const data = await res.json();
-      const chats = data.filter((m: any) => m.kind === "chat");
-      setChatModels(chats);
-
-      // Resolve last saved model or default
-      const saved = localStorage.getItem("claude_clone_last_model");
-      const defaultModel = chats.find((m: any) => m.is_default) || chats[0];
-
-      if (saved) {
-        const exists = chats.find((m: any) => m.slug === saved || m.id === saved);
-        if (exists) {
-          // Model is active and enabled
-          if (model !== exists.slug) {
-            onSelectModel(exists.slug);
-          }
-        } else {
-          // Saved model is disabled/removed, trigger fallback
-          if (defaultModel) {
-            onSelectModel(defaultModel.slug);
-            localStorage.setItem("claude_clone_last_model", defaultModel.slug);
-            showToast(`Previously selected model was disabled. Switched to ${defaultModel.display_name}.`, "info");
-          }
-        }
-      } else if (defaultModel && model !== defaultModel.slug) {
-        onSelectModel(defaultModel.slug);
-        localStorage.setItem("claude_clone_last_model", defaultModel.slug);
-      }
-    } catch {
-      // Fallback
-      setChatModels([
-        { slug: "sonnet-5", display_name: "Sonnet 5", description: "Fast and highly balanced intelligence, ideal for general chat and multimodal tasks.", provider: "google", api_model_id: "gemini-3.8-flash", kind: "chat", supports_thinking: false, supports_search: true, supports_vision: true, enabled: true, is_default: true, sort_order: 1 }
-      ]);
-    }
-  }, [model, onSelectModel, showToast]);
-
   useEffect(() => {
-    loadModels();
-  }, [loadModels]);
+    // Resolve last saved model or default
+    const saved = localStorage.getItem("claude_clone_last_model");
+    const normalizedSaved = saved ? normalizeSlug(saved) : null;
+    
+    const exists = models.find((m: Model) => m.slug === normalizedSaved || m.id === normalizedSaved);
+    const targetModel = exists || defaultModel;
 
-  const currentModelObj = chatModels.find((m) => m.slug === model || m.id === model) || chatModels[0] || {
-    display_name: "Sonnet 5",
-    slug: "sonnet-5",
-    description: "Fast and balanced general chat model."
-  };
+    if (targetModel && model !== targetModel.slug) {
+      onSelectModel(targetModel.slug);
+      localStorage.setItem("claude_clone_last_model", targetModel.slug);
+      if (saved && !exists) {
+        showToast(`Previously selected model was disabled. Switched to ${targetModel.display_name}.`, "info");
+      }
+    }
+  }, [models, model, onSelectModel, showToast, normalizeSlug, defaultModel]);
+
+  const currentModelObj = models.find((m: Model) => m.slug === model || m.id === model) || defaultModel;
+
 
   const toggleOpen = () => {
     setIsOpen((prev) => {
@@ -143,7 +116,7 @@ export default function ModelMenu({
             Model
           </p>
           <div className="space-y-1 max-h-[220px] overflow-y-auto scroll-slim">
-            {chatModels.map((m) => (
+            {models.filter((m: Model) => m.kind === 'chat' && m.enabled).map((m: Model) => (
               <button
                 key={m.id || m.slug}
                 type="button"

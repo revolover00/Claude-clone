@@ -35,7 +35,7 @@ export default function ModelsTab() {
   const [showDiscover, setShowDiscover] = useState(false);
   const [loadingDiscover, setLoadingDiscover] = useState(false);
   const [testResults, setTestResults] = useState<Record<string, { loading: boolean; text: string; ok: boolean }>>({});
-  const [diagnosticModel, setDiagnosticModel] = useState<Model | null>(null);
+  const [diagnosticModel, setDiagnosticModel] = useState<any>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Model>>({});
