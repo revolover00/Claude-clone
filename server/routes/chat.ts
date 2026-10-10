@@ -167,10 +167,10 @@ router.post("/", async (req, res) => {
       config.tools = [{ googleSearch: {} }];
     }
 
-    // Configure extended thinking for models that support it
+    // Configure thinking for models that support it
     const supportsThinking = Boolean(resolvedModel.supports_thinking);
-    if (extendedThinking && supportsThinking) {
-      config.thinkingConfig = buildThinkingConfig(modelId, effort);
+    if (supportsThinking) {
+      config.thinkingConfig = buildThinkingConfig(modelId, effort, Boolean(extendedThinking));
     }
 
     // Initiate Gemini streaming call before opening SSE headers
@@ -200,11 +200,11 @@ router.post("/", async (req, res) => {
 
     const collectedSources: Array<{ title: string; url: string }> = [];
     const seenUrls = new Set<string>();
+    let thoughtParts = 0;
+    let answerParts = 0;
 
     for await (const chunk of stream) {
-      if (abortCtrl.signal.aborted) {
-        break;
-      }
+      if (abortCtrl.signal.aborted) break;
 
       // Extract search grounding sources from Gemini metadata
       const candidate = chunk.candidates?.[0];
@@ -215,13 +215,9 @@ router.post("/", async (req, res) => {
           const web = gc?.web;
           if (web?.uri && !seenUrls.has(web.uri)) {
             seenUrls.add(web.uri);
-            let title = web.title?.trim();
+            let title = web.title?.trim() || "";
             if (!title) {
-              try {
-                title = new URL(web.uri).hostname.replace(/^www\./, "");
-              } catch {
-                title = "Source";
-              }
+              try { title = new URL(web.uri).hostname.replace(/^www\./, ""); } catch { title = "Source"; }
             }
             collectedSources.push({ title, url: web.uri });
             newSourceAdded = true;
@@ -247,11 +243,17 @@ router.post("/", async (req, res) => {
       const parts = candidate?.content?.parts || [];
       for (const part of parts) {
         if ((part as any).thought) {
+          thoughtParts++;
           res.write(`data: ${JSON.stringify({ thinking: part.text || "" })}\n\n`);
         } else if (part.text) {
+          answerParts++;
           res.write(`data: ${JSON.stringify({ token: part.text })}\n\n`);
         }
       }
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[Chat Stream] Model: ${modelId}, Thoughts: ${thoughtParts}, Answers: ${answerParts}`);
     }
 
     if (!abortCtrl.signal.aborted) {

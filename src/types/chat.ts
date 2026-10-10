@@ -94,6 +94,8 @@ export interface Project {
 
 export type ResponseStyle = "Normal" | "Concise" | "Explanatory" | "Formal";
 
+export type ShowThinkingPreference = "auto" | "expanded" | "collapsed";
+
 export interface UserPreferences {
   userName?: string;
   profileInstructions: string;
@@ -102,4 +104,8 @@ export interface UserPreferences {
   language: "en" | "ar";
   memory_enabled?: boolean;
   sensitive_memory?: boolean;
+  settings?: {
+    show_thinking?: ShowThinkingPreference;
+    [key: string]: any;
+  };
 }

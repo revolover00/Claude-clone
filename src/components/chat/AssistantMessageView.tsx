@@ -271,7 +271,7 @@ export default function AssistantMessageView({
               </>
             ) : message.isThinking ? null : message.isStreaming ? (
               <span className="inline-flex items-center align-middle ms-1 select-none">
-                <ClaudeSpark size={14} className="anim-thinking-spark text-accent" />
+                <ClaudeSpark size={11} className="text-accent/70 animate-pulse motion-reduce:animate-none" />
               </span>
             ) : null}
 

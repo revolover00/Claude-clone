@@ -9,6 +9,9 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   responseStyle: "Normal",
   theme: "dark",
   language: "en",
+  settings: {
+    show_thinking: "auto",
+  },
 };
 
 export function usePreferencesStore() {
@@ -17,11 +20,24 @@ export function usePreferencesStore() {
       const saved =
         localStorage.getItem(STORAGE_KEY_PREFS) ||
         localStorage.getItem("claude_clone_preferences_v2");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const fallbackShowThinking = localStorage.getItem("claude_show_thinking");
+        if (fallbackShowThinking && !parsed.settings?.show_thinking) {
+          parsed.settings = { ...(parsed.settings || {}), show_thinking: fallbackShowThinking };
+        }
+        return parsed;
+      }
     } catch {
       // ignore
     }
-    return DEFAULT_PREFERENCES;
+    const fallbackShowThinking = typeof localStorage !== "undefined" ? localStorage.getItem("claude_show_thinking") : null;
+    return {
+      ...DEFAULT_PREFERENCES,
+      settings: {
+        show_thinking: (fallbackShowThinking as any) || "auto",
+      },
+    };
   });
 
   // Apply theme attribute to root
