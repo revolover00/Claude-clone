@@ -60,8 +60,8 @@ export default function ThoughtProcess({
 
   // Calculate live elapsed seconds or final duration
   const now = Date.now();
-  const liveElapsedSec = thinkingStartedAt ? Math.max(1, Math.floor((now - thinkingStartedAt) / 1000)) : 1;
-  const finalDurationMs = thinkingMs ?? (firstTokenAt && thinkingStartedAt ? firstTokenAt - thinkingStartedAt : liveElapsedSec * 1000);
+  const liveElapsedSec = thinkingStartedAt ? Math.max(1, Math.floor((now - thinkingStartedAt) / 1000)) : 0;
+  const finalDurationMs = thinkingMs ?? (firstTokenAt && thinkingStartedAt ? firstTokenAt - thinkingStartedAt : (thinkingStartedAt ? liveElapsedSec * 1000 : undefined));
 
   const toggleOpen = () => {
     userInteractedRef.current = true;
@@ -74,7 +74,7 @@ export default function ThoughtProcess({
     <div className="my-2 select-none font-sans">
       {/* Polite aria-live announcement for screen readers */}
       <span className="sr-only" aria-live="polite">
-        {isThinking ? currentTitle : `Finished thinking in ${formatThinkingDuration(finalDurationMs)}`}
+        {isThinking ? currentTitle : (thinkingStartedAt ? `Finished thinking in ${formatThinkingDuration(finalDurationMs ?? 1000)}` : "Finished thinking")}
       </span>
 
       {/* Collapsed / Header Row */}
@@ -102,12 +102,16 @@ export default function ThoughtProcess({
             >
               {currentTitle}
             </span>
-            <span className="text-ink-muted font-normal">· {liveElapsedSec}s</span>
+            {thinkingStartedAt && <span className="text-ink-muted font-normal">· {liveElapsedSec}s</span>}
           </div>
         ) : (
-          <span className="font-medium text-ink-muted">
-            Thought for {formatThinkingDuration(finalDurationMs)}
-          </span>
+          thinkingStartedAt ? (
+            <span className="font-medium text-ink-muted">
+              Thought for {formatThinkingDuration(finalDurationMs ?? 1000)}
+            </span>
+          ) : (
+            <span className="font-medium text-ink-muted">Thinking</span>
+          )
         )}
       </button>
 
@@ -169,7 +173,7 @@ export default function ThoughtProcess({
                       {stage.title}
                     </p>
                     {stage.body && (
-                      <div className="mt-1 text-[13px] leading-[1.6] text-ink-muted font-sans">
+                      <div className="mt-1 text-[13px] leading-[1.6] text-ink-muted font-sans [&_p]:my-1 [&_h1]:text-sm [&_h1]:my-1 [&_h2]:text-sm [&_h2]:my-1 [&_h3]:text-sm [&_h3]:my-1 [&_pre]:my-1 [&_pre]:text-xs [&_code]:text-xs [&_ul]:my-1 [&_ol]:my-1">
                         <MarkdownView content={stage.body} />
                       </div>
                     )}
