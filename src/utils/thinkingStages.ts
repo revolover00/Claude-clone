@@ -29,7 +29,6 @@ export function parseThinkingStages(accumulatedText: string, isThinking = true):
   const normalizedText = accumulatedText.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
 
   // Match bold titles that start on their own line (or start of stream)
-  // e.g. "**Planning the layout**\n\nbody..."
   const headingRegex = /(?:^|\r?\n)[ \t]*\*\*([^*\r\n]+)\*\*[ \t]*(?:\r?\n|$)/g;
   const matches: { title: string; startIndex: number; endIndex: number }[] = [];
   let m: RegExpExecArray | null;
@@ -48,16 +47,29 @@ export function parseThinkingStages(accumulatedText: string, isThinking = true):
 
   const stages: ThinkingStage[] = [];
 
-  // If there are no closed headings
+  // If there are no closed headings, fallback: split by blank-line-separated paragraphs
   if (matches.length === 0) {
-    const body = cleanedText.trim();
-    if (body) {
+    const paragraphs = cleanedText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+    if (paragraphs.length === 0) return [];
+
+    paragraphs.forEach((para, idx) => {
+      // Derive title from first sentence (max 6 words, ellipsis if cut)
+      const firstSentenceMatch = para.match(/^[^.!?]+[.!?]?/);
+      const firstSentence = firstSentenceMatch ? firstSentenceMatch[0].trim() : para;
+      const words = firstSentence.split(/\s+/);
+      let derivedTitle = words.slice(0, 6).join(" ");
+      if (words.length > 6 || (firstSentence.length > derivedTitle.length && !derivedTitle.endsWith("."))) {
+        derivedTitle += "…";
+      }
+
+      const isLast = idx === paragraphs.length - 1;
       stages.push({
-        title: "Thinking",
-        body,
-        done: !isThinking,
+        title: derivedTitle || "Thinking",
+        body: para,
+        done: isLast ? !isThinking : true,
       });
-    }
+    });
+
     return stages;
   }
 

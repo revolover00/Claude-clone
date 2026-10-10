@@ -61,7 +61,7 @@ export function useRetryStream({
     const streamModel = options?.model || lastOptions.model;
     const modifierText = options?.modifier || "";
 
-    const thinkingStartTime = lastOptions.extendedThinking ? Date.now() : undefined;
+    let thinkingStartTime = lastOptions.extendedThinking ? Date.now() : undefined;
     let firstTokenTimestamp: number | undefined;
     let thinkingDurationMs: number | undefined;
 
@@ -154,12 +154,13 @@ export function useRetryStream({
       },
       {
         onThinkingStart: () => {
+          if (!thinkingStartTime) thinkingStartTime = Date.now();
           updateMessageContent(
             activeConversationId,
             newAssistantMsg.id,
             "",
             true,
-            lastOptions.extendedThinking,
+            true,
             "",
             undefined,
             undefined,
@@ -168,13 +169,14 @@ export function useRetryStream({
           );
         },
         onThinkingUpdate: (thoughts) => {
+          if (!thinkingStartTime) thinkingStartTime = Date.now();
           accumulatedThoughts = thoughts;
           updateMessageContent(
             activeConversationId,
             newAssistantMsg.id,
             "",
             true,
-            lastOptions.extendedThinking && !firstTokenTimestamp,
+            !firstTokenTimestamp,
             thoughts,
             undefined,
             undefined,

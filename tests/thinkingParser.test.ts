@@ -67,13 +67,25 @@ describe("parseThinkingStages", () => {
     expect(stages[1].done).toBe(false);
   });
 
-  it("handles text with no headings at all", () => {
-    const text = "Just pondering some logic without any bold markdown headers.";
+  it("splits text without headings into paragraph stages and derives titles", () => {
+    const text = "First paragraph of reasoning here is quite long.\n\nSecond paragraph short text.";
     const stages = parseThinkingStages(text, true);
-    expect(stages.length).toBe(1);
-    expect(stages[0].title).toBe("Thinking");
-    expect(stages[0].body).toBe(text);
-    expect(stages[0].done).toBe(false);
+    expect(stages.length).toBe(2);
+    expect(stages[0].title).toBe("First paragraph of reasoning here is…");
+    expect(stages[0].done).toBe(true);
+    expect(stages[1].title).toBe("Second paragraph short text.");
+    expect(stages[1].done).toBe(false);
+  });
+
+  it("splits Arabic text without headings into paragraph stages and derives titles", () => {
+    const text = "أنت مساعد ذكاء اصطناعي مفيد جدا وممتاز في عملك.\n\nنقوم بتحليل المتطلبات بدقة عالية جدا ومذهلة.";
+    const stages = parseThinkingStages(text, true);
+    expect(stages.length).toBe(2);
+    expect(stages[0].title).toBe("أنت مساعد ذكاء اصطناعي مفيد جدا…");
+    expect(isRtlText(stages[0].title)).toBe(true);
+    expect(stages[0].done).toBe(true);
+    expect(stages[1].title).toBe("نقوم بتحليل المتطلبات بدقة عالية جدا…");
+    expect(stages[1].done).toBe(false);
   });
 
   it("handles trailing partial markdown like single asterisks", () => {

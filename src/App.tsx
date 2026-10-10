@@ -152,6 +152,12 @@ function AppContent() {
   const isMotionPage = window.location.pathname === "/motion";
   if (isMotionPage) return <Suspense fallback={null}><MotionReview /></Suspense>;
 
+  const isThinkingDemo = (import.meta as any).env.DEV && window.location.pathname === "/thinking-demo";
+  if (isThinkingDemo) {
+    const ThinkingDemo = lazy(() => import("./components/views/ThinkingDemo"));
+    return <Suspense fallback={null}><ThinkingDemo /></Suspense>;
+  }
+
   const isResetPage = window.location.pathname === "/reset-password";
   if (isResetPage) return <Suspense fallback={null}><ResetPasswordView /></Suspense>;
 

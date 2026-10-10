@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronRight, Check, Loader2, Globe } from "lucide-react";
+import { ChevronRight, Check, Loader2 } from "lucide-react";
 import ClaudeSpark from "../icons/ClaudeSpark";
 import { parseThinkingStages, formatThinkingDuration, isRtlText, type ThinkingStage } from "../../utils/thinkingStages";
 import { useSharedSecondTick } from "../../utils/sharedTimer";
@@ -94,10 +94,11 @@ export default function ThoughtProcess({
         />
 
         {isThinking ? (
-          <div className="flex items-center gap-1.5 font-medium">
+          <div className="flex items-center gap-1.5 font-medium overflow-hidden h-4">
             <span
               key={currentTitle}
-              className="inline-block animate-pulse text-ink transition-all duration-200 motion-reduce:animate-none"
+              className="inline-block text-ink anim-sheet-up transition-all duration-200 motion-reduce:animate-none"
+              style={{ animationDuration: "200ms" }}
             >
               {currentTitle}
             </span>
@@ -114,31 +115,29 @@ export default function ThoughtProcess({
       {isOpen && (
         <div
           ref={scrollRef}
-          className="relative mt-2 max-h-[320px] overflow-y-auto pl-2 pr-1 transition-all duration-250 motion-reduce:transition-none"
+          className="relative mt-2 max-h-[320px] overflow-y-auto pl-2 pr-1 transition-all duration-250 motion-reduce:transition-none font-sans"
           style={{
-            maskImage: "linear-gradient(to bottom, transparent 0px, black 16px, black calc(100% - 16px), transparent 100%)",
-            WebkitMaskImage: "linear-gradient(to bottom, transparent 0px, black 16px, black calc(100% - 16px), transparent 100%)",
+            maskImage: "linear-gradient(to bottom, transparent 0px, black 16px, black calc(100% - 24px), transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to bottom, transparent 0px, black 16px, black calc(100% - 24px), transparent 100%)",
           }}
         >
-          <div className="relative border-l border-line/60 pl-4 py-2 space-y-4">
+          <div className="relative border-l border-line/50 pl-4 py-2 space-y-[12px]">
             {/* Tool Step Node if web search was used */}
             {hasSearchTool && (
-              <div className="relative flex items-start gap-2.5">
-                <div className="absolute -left-[21px] top-1 flex h-4 w-4 items-center justify-center rounded-full bg-elev-1 border border-line">
+              <div className="relative flex items-start gap-2.5 anim-sheet-up" style={{ animationDuration: "180ms" }}>
+                <div className="absolute -left-[21px] top-1 flex h-2 w-2 items-center justify-center rounded-full bg-accent ring-4 ring-elev-1">
                   {isSearchingWeb && !sources?.length ? (
-                    <Loader2 size={10} className="animate-spin text-accent motion-reduce:animate-none" />
-                  ) : (
-                    <Globe size={10} className="text-accent" />
-                  )}
+                    <Loader2 size={8} className="animate-spin text-accent-fg motion-reduce:animate-none" />
+                  ) : null}
                 </div>
-                <div className="text-xs">
-                  <span className="font-medium text-ink-muted">
+                <div className="text-[13px] leading-[1.6]">
+                  <span className="font-medium text-ink">
                     {isSearchingWeb && !sources?.length ? "Searching the web" : `Searched the web · ${sources?.length || 0} results`}
                   </span>
                   {sources && sources.length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-1">
                       {sources.slice(0, 4).map((s, idx) => (
-                        <span key={idx} className="rounded bg-elev-2 px-1.5 py-0.5 text-[10px] text-ink-muted">
+                        <span key={idx} className="rounded bg-elev-2 px-1.5 py-0.5 text-[11px] text-ink-muted border border-line">
                           {s.title}
                         </span>
                       ))}
@@ -154,10 +153,10 @@ export default function ThoughtProcess({
               const isCurrent = !stage.done && isThinking;
 
               return (
-                <div key={idx} dir={isRtl ? "rtl" : "ltr"} className="relative flex items-start gap-2.5">
-                  <div className="absolute -left-[21px] top-1 flex h-4 w-4 items-center justify-center rounded-full bg-elev-1 border border-line">
+                <div key={idx} dir={isRtl ? "rtl" : "ltr"} className="relative flex items-start gap-2.5 anim-sheet-up" style={{ animationDuration: "180ms", animationDelay: `${idx * 40}ms` }}>
+                  <div className="absolute -left-[21px] top-1.5 flex h-2 w-2 items-center justify-center rounded-full bg-elev-3 border border-line ring-4 ring-elev-1">
                     {stage.done ? (
-                      <Check size={10} className="text-accent" />
+                      <Check size={8} className="text-accent" />
                     ) : isCurrent ? (
                       <div className="h-2 w-2 rounded-full bg-accent animate-pulse motion-reduce:animate-none" />
                     ) : (
@@ -166,11 +165,11 @@ export default function ThoughtProcess({
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <p className={`text-xs font-medium ${isCurrent ? "text-ink animate-pulse motion-reduce:animate-none" : "text-ink-muted"}`}>
+                    <p className={`text-[13px] font-medium leading-[1.4] ${isCurrent ? "text-ink animate-pulse motion-reduce:animate-none" : "text-ink-soft"}`}>
                       {stage.title}
                     </p>
                     {stage.body && (
-                      <div className="mt-1 text-xs text-ink-muted">
+                      <div className="mt-1 text-[13px] leading-[1.6] text-ink-muted font-sans">
                         <MarkdownView content={stage.body} />
                       </div>
                     )}
@@ -181,11 +180,9 @@ export default function ThoughtProcess({
 
             {/* Final "Done" node when finished */}
             {!isThinking && stages.length > 0 && (
-              <div className="relative flex items-center gap-2.5">
-                <div className="absolute -left-[21px] flex h-4 w-4 items-center justify-center rounded-full bg-elev-1 border border-line">
-                  <Check size={10} className="text-accent" />
-                </div>
-                <span className="text-xs font-medium text-ink-muted">Done</span>
+              <div className="relative flex items-center gap-2.5 anim-sheet-up" style={{ animationDuration: "180ms" }}>
+                <div className="absolute -left-[21px] flex h-2 w-2 items-center justify-center rounded-full bg-accent ring-4 ring-elev-1" />
+                <span className="text-[13px] font-medium text-ink-muted">Done</span>
               </div>
             )}
           </div>
