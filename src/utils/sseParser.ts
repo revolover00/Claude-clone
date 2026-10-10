@@ -8,6 +8,9 @@ export interface SSEParserOptions {
   onThoughtsTokenCount?: (count: number) => void;
   onWarning?: (warning: string) => void;
   onThinkingPlan?: (plan: { level: "low" | "medium" | "high"; reason?: string }) => void;
+  onDocument?: (doc: any) => void;
+  onDocumentError?: (docErr: any) => void;
+  onTool?: (tool: any) => void;
 }
 
 export class SSEParser {
@@ -78,6 +81,18 @@ export class SSEParser {
 
         if (data?.thinkingPlan) {
           this.handlers.onThinkingPlan?.(data.thinkingPlan);
+        }
+
+        if (data?.document) {
+          this.handlers.onDocument?.(data.document);
+        }
+
+        if (data?.documentError) {
+          this.handlers.onDocumentError?.(data.documentError);
+        }
+
+        if (data?.tool) {
+          this.handlers.onTool?.(data.tool);
         }
       }
     }

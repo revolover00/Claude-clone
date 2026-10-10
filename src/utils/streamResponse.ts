@@ -11,6 +11,8 @@ export interface StreamCallbacks {
   onFinish?: (finish: string) => void;
   onThoughtsTokenCount?: (count: number) => void;
   onThinkingPlan?: (plan: { level: "low" | "medium" | "high"; reason?: string }) => void;
+  onDocument?: (doc: any) => void;
+  onDocumentError?: (docErr: any) => void;
 }
 
 export interface ChatStreamOptions {
@@ -172,6 +174,12 @@ export function streamRealResponse(
         },
         onThinkingPlan: (plan) => {
           callbacks.onThinkingPlan?.(plan);
+        },
+        onDocument: (doc) => {
+          callbacks.onDocument?.(doc);
+        },
+        onDocumentError: (docErr) => {
+          callbacks.onDocumentError?.(docErr);
         },
         onError: (err) => {
           midStreamError = err;

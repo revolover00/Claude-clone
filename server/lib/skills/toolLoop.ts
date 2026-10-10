@@ -1,5 +1,7 @@
 import { getEnabledSkill, getSkillFile, wrapSkillInstructions } from "./db";
 import { ai } from "../gemini";
+import { createDocumentService } from "../documents/service";
+import type { GeneratedDocument } from "../documents/types";
 
 export interface SkillToolEvent {
   name: string;
@@ -13,13 +15,59 @@ export interface SkillExecutionState {
   totalBytesLoaded: number;
 }
 
+export interface SkillFunctionCallResult {
+  result: string;
+  skillName?: string;
+  document?: GeneratedDocument;
+  documentError?: any;
+}
+
 export async function executeSkillFunctionCall(
   userId: string | undefined,
   call: { name: string; args: any },
   state: SkillExecutionState
-): Promise<{ result: string; skillName?: string }> {
+): Promise<SkillFunctionCallResult> {
   const MAX_SKILL_LOADS = 3;
   const MAX_TOTAL_BYTES = 200 * 1024; // 200KB
+
+  if (call.name === "create_document") {
+    try {
+      const doc = await createDocumentService({
+        format: call.args?.format,
+        title: call.args?.title,
+        spec: call.args?.spec,
+        userId,
+      });
+      return {
+        result: JSON.stringify({
+          status: "success",
+          message: `Document "${doc.title}" created successfully.`,
+          document: {
+            id: doc.id,
+            format: doc.format,
+            title: doc.title,
+            fileName: doc.fileName,
+            size: doc.size,
+            url: doc.url,
+          },
+        }),
+        skillName: `${call.args?.format}-documents`,
+        document: doc,
+      };
+    } catch (err: any) {
+      const errMsg = err?.message || "Failed to create document";
+      return {
+        result: JSON.stringify({ status: "error", error: errMsg }),
+        skillName: `${call.args?.format}-documents`,
+        documentError: {
+          format: call.args?.format,
+          title: call.args?.title || "Untitled Document",
+          spec: call.args?.spec,
+          error: errMsg,
+        },
+      };
+    }
+  }
 
   if (call.name === "load_skill") {
     const skillName = String(call.args?.name || "").trim().toLowerCase();
