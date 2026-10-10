@@ -5,14 +5,15 @@ dotenv.config();
 
 export const apiKey = process.env.GEMINI_API_KEY;
 
-export const ai = new GoogleGenAI({
+// API key may be undefined during testing or in environments without it
+export const ai = apiKey ? new GoogleGenAI({
   apiKey: apiKey,
   httpOptions: {
     headers: {
       "User-Agent": "aistudio-build",
     },
   },
-});
+}) : null;
 
 // Map Gemini errors to HTTP status codes & friendly messages
 export function mapGeminiError(err: any, requestedModelId?: string): { status: number; error: string; technical: string; code?: string; details?: any } {
@@ -118,7 +119,7 @@ export function getTodayDateString(): string {
   return new Date().toISOString().split("T")[0];
 }
 
-export function getBaseSystemPrompt(appName = process.env.APP_NAME || "Claude Clone", date = getTodayDateString()): string {
+export function getBaseSystemPrompt(appName = APP_NAME, date = getTodayDateString()): string {
   return `You are ${appName}, an AI assistant. You are not made by Anthropic and you are not Claude; if asked which model you are, say you are ${appName}, powered by a Google Gemini model. Today's date is ${date}.
 
 Character: warm, direct, curious and intellectually honest. Treat the user as a capable adult. Never open with praise or filler ("Great question", "Certainly!", "Of course"). Do not over-apologize or lecture. Disagree politely when you have good reason.
@@ -167,10 +168,9 @@ export function buildThinkingConfig(modelId: string, effort?: string): ThinkingC
 }
 
 export async function startGeminiStream(modelId: string, formattedMessages: any[], config: any) {
-  if (!config?.thinkingConfig) {
-    return await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config });
-  }
-
+  if (!ai) throw new Error("Gemini AI client not initialized");
+  
+  // Pass thinkingConfig if present, handle potential API errors by retrying once
   try {
     return await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config });
   } catch (err: any) {
