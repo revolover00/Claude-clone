@@ -28,6 +28,7 @@ import suggestRouter from "./server/routes/suggest";
 import modelsRouter from "./server/routes/models";
 import memoryRouter from "./server/routes/memory";
 import skillsRouter from "./server/routes/skills";
+import documentsRouter from "./server/routes/documents";
 import { requireAuth } from "./server/middleware/auth";
 
 if (process.env.NODE_ENV === "production") {
@@ -77,6 +78,7 @@ app.use("/api/suggest", requireAuth, apiLimiter, suggestRouter);
 app.use("/api/models", modelsRouter);
 app.use("/api/memory", memoryRouter);
 app.use("/api/skills", skillsRouter);
+app.use("/api/documents", documentsRouter);
 
 // Open healthcheck route
 app.use("/api", healthRouter);

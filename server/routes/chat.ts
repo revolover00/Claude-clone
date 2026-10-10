@@ -7,7 +7,7 @@ import { getModelsFromDB } from "./models";
 import { normalizeSlug } from "../../src/hooks/useModels";
 import { retrieveUserMemoryPrompt } from "../lib/chatMemory";
 import { createClient } from "@supabase/supabase-js";
-import { validateChatMessages, extractGroundingSources } from "../lib/chatStreamHelpers";
+import { validateChatMessages, extractGroundingSources, DEFAULT_CHAT_TOOLS } from "../lib/chatStreamHelpers";
 
 const router = Router();
 
@@ -94,20 +94,7 @@ router.post("/", async (req, res) => {
         resolvedModel.display_name
       ) + memoryPromptSection + skillsPromptSection,
       abortSignal: abortCtrl.signal,
-      tools: [{
-        functionDeclarations: [
-          {
-            name: "load_skill",
-            description: "Load a skill's instructions.",
-            parameters: { type: "OBJECT", properties: { name: { type: "STRING" } }, required: ["name"] }
-          },
-          {
-            name: "read_skill_file",
-            description: "Read a file from a skill.",
-            parameters: { type: "OBJECT", properties: { skill: { type: "STRING" }, path: { type: "STRING" } }, required: ["skill", "path"] }
-          }
-        ]
-      }]
+      tools: DEFAULT_CHAT_TOOLS
     };
 
     // Handle Google search conflict with tools
@@ -188,16 +175,24 @@ router.post("/", async (req, res) => {
             const skillTarget = call.args?.name || call.args?.skill;
             res.write(`data: ${JSON.stringify({ tool: { name: call.name, skill: skillTarget, status: "executing" } })}\n\n`);
 
-            const { result, skillName } = await executeSkillFunctionCall(
+            const execRes = await executeSkillFunctionCall(
               (req as any).user?.id,
               call,
               skillExecutionState
             );
 
-            res.write(`data: ${JSON.stringify({ tool: { name: call.name, skill: skillName || skillTarget, status: "completed" } })}\n\n`);
+            if (execRes.document) {
+              res.write(`data: ${JSON.stringify({ document: execRes.document })}\n\n`);
+            }
+            if (execRes.documentError) {
+              res.write(`data: ${JSON.stringify({ documentError: execRes.documentError })}\n\n`);
+            }
+
+            const toolStatus = execRes.documentError ? "error" : "completed";
+            res.write(`data: ${JSON.stringify({ tool: { name: call.name, skill: execRes.skillName || skillTarget, status: toolStatus } })}\n\n`);
 
             try {
-              const contStream = await runSkillToolStream(modelId, formattedMessages, config, call, result);
+              const contStream = await runSkillToolStream(modelId, formattedMessages, config, call, execRes.result);
               for await (const contChunk of contStream) {
                 if (abortCtrl.signal.aborted) break;
                 const contCandidate = contChunk.candidates?.[0];

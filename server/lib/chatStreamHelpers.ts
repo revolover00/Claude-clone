@@ -47,3 +47,33 @@ export function extractGroundingSources(
   }
   return newSourceAdded;
 }
+
+export const DEFAULT_CHAT_TOOLS = [
+  {
+    functionDeclarations: [
+      {
+        name: "load_skill",
+        description: "Load a skill's instructions.",
+        parameters: { type: "OBJECT", properties: { name: { type: "STRING" } }, required: ["name"] },
+      },
+      {
+        name: "read_skill_file",
+        description: "Read a file from a skill.",
+        parameters: { type: "OBJECT", properties: { skill: { type: "STRING" }, path: { type: "STRING" } }, required: ["skill", "path"] },
+      },
+      {
+        name: "create_document",
+        description: "Create and export a document (Word .docx, PDF .pdf, PowerPoint .pptx, or Excel .xlsx) from a structured JSON specification.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            format: { type: "STRING", enum: ["docx", "pdf", "pptx", "xlsx"], description: "The target document format" },
+            title: { type: "STRING", description: "Document title" },
+            spec: { type: "OBJECT", description: "Document specification matching format schema" },
+          },
+          required: ["format", "title", "spec"],
+        },
+      },
+    ],
+  },
+];
