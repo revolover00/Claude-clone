@@ -111,3 +111,21 @@ export interface UserPreferences {
     [key: string]: any;
   };
 }
+
+export interface Model {
+  id: string;
+  slug: string;
+  display_name: string;
+  description: string;
+  provider: string;
+  api_model_id: string;
+  kind: "chat" | "light" | "embedding";
+  supports_thinking: boolean;
+  supports_search: boolean;
+  supports_vision: boolean;
+  max_output_tokens: number | null;
+  enabled: boolean;
+  is_default: boolean;
+  sort_order: number;
+}
+

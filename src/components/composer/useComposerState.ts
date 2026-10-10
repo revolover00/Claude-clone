@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import type { ModelId, Effort } from "./ModelMenu";
+import { useModels } from "../../hooks/useModels";
+import type { Effort } from "./ModelMenu";
 
 interface ComposerStateOptions {
   activeConversationId: string | null;
@@ -13,7 +14,8 @@ export function useComposerState({
   onChangeValue,
 }: ComposerStateOptions) {
   const [value, setValue] = useState(initialValue);
-  const [model, setModel] = useState<ModelId>("sonnet-5");
+  const { defaultModel } = useModels();
+  const [model, setModel] = useState<string>(defaultModel?.slug || "gemini-3-8-flash");
   const [effort, setEffort] = useState<Effort>("Medium");
 
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);

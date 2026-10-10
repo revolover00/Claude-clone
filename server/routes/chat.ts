@@ -145,7 +145,8 @@ router.post("/", async (req, res) => {
         profileInstructions,
         projectInstructions,
         projectKnowledge,
-        language
+        language,
+        resolvedModel.display_name
       ) + memoryPromptSection,
       abortSignal: abortCtrl.signal,
     };

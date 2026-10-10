@@ -1,5 +1,6 @@
 import { RotateCcw, ChevronDown } from "lucide-react";
 import type { Message } from "../../types/chat";
+import { useModels } from "../../hooks/useModels";
 
 interface RetryDropdownProps {
   message: Message;
@@ -16,6 +17,8 @@ export default function RetryDropdown({
   onRetry,
   dropdownRef,
 }: RetryDropdownProps) {
+  const { models } = useModels();
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
@@ -47,36 +50,19 @@ export default function RetryDropdown({
             Retry with model
           </div>
           
-          <button
-            type="button"
-            onClick={() => {
-              onToggle();
-              onRetry(message.id, { model: "sonnet-5" });
-            }}
-            className="w-full text-start px-4 py-1 text-[12px] text-ink-soft hover:bg-elev-2 hover:text-ink transition-colors cursor-pointer"
-          >
-            Sonnet 3.5 (Fast Reasoning)
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              onToggle();
-              onRetry(message.id, { model: "opus-5" });
-            }}
-            className="w-full text-start px-4 py-1 text-[12px] text-ink-soft hover:bg-elev-2 hover:text-ink transition-colors cursor-pointer"
-          >
-            Opus 3.1 Pro
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              onToggle();
-              onRetry(message.id, { model: "haiku-4-5" });
-            }}
-            className="w-full text-start px-4 py-1 text-[12px] text-ink-soft hover:bg-elev-2 hover:text-ink transition-colors cursor-pointer"
-          >
-            Haiku 4.5 (Speed Lite)
-          </button>
+          {models.filter(m => m.kind === 'chat' && m.enabled).map(model => (
+            <button
+              key={model.slug}
+              type="button"
+              onClick={() => {
+                onToggle();
+                onRetry(message.id, { model: model.slug });
+              }}
+              className="w-full text-start px-4 py-1 text-[12px] text-ink-soft hover:bg-elev-2 hover:text-ink transition-colors cursor-pointer"
+            >
+              {model.display_name}
+            </button>
+          ))}
 
           <div className="h-px bg-line/60 my-1 mx-2" />
           <div className="px-3 py-0.5 text-[10px] font-semibold text-ink-faint uppercase select-none">

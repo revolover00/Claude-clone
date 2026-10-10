@@ -78,7 +78,7 @@ This ensures thorough, verified output for demanding software engineering tasks.
     }, delayMs);
 
     return () => clearTimeout(delayTimer);
-  }, [speed, delaySec, noThoughtsMode, noHeadings, isThinking, rawThoughts]);
+  }, [speed, delaySec, noThoughtsMode, noHeadings, isThinking, rawThoughts, noSummaryMode]);
 
   const restartDemo = () => {
     setCurrentThoughts("");
