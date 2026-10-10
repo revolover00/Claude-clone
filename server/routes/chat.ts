@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { apiKey, mapGeminiError, formatMessage, buildSystemInstruction, buildThinkingConfig, startGeminiStream } from "../lib/gemini";
+import { mapGeminiError, formatMessage, buildSystemInstruction, buildThinkingConfig, startGeminiStream } from "../lib/gemini";
 import { getModelsFromDB } from "./models";
 import { generateEmbedding, cosineSimilarity } from "../lib/memoryHelpers";
 import { createClient } from "@supabase/supabase-js";
@@ -46,11 +46,6 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  if (!apiKey) {
-    res.status(403).json({ error: "API key invalid or missing on the server", code: 403 });
-    return;
-  }
-
   // Setup abort controller on client disconnect to abort stream
   const abortCtrl = new AbortController();
   req.on("close", () => {
@@ -83,11 +78,11 @@ router.post("/", async (req, res) => {
       }));
     }
 
-  // Setup Supabase variables for memory fetching
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-  const isRealSupabaseConfigured = Boolean(supabaseUrl && supabaseServiceKey && !supabaseUrl.includes("YOUR_") && !supabaseServiceKey.includes("YOUR_"));
-  const supabaseServer = isRealSupabaseConfigured ? createClient(supabaseUrl, supabaseServiceKey) : null;
+    // Setup Supabase variables for memory fetching
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+    const isRealSupabaseConfigured = Boolean(supabaseUrl && supabaseServiceKey && !supabaseUrl.includes("YOUR_") && !supabaseServiceKey.includes("YOUR_"));
+    const supabaseServer = isRealSupabaseConfigured ? createClient(supabaseUrl, supabaseServiceKey) : null;
 
     let memoryPromptSection = "";
     try {
@@ -251,7 +246,7 @@ router.post("/", async (req, res) => {
 
       const parts = candidate?.content?.parts || [];
       for (const part of parts) {
-        if (part.thought) {
+        if ((part as any).thought) {
           res.write(`data: ${JSON.stringify({ thinking: part.text || "" })}\n\n`);
         } else if (part.text) {
           res.write(`data: ${JSON.stringify({ token: part.text })}\n\n`);
