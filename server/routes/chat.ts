@@ -1,10 +1,13 @@
 import { Router } from "express";
 import { mapGeminiError, formatMessage, buildSystemInstruction, startGeminiStream } from "../lib/gemini";
+import { getAvailableSkillsSummary } from "../lib/skills/db";
+import { executeSkillFunctionCall, runSkillToolStream, type SkillExecutionState } from "../lib/skills/toolLoop";
 import { getThinkingPlanAndConfig } from "../lib/thinkingRouter";
 import { getModelsFromDB } from "./models";
 import { normalizeSlug } from "../../src/hooks/useModels";
-import { generateEmbedding, cosineSimilarity } from "../lib/memoryHelpers";
+import { retrieveUserMemoryPrompt } from "../lib/chatMemory";
 import { createClient } from "@supabase/supabase-js";
+import { validateChatMessages, extractGroundingSources } from "../lib/chatStreamHelpers";
 
 const router = Router();
 
@@ -22,25 +25,9 @@ router.post("/", async (req, res) => {
     language,
   } = req.body;
 
-  if (!messages || !Array.isArray(messages) || messages.length > 100) {
-    res.status(400).json({ error: "Invalid request: messages error.", code: 400 });
-    return;
-  }
-  if (messages.some(m => typeof m?.content === "string" && m.content.length > 100000)) {
-    res.status(400).json({ error: "Message too long.", code: 400 });
-    return;
-  }
-
-  let totalAttachmentBytes = 0;
-  messages.forEach(m => {
-    if (Array.isArray(m?.attachments)) {
-      m.attachments.forEach(a => {
-        totalAttachmentBytes += typeof a?.size === "number" ? a.size : (typeof a?.url === "string" ? Math.round(a.url.length * 0.75) : 0);
-      });
-    }
-  });
-  if (totalAttachmentBytes > 20 * 1024 * 1024) {
-    res.status(400).json({ error: "Attachments exceed 20MB limit.", code: 400 });
+  const validation = validateChatMessages(messages);
+  if (validation.error) {
+    res.status(validation.status || 400).json({ error: validation.error, code: validation.status || 400 });
     return;
   }
 
@@ -77,70 +64,23 @@ router.post("/", async (req, res) => {
     const isRealSupabaseConfigured = Boolean(supabaseUrl && supabaseServiceKey && !supabaseUrl.includes("YOUR_") && !supabaseServiceKey.includes("YOUR_"));
     const supabaseServer = isRealSupabaseConfigured ? createClient(supabaseUrl, supabaseServiceKey) : null;
 
-    let memoryPromptSection = "";
-    try {
-      let memoryEnabled = true;
-      const uId = (req as any).user?.id;
-      if (uId) {
-        if (isRealSupabaseConfigured && supabaseServer) {
-          const { data } = await supabaseServer.from("user_preferences").select("*").eq("user_id", uId).single();
-          if (data && data.memory_enabled === false) memoryEnabled = false;
-        }
+    const memoryPromptSection = await retrieveUserMemoryPrompt(
+      (req as any).user?.id,
+      messages,
+      req.body.projectId,
+      supabaseServer,
+      isRealSupabaseConfigured
+    );
 
-        if (memoryEnabled) {
-          let activeMemories: any[] = [];
-          if (isRealSupabaseConfigured && supabaseServer) {
-            const { data } = await supabaseServer.from("memories").select("*").eq("user_id", uId).eq("status", "active");
-            if (data) activeMemories = data;
-          } else {
-            try {
-              const saved = localStorage.getItem("claude_clone_mock_memories");
-              const parsed = saved ? JSON.parse(saved) : [];
-              activeMemories = parsed.filter((m: any) => m.status === "active" && m.user_id === uId);
-            } catch { /* ignored */ }
-          }
-
-          if (activeMemories.length > 0) {
-            const latestUserMsg = messages[messages.length - 1]?.content || "";
-            const promptEmbedding = await generateEmbedding(latestUserMsg);
-
-            const pinnedMemories = activeMemories.filter(m => m.pinned);
-            const unpinnedMemories = activeMemories.filter(m => !m.pinned);
-
-            const scored = unpinnedMemories.map(m => {
-              let sim = 0;
-              if (m.embedding && Array.isArray(m.embedding)) {
-                sim = cosineSimilarity(promptEmbedding, m.embedding);
-              }
-              return { ...m, sim };
-            });
-            scored.sort((a, b) => b.sim - a.sim);
-            const top8Unpinned = scored.slice(0, 8);
-
-            const projectId = req.body.projectId || null;
-            let projectMemories: any[] = [];
-            if (projectId) {
-              projectMemories = activeMemories.filter(m => m.project_id === projectId);
-            }
-
-            const combinedList = [...pinnedMemories, ...top8Unpinned, ...projectMemories];
-            const uniqueRetrieved = Array.from(new Map(combinedList.map(m => [m.id, m])).values());
-
-            if (uniqueRetrieved.length > 0) {
-              memoryPromptSection = `\n--- USER MEMORIES BASE ---\n` +
-                `You recall the following facts about the user across chats:\n` +
-                uniqueRetrieved.map(m => `- [Category: ${m.category}] ${m.content}`).join("\n") +
-                `\nCRITICAL USE INSTRUCTIONS:\n` +
-                `- Adapt and reference these facts only when they make your answer more helpful and personalized.\n` +
-                `- NEVER state "I remember" or list these facts explicitly in conversation.\n` +
-                `- If the user tells you to ignore or contradict this context, prioritize their direct prompt instructions.\n` +
-                `---------------------------\n`;
-            }
-          }
-        }
-      }
-    } catch (memErr) {
-      console.warn("Memory retrieval failed, skipping:", memErr);
+    const availableSkills = await getAvailableSkillsSummary((req as any).user?.id);
+    let skillsPromptSection = "";
+    if (availableSkills.length > 0) {
+      skillsPromptSection = `\n\n## Available skills\n` +
+        availableSkills.map((s) => `- ${s.name}: ${s.description}`).join("\n") +
+        `\n\nWhen a user request matches an available skill, call load_skill({ name }) to retrieve its complete instructions before responding. To read referenced files within the skill, call read_skill_file({ skill, path }).`;
+    }
+    if (req.body.forcedSkill) {
+      skillsPromptSection += `\n\nCRITICAL: The user has explicitly selected the skill "${req.body.forcedSkill}". You MUST call load_skill({ name: "${req.body.forcedSkill}" }) immediately.`;
     }
 
     // Build model configuration
@@ -152,13 +92,28 @@ router.post("/", async (req, res) => {
         projectKnowledge,
         language,
         resolvedModel.display_name
-      ) + memoryPromptSection,
+      ) + memoryPromptSection + skillsPromptSection,
       abortSignal: abortCtrl.signal,
+      tools: [{
+        functionDeclarations: [
+          {
+            name: "load_skill",
+            description: "Load a skill's instructions.",
+            parameters: { type: "OBJECT", properties: { name: { type: "STRING" } }, required: ["name"] }
+          },
+          {
+            name: "read_skill_file",
+            description: "Read a file from a skill.",
+            parameters: { type: "OBJECT", properties: { skill: { type: "STRING" }, path: { type: "STRING" } }, required: ["skill", "path"] }
+          }
+        ]
+      }]
     };
 
-    // Configure search grounding tool
+    // Handle Google search conflict with tools
+    let searchGroundingDisabledNotice = false;
     if (webSearch && resolvedModel.supports_search) {
-      config.tools = [{ googleSearch: {} }];
+      searchGroundingDisabledNotice = true;
     }
 
     // Configure thinking for models that support it
@@ -210,6 +165,11 @@ router.post("/", async (req, res) => {
       res.write(`data: ${JSON.stringify({ warning: "Reasoning was disabled for this request because the model rejected the thinking settings" })}\n\n`);
     }
 
+    if (searchGroundingDisabledNotice) {
+      res.write(`data: ${JSON.stringify({ warning: "Web search grounding was disabled for this request to prioritize skill tool calling" })}\n\n`);
+    }
+
+    const skillExecutionState: SkillExecutionState = { skillLoadsCount: 0, totalBytesLoaded: 0 };
     const collectedSources: Array<{ title: string; url: string }> = [];
     const seenUrls = new Set<string>();
     let thoughtParts = 0;
@@ -218,26 +178,51 @@ router.post("/", async (req, res) => {
     for await (const chunk of stream) {
       if (abortCtrl.signal.aborted) break;
 
-      // Extract search grounding sources from Gemini metadata
       const candidate = chunk.candidates?.[0];
-      const groundingMeta = (candidate as any)?.groundingMetadata;
-      if (groundingMeta?.groundingChunks && Array.isArray(groundingMeta.groundingChunks)) {
-        let newSourceAdded = false;
-        for (const gc of groundingMeta.groundingChunks) {
-          const web = gc?.web;
-          if (web?.uri && !seenUrls.has(web.uri)) {
-            seenUrls.add(web.uri);
-            let title = web.title?.trim() || "";
-            if (!title) {
-              try { title = new URL(web.uri).hostname.replace(/^www\./, ""); } catch { title = "Source"; }
+
+      // Check for tool calls
+      if (candidate?.content?.parts) {
+        for (const part of candidate.content.parts) {
+          if ((part as any).functionCall) {
+            const call = (part as any).functionCall;
+            const skillTarget = call.args?.name || call.args?.skill;
+            res.write(`data: ${JSON.stringify({ tool: { name: call.name, skill: skillTarget, status: "executing" } })}\n\n`);
+
+            const { result, skillName } = await executeSkillFunctionCall(
+              (req as any).user?.id,
+              call,
+              skillExecutionState
+            );
+
+            res.write(`data: ${JSON.stringify({ tool: { name: call.name, skill: skillName || skillTarget, status: "completed" } })}\n\n`);
+
+            try {
+              const contStream = await runSkillToolStream(modelId, formattedMessages, config, call, result);
+              for await (const contChunk of contStream) {
+                if (abortCtrl.signal.aborted) break;
+                const contCandidate = contChunk.candidates?.[0];
+                const contParts = contCandidate?.content?.parts || [];
+                for (const cp of contParts) {
+                  if ((cp as any).thought) {
+                    thoughtParts++;
+                    res.write(`data: ${JSON.stringify({ thinking: cp.text || "" })}\n\n`);
+                  } else if (cp.text) {
+                    answerParts++;
+                    res.write(`data: ${JSON.stringify({ token: cp.text })}\n\n`);
+                  }
+                }
+              }
+            } catch (contErr) {
+              console.error("Continuation stream error:", contErr);
             }
-            collectedSources.push({ title, url: web.uri });
-            newSourceAdded = true;
+            continue;
           }
         }
-        if (newSourceAdded) {
-          res.write(`data: ${JSON.stringify({ sources: collectedSources })}\n\n`);
-        }
+      }
+
+      // Extract search grounding sources from Gemini metadata
+      if (extractGroundingSources(candidate, seenUrls, collectedSources)) {
+        res.write(`data: ${JSON.stringify({ sources: collectedSources })}\n\n`);
       }
 
       // Forward usageMetadata.thoughtsTokenCount when present
