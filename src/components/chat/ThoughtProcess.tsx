@@ -16,6 +16,8 @@ interface Props {
   isSearchingWeb?: boolean;
   sources?: Array<{ title: string; url: string }>;
   showThinking?: "auto" | "expanded" | "collapsed";
+  extendedThinking?: boolean;
+  thinkingPlan?: { level: "low" | "medium" | "high"; reason?: string };
 }
 
 export default function ThoughtProcess({
@@ -28,6 +30,8 @@ export default function ThoughtProcess({
   isSearchingWeb,
   sources,
   showThinking: showThinkingProp,
+  extendedThinking,
+  thinkingPlan,
 }: Props) {
   const chatCtx = useContext(ChatContext);
   const effectivePreference =
@@ -67,6 +71,10 @@ export default function ThoughtProcess({
 
   const stages: ThinkingStage[] = parseThinkingStages(thoughts, isThinking);
   const hasThoughts = Boolean(thoughts && thoughts.trim());
+  const isPlanMediumOrHigh = thinkingPlan?.level === "medium" || thinkingPlan?.level === "high";
+
+  // Honest UI: Row appears ONLY when toggle is ON, or plan is medium/high, or thoughts arrived
+  const shouldAppear = Boolean(extendedThinking || isPlanMediumOrHigh || hasThoughts);
 
   // Auto-follow scroll in expanded view while thinking
   useEffect(() => {
@@ -75,17 +83,46 @@ export default function ThoughtProcess({
     }
   }, [isOpen, isThinking, thoughts]);
 
-  // If the model produced no thinking text and finished, show NOTHING (no fake text)
-  if (!isThinking && !hasThoughts) {
+  const now = Date.now();
+  const liveElapsedSec = thinkingStartedAt ? Math.max(1, Math.floor((now - thinkingStartedAt) / 1000)) : 0;
+  const finalDurationMs =
+    thinkingMs ??
+    (firstTokenAt && thinkingStartedAt
+      ? firstTokenAt - thinkingStartedAt
+      : thinkingStartedAt
+      ? liveElapsedSec * 1000
+      : undefined);
+
+  if (!shouldAppear) {
     return null;
+  }
+
+  // If model finished without thoughts:
+  if (!isThinking && !hasThoughts) {
+    if (!extendedThinking) {
+      return null;
+    }
+    // Toggle was ON, but no thoughts returned: non-expandable pill with honest text
+    return (
+      <div className="my-2 select-none font-sans">
+        <div
+          role="status"
+          aria-label="Thought process completed without summary"
+          className="group inline-flex items-center gap-1.5 rounded-full border border-line/60 bg-elev-1 px-2.5 py-1 text-xs text-ink-muted cursor-default shadow-xs"
+        >
+          <ClaudeSpark size={13} className="shrink-0 text-accent/60" />
+          <span className="font-medium text-ink-muted">
+            {(thinkingMs !== undefined || thinkingStartedAt !== undefined)
+              ? `Thought for ${formatThinkingDuration(finalDurationMs ?? 1000)} · no summary available`
+              : "Thought for a moment · no summary available"}
+          </span>
+        </div>
+      </div>
+    );
   }
 
   const currentStage = stages.find((s) => !s.done) || stages[stages.length - 1];
   const currentTitle = currentStage?.title || "Thinking";
-
-  const now = Date.now();
-  const liveElapsedSec = thinkingStartedAt ? Math.max(1, Math.floor((now - thinkingStartedAt) / 1000)) : 1;
-  const finalDurationMs = thinkingMs ?? (firstTokenAt && thinkingStartedAt ? firstTokenAt - thinkingStartedAt : (thinkingStartedAt ? liveElapsedSec * 1000 : undefined));
 
   const toggleOpen = () => {
     userInteractedRef.current = true;

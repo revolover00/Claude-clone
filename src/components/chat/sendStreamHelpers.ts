@@ -22,6 +22,7 @@ export function createMessagePair(
     content: "",
     thinking: "",
     isThinking: extendedThinking,
+    extendedThinking,
     isStreaming: true,
     isSearchingWeb: webSearch,
     thinkingStartedAt: thinkingStartTime,

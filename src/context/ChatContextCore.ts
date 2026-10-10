@@ -30,7 +30,8 @@ export interface ChatContextType {
     isSearchingWeb?: boolean,
     timing?: { thinkingStartedAt?: number; firstTokenAt?: number; thinkingMs?: number },
     isReconnecting?: boolean,
-    finishReason?: string
+    finishReason?: string,
+    extra?: { extendedThinking?: boolean; thinkingPlan?: { level: "low" | "medium" | "high"; reason?: string } }
   ) => void;
   deleteConversation: (id: string) => void;
   toggleStar: (id: string) => void;

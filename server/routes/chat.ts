@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { mapGeminiError, formatMessage, buildSystemInstruction, buildThinkingConfig, startGeminiStream } from "../lib/gemini";
+import { mapGeminiError, formatMessage, buildSystemInstruction, startGeminiStream } from "../lib/gemini";
+import { getThinkingPlanAndConfig } from "../lib/thinkingRouter";
 import { getModelsFromDB } from "./models";
 import { generateEmbedding, cosineSimilarity } from "../lib/memoryHelpers";
 import { createClient } from "@supabase/supabase-js";
@@ -20,37 +21,30 @@ router.post("/", async (req, res) => {
     language,
   } = req.body;
 
-  // Validate request body
   if (!messages || !Array.isArray(messages) || messages.length > 100) {
     res.status(400).json({ error: "Invalid request: messages error.", code: 400 });
     return;
   }
-  for (const m of messages) {
-    if (typeof m?.content === "string" && m.content.length > 100000) {
-      res.status(400).json({ error: "Message too long.", code: 400 });
-      return;
-    }
+  if (messages.some(m => typeof m?.content === "string" && m.content.length > 100000)) {
+    res.status(400).json({ error: "Message too long.", code: 400 });
+    return;
   }
 
-  // Validate total attachment size <= 20MB
   let totalAttachmentBytes = 0;
-  for (const m of messages) {
+  messages.forEach(m => {
     if (Array.isArray(m?.attachments)) {
-      for (const a of m.attachments) {
+      m.attachments.forEach(a => {
         totalAttachmentBytes += typeof a?.size === "number" ? a.size : (typeof a?.url === "string" ? Math.round(a.url.length * 0.75) : 0);
-      }
+      });
     }
-  }
+  });
   if (totalAttachmentBytes > 20 * 1024 * 1024) {
     res.status(400).json({ error: "Attachments exceed 20MB limit.", code: 400 });
     return;
   }
 
-  // Setup abort controller on client disconnect to abort stream
   const abortCtrl = new AbortController();
-  req.on("close", () => {
-    abortCtrl.abort();
-  });
+  req.on("close", () => abortCtrl.abort());
 
   let modelId = "";
   try {
@@ -65,20 +59,14 @@ router.post("/", async (req, res) => {
       res.status(500).json({ error: "No enabled models available on the server." });
       return;
     }
-
     modelId = resolvedModel.api_model_id;
-
-    // Format all messages to the standard SDK format
     let formattedMessages = messages.map(formatMessage);
     if (!resolvedModel.supports_vision) {
-      // Strip out inlineData image parts for non-vision models
       formattedMessages = formattedMessages.map(msg => ({
         ...msg,
         parts: msg.parts.filter((p: any) => !p.inlineData)
       }));
     }
-
-    // Setup Supabase variables for memory fetching
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
     const isRealSupabaseConfigured = Boolean(supabaseUrl && supabaseServiceKey && !supabaseUrl.includes("YOUR_") && !supabaseServiceKey.includes("YOUR_"));
@@ -169,14 +157,23 @@ router.post("/", async (req, res) => {
 
     // Configure thinking for models that support it
     const supportsThinking = Boolean(resolvedModel.supports_thinking);
+    let thinkingDecision: any = null;
     if (supportsThinking) {
-      config.thinkingConfig = buildThinkingConfig(modelId, effort, Boolean(extendedThinking));
+      const latestUserMsg = messages[messages.length - 1];
+      thinkingDecision = getThinkingPlanAndConfig(modelId, latestUserMsg, {
+        extendedThinking: Boolean(extendedThinking),
+        effort,
+      });
+      config.thinkingConfig = thinkingDecision.config;
     }
 
     // Initiate Gemini streaming call before opening SSE headers
-    let stream;
+    let stream: any;
+    let fallbackApplied = false;
     try {
-      stream = await startGeminiStream(modelId, formattedMessages, config);
+      const streamRes = await startGeminiStream(modelId, formattedMessages, config);
+      stream = streamRes.stream;
+      fallbackApplied = streamRes.fallbackApplied;
     } catch (err: any) {
       const errInfo = mapGeminiError(err, modelId);
       res.status(errInfo.status).json({
@@ -194,8 +191,17 @@ router.post("/", async (req, res) => {
     res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders?.();
 
+    // First SSE event: send thinkingPlan if model supports thinking
+    if (thinkingDecision) {
+      res.write(`data: ${JSON.stringify({ thinkingPlan: thinkingDecision.plan })}\n\n`);
+    }
+
     if (extendedThinking && !supportsThinking) {
       res.write(`data: ${JSON.stringify({ warning: "This model doesn't support extended thinking" })}\n\n`);
+    }
+
+    if (fallbackApplied) {
+      res.write(`data: ${JSON.stringify({ warning: "Reasoning was disabled for this request because the model rejected the thinking settings" })}\n\n`);
     }
 
     const collectedSources: Array<{ title: string; url: string }> = [];

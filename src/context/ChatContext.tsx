@@ -86,7 +86,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isSearchingWeb?: boolean,
     timing?: { thinkingStartedAt?: number; firstTokenAt?: number; thinkingMs?: number },
     isReconnecting?: boolean,
-    finishReason?: string
+    finishReason?: string,
+    extra?: { extendedThinking?: boolean; thinkingPlan?: { level: "low" | "medium" | "high"; reason?: string } }
   ) => {
     dispatch({
       type: "UPDATE_MESSAGE_CONTENT",
@@ -106,6 +107,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       thinkingMs: timing?.thinkingMs,
       isReconnecting,
       finishReason,
+      extendedThinking: extra?.extendedThinking,
+      thinkingPlan: extra?.thinkingPlan,
     });
   }, []);
 

@@ -18,7 +18,8 @@ interface RetryStreamOptions {
     isSearchingWeb?: boolean,
     timing?: { thinkingStartedAt?: number; firstTokenAt?: number; thinkingMs?: number },
     isReconnecting?: boolean,
-    finishReason?: string
+    finishReason?: string,
+    extra?: { extendedThinking?: boolean; thinkingPlan?: { level: "low" | "medium" | "high"; reason?: string } }
   ) => void;
   preferences: any;
   currentProject: Project | undefined;
@@ -85,47 +86,27 @@ export function useRetryStream({
     let receivedSources: Array<{ title: string; url: string }> | undefined;
     let accumulatedThoughts = "";
     let latestFinishReason: string | undefined;
+    let receivedPlan: { level: "low" | "medium" | "high"; reason?: string } | undefined;
 
     const streamer = new SmoothStreamer({
       onUpdate: (displayedText, isFinished) => {
+        const isThinkingActive = (lastOptions.extendedThinking || (receivedPlan && receivedPlan.level !== "low")) && !firstTokenTimestamp;
         updateMessageContent(
-          activeConversationId,
-          newAssistantMsg.id,
-          displayedText,
-          !isFinished,
-          lastOptions.extendedThinking && !firstTokenTimestamp,
-          accumulatedThoughts || undefined,
-          undefined,
-          receivedSources,
-          false,
-          {
-            thinkingStartedAt: thinkingStartTime,
-            firstTokenAt: firstTokenTimestamp,
-            thinkingMs: thinkingDurationMs,
-          },
-          false,
-          latestFinishReason
+          activeConversationId, newAssistantMsg.id, displayedText, !isFinished,
+          isThinkingActive, accumulatedThoughts || undefined, undefined, receivedSources, false,
+          { thinkingStartedAt: thinkingStartTime, firstTokenAt: firstTokenTimestamp, thinkingMs: thinkingDurationMs },
+          false, latestFinishReason,
+          { extendedThinking: lastOptions.extendedThinking, thinkingPlan: receivedPlan }
         );
       },
       onFlushComplete: () => {
         setIsStreaming(false);
         updateMessageContent(
-          activeConversationId,
-          newAssistantMsg.id,
-          streamerRef.current?.getDisplayedText() || "",
-          false,
-          lastOptions.extendedThinking && !firstTokenTimestamp,
-          accumulatedThoughts || undefined,
-          undefined,
-          receivedSources,
-          false,
-          {
-            thinkingStartedAt: thinkingStartTime,
-            firstTokenAt: firstTokenTimestamp,
-            thinkingMs: thinkingDurationMs,
-          },
-          false,
-          latestFinishReason
+          activeConversationId, newAssistantMsg.id, streamerRef.current?.getDisplayedText() || "", false,
+          false, accumulatedThoughts || undefined, undefined, receivedSources, false,
+          { thinkingStartedAt: thinkingStartTime, firstTokenAt: firstTokenTimestamp, thinkingMs: thinkingDurationMs },
+          false, latestFinishReason,
+          { extendedThinking: lastOptions.extendedThinking, thinkingPlan: receivedPlan }
         );
       },
     });
@@ -153,35 +134,33 @@ export function useRetryStream({
         memoryEnabled: preferences.memory_enabled !== false,
       },
       {
+        onThinkingPlan: (plan) => {
+          receivedPlan = plan;
+          const isMediumOrHigh = plan.level === "medium" || plan.level === "high";
+          if (isMediumOrHigh && !thinkingStartTime) thinkingStartTime = Date.now();
+          updateMessageContent(
+            activeConversationId, newAssistantMsg.id, "", true,
+            (lastOptions.extendedThinking || isMediumOrHigh) && !firstTokenTimestamp,
+            accumulatedThoughts || undefined, undefined, undefined, false,
+            { thinkingStartedAt: thinkingStartTime }, false, undefined,
+            { extendedThinking: lastOptions.extendedThinking, thinkingPlan: receivedPlan }
+          );
+        },
         onThinkingStart: () => {
           if (!thinkingStartTime) thinkingStartTime = Date.now();
           updateMessageContent(
-            activeConversationId,
-            newAssistantMsg.id,
-            "",
-            true,
-            true,
-            "",
-            undefined,
-            undefined,
-            false,
-            { thinkingStartedAt: thinkingStartTime }
+            activeConversationId, newAssistantMsg.id, "", true, true, "", undefined, undefined, false,
+            { thinkingStartedAt: thinkingStartTime }, false, undefined,
+            { extendedThinking: lastOptions.extendedThinking, thinkingPlan: receivedPlan }
           );
         },
         onThinkingUpdate: (thoughts) => {
           if (!thinkingStartTime) thinkingStartTime = Date.now();
           accumulatedThoughts = thoughts;
           updateMessageContent(
-            activeConversationId,
-            newAssistantMsg.id,
-            "",
-            true,
-            !firstTokenTimestamp,
-            thoughts,
-            undefined,
-            undefined,
-            false,
-            { thinkingStartedAt: thinkingStartTime }
+            activeConversationId, newAssistantMsg.id, "", true, !firstTokenTimestamp, thoughts, undefined, undefined, false,
+            { thinkingStartedAt: thinkingStartTime }, false, undefined,
+            { extendedThinking: lastOptions.extendedThinking, thinkingPlan: receivedPlan }
           );
         },
         onSources: (sources) => {

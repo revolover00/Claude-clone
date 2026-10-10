@@ -7,6 +7,7 @@ export interface SSEParserOptions {
   onFinish?: (finish: string) => void;
   onThoughtsTokenCount?: (count: number) => void;
   onWarning?: (warning: string) => void;
+  onThinkingPlan?: (plan: { level: "low" | "medium" | "high"; reason?: string }) => void;
 }
 
 export class SSEParser {
@@ -73,6 +74,10 @@ export class SSEParser {
 
         if (data?.warning) {
           this.handlers.onWarning?.(data.warning);
+        }
+
+        if (data?.thinkingPlan) {
+          this.handlers.onThinkingPlan?.(data.thinkingPlan);
         }
       }
     }

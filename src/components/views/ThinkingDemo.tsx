@@ -7,6 +7,8 @@ export default function ThinkingDemo() {
   const [delaySec, setDelaySec] = useState<number>(0);
   const [showThinkingMode, setShowThinkingMode] = useState<"auto" | "expanded" | "collapsed">("auto");
   const [noThoughtsMode, setNoThoughtsMode] = useState<boolean>(false);
+  const [noSummaryMode, setNoSummaryMode] = useState<boolean>(false);
+  const [thinkingPlanHigh, setThinkingPlanHigh] = useState<boolean>(false);
   const [noHeadings, setNoHeadings] = useState<boolean>(false);
   const [thinkingToggle, setThinkingToggle] = useState<boolean>(true);
   const [isThinking, setIsThinking] = useState<boolean>(true);
@@ -43,12 +45,12 @@ This ensures thorough, verified output for demanding software engineering tasks.
     const currentRun = ++demoRunRef.current;
     if (!isThinking) return;
 
-    if (noThoughtsMode) {
+    if (noSummaryMode || noThoughtsMode) {
       const waitTimer = setTimeout(() => {
         if (demoRunRef.current !== currentRun) return;
         setIsThinking(false);
         setHasAnswerToken(true);
-      }, (delaySec || 1) * 1000);
+      }, (delaySec || 2) * 1000);
       return () => clearTimeout(waitTimer);
     }
 
@@ -155,11 +157,31 @@ This ensures thorough, verified output for demanding software engineering tasks.
             <label className="flex items-center gap-2 text-[12px] font-medium text-ink-muted cursor-pointer">
               <input
                 type="checkbox"
+                checked={noSummaryMode}
+                onChange={(e) => { setNoSummaryMode(e.target.checked); restartDemo(); }}
+                className="rounded border-line text-accent focus:ring-accent"
+              />
+              No Summary Mode
+            </label>
+
+            <label className="flex items-center gap-2 text-[12px] font-medium text-ink-muted cursor-pointer">
+              <input
+                type="checkbox"
+                checked={thinkingPlanHigh}
+                onChange={(e) => { setThinkingPlanHigh(e.target.checked); restartDemo(); }}
+                className="rounded border-line text-accent focus:ring-accent"
+              />
+              thinkingPlan: High
+            </label>
+
+            <label className="flex items-center gap-2 text-[12px] font-medium text-ink-muted cursor-pointer">
+              <input
+                type="checkbox"
                 checked={noThoughtsMode}
                 onChange={(e) => { setNoThoughtsMode(e.target.checked); restartDemo(); }}
                 className="rounded border-line text-accent focus:ring-accent"
               />
-              No Thoughts Mode (Hidden)
+              No Thoughts (Hidden)
             </label>
 
             <label className="flex items-center gap-2 text-[12px] font-medium text-ink-muted cursor-pointer">
@@ -169,7 +191,7 @@ This ensures thorough, verified output for demanding software engineering tasks.
                 onChange={(e) => { setNoHeadings(e.target.checked); restartDemo(); }}
                 className="rounded border-line text-accent focus:ring-accent"
               />
-              No Headings (Paragraph Fallback)
+              No Headings
             </label>
 
             <label className="flex items-center gap-2 text-[12px] font-medium text-ink-muted cursor-pointer">
@@ -190,12 +212,14 @@ This ensures thorough, verified output for demanding software engineering tasks.
           <div className="rounded-xl border border-line/60 bg-shell p-4">
             <ThoughtProcess
               isThinking={isThinking}
-              thoughts={currentThoughts}
+              thoughts={noSummaryMode ? "" : currentThoughts}
               thinkingStartedAt={thinkingStartTimestamp}
               hasAnswerToken={hasAnswerToken}
               isSearchingWeb={true}
               sources={[{ title: "Claude Architecture Docs", url: "https://claude.ai" }]}
               showThinking={showThinkingMode}
+              extendedThinking={thinkingToggle || noSummaryMode}
+              thinkingPlan={thinkingPlanHigh ? { level: "high", reason: "Complex reasoning detected" } : undefined}
             />
             {(!isThinking || hasAnswerToken) && (
               <div className="mt-4 pt-4 border-t border-line text-[14px] text-ink leading-[1.6]">

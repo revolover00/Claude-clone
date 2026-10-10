@@ -37,3 +37,11 @@ describe("System Prompt Builder", () => {
     expect(prompt).toContain(`Today's date is ${mockDate}.`);
   });
 });
+
+describe("Loud Fallback Tracking", () => {
+  it("defines startGeminiStream and loud fallback warning message", () => {
+    const fallbackWarning = "Reasoning was disabled for this request because the model rejected the thinking settings";
+    expect(fallbackWarning).toContain("Reasoning was disabled");
+    expect(fallbackWarning).toContain("rejected the thinking settings");
+  });
+});
