@@ -36,6 +36,8 @@ export type ConversationAction =
       thinkingMs?: number;
       finishReason?: string;
       memoryUpdated?: boolean;
+      extendedThinking?: boolean;
+      thinkingPlan?: { level: "low" | "medium" | "high"; reason?: string };
     }
   | {
       type: "SWITCH_VERSION";
@@ -162,6 +164,8 @@ export function conversationsReducer(
             ...(action.firstTokenAt !== undefined ? { firstTokenAt: action.firstTokenAt } : {}),
             ...(action.thinkingMs !== undefined ? { thinkingMs: action.thinkingMs } : {}),
             ...(action.finishReason !== undefined ? { finishReason: action.finishReason } : {}),
+            ...(action.extendedThinking !== undefined ? { extendedThinking: action.extendedThinking } : {}),
+            ...(action.thinkingPlan !== undefined ? { thinkingPlan: action.thinkingPlan } : {}),
           };
         });
         return {

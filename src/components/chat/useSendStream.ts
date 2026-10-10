@@ -110,6 +110,7 @@ export function useSendStream({
     let receivedSources: Array<{ title: string; url: string }> | undefined;
     let accumulatedThoughts = "";
     let latestFinishReason: string | undefined;
+    let receivedPlan: { level: "low" | "medium" | "high"; reason?: string } | undefined;
 
     const runStreaming = (
       pText: string,
@@ -134,22 +135,11 @@ export function useSendStream({
         reconnectVal = false
       ) => {
         updateMessageContent(
-          convId,
-          aMsgId,
-          content,
-          isStreamActive,
-          isThinkingVal,
-          thoughts,
-          errorVal,
-          sources,
-          sOpts.webSearch,
-          {
-            thinkingStartedAt: tStartTime,
-            firstTokenAt: firstTokenTimestamp,
-            thinkingMs: thinkingDurationMs,
-          },
-          reconnectVal,
-          latestFinishReason
+          convId, aMsgId, content, isStreamActive, isThinkingVal, thoughts, errorVal,
+          sources, sOpts.webSearch,
+          { thinkingStartedAt: tStartTime, firstTokenAt: firstTokenTimestamp, thinkingMs: thinkingDurationMs },
+          reconnectVal, latestFinishReason,
+          { extendedThinking: sOpts.extendedThinking, thinkingPlan: receivedPlan }
         );
       };
 
@@ -195,6 +185,12 @@ export function useSendStream({
           memoryEnabled: preferences.memory_enabled !== false,
         },
         {
+          onThinkingPlan: (plan) => {
+            receivedPlan = plan;
+            const isMediumOrHigh = plan.level === "medium" || plan.level === "high";
+            if (isMediumOrHigh && !tStartTime) tStartTime = Date.now();
+            callUpdate("", true, (sOpts.extendedThinking || isMediumOrHigh) && !firstTokenTimestamp, accumulatedThoughts || undefined);
+          },
           onThinkingStart: () => {
             if (!tStartTime) tStartTime = Date.now();
             callUpdate("", true, true, "");

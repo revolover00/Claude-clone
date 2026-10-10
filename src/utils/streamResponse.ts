@@ -10,6 +10,7 @@ export interface StreamCallbacks {
   onError?: (err: Error & { details?: string; code?: number }) => void;
   onFinish?: (finish: string) => void;
   onThoughtsTokenCount?: (count: number) => void;
+  onThinkingPlan?: (plan: { level: "low" | "medium" | "high"; reason?: string }) => void;
 }
 
 export interface ChatStreamOptions {
@@ -168,6 +169,9 @@ export function streamRealResponse(
         },
         onWarning: (warning) => {
           window.dispatchEvent(new CustomEvent("claude:toast", { detail: { message: warning, type: "info" } }));
+        },
+        onThinkingPlan: (plan) => {
+          callbacks.onThinkingPlan?.(plan);
         },
         onError: (err) => {
           midStreamError = err;

@@ -18,7 +18,8 @@ export interface SendStreamOptions {
     isSearchingWeb?: boolean,
     timing?: { thinkingStartedAt?: number; firstTokenAt?: number; thinkingMs?: number },
     isReconnecting?: boolean,
-    finishReason?: string
+    finishReason?: string,
+    extra?: { extendedThinking?: boolean; thinkingPlan?: { level: "low" | "medium" | "high"; reason?: string } }
   ) => void;
   setActiveConversationId: (id: string | null) => void;
   triggerAutoTitle: (conversationId: string, firstUserMsg: string, firstReply: string) => Promise<void>;

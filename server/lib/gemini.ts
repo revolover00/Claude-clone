@@ -173,27 +173,35 @@ export function buildThinkingConfig(modelId: string, effort?: string, isExtended
   };
 }
 
-export async function startGeminiStream(modelId: string, formattedMessages: any[], config: any) {
+export async function startGeminiStream(
+  modelId: string,
+  formattedMessages: any[],
+  config: any
+): Promise<{ stream: any; fallbackApplied: boolean }> {
   if (!ai) throw new Error("Gemini AI client not initialized");
-  
-  // Pass thinkingConfig if present, handle potential API errors by retrying once
+
+  // Pass thinkingConfig if present, handle potential API errors by falling back loudly
   try {
-    return await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config });
+    const stream = await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config });
+    return { stream, fallbackApplied: false };
   } catch (err: any) {
-    console.warn("Gemini API call failed with thinkingConfig, retrying once...", err?.message || err);
+    console.error("Gemini stream with thinkingConfig rejected by API, attempting fallback:", err);
     const retryConfig = { ...config };
     if (retryConfig.thinkingConfig?.thinkingLevel || retryConfig.thinkingConfig?.thinkingBudget) {
       retryConfig.thinkingConfig = { includeThoughts: true };
       try {
-        return await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config: retryConfig });
+        const stream = await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config: retryConfig });
+        return { stream, fallbackApplied: true };
       } catch (err2: any) {
-        console.warn("Retry with includeThoughts failed, falling back without thinkingConfig...", err2?.message || err2);
+        console.error("Fallback with includeThoughts also failed, dropping thinkingConfig:", err2);
         delete retryConfig.thinkingConfig;
-        return await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config: retryConfig });
+        const stream = await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config: retryConfig });
+        return { stream, fallbackApplied: true };
       }
     } else {
       delete retryConfig.thinkingConfig;
-      return await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config: retryConfig });
+      const stream = await ai.models.generateContentStream({ model: modelId, contents: formattedMessages, config: retryConfig });
+      return { stream, fallbackApplied: true };
     }
   }
 }

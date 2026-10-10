@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Trash2, Play, Plus, ArrowUp, ArrowDown } from "lucide-react";
+import { Trash2, Play, Plus, ArrowUp, ArrowDown, Brain } from "lucide-react";
 import AddModelForm from "./AddModelForm";
+import ThinkingDiagnosticModal from "./ThinkingDiagnosticModal";
 
 interface Model {
   id: string;
@@ -34,6 +35,7 @@ export default function ModelsTab() {
   const [showDiscover, setShowDiscover] = useState(false);
   const [loadingDiscover, setLoadingDiscover] = useState(false);
   const [testResults, setTestResults] = useState<Record<string, { loading: boolean; text: string; ok: boolean }>>({});
+  const [diagnosticModel, setDiagnosticModel] = useState<Model | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Model>>({});
@@ -256,6 +258,9 @@ export default function ModelsTab() {
             <div className="flex items-center gap-2 shrink-0">
               {testResults[m.id] && <span className={`text-[10.5px] font-mono font-medium ${testResults[m.id].ok ? "text-emerald-400" : "text-danger"}`}>{testResults[m.id].text}</span>}
               <button title="Test Model" onClick={() => handleTestModel(m.id)} className="p-1.5 rounded bg-shell border border-line hover:bg-elev-3 text-ink-muted hover:text-ink cursor-pointer"><Play size={12} /></button>
+              <button title="Test thinking" onClick={() => setDiagnosticModel(m)} className="flex items-center gap-1 rounded bg-shell border border-line px-2 py-1 text-[11px] text-ink-muted hover:text-ink hover:bg-elev-3 cursor-pointer">
+                <Brain size={12} /> Test thinking
+              </button>
               {!m.is_default && m.enabled && <button onClick={() => handleSetDefault(m.id)} className="text-[11px] text-accent hover:underline cursor-pointer">Default</button>}
               <label className="flex items-center cursor-pointer">
                 <input type="checkbox" checked={m.enabled} onChange={e => handleToggleEnable(m.id, e.target.checked)} className="sr-only peer" />
@@ -267,6 +272,14 @@ export default function ModelsTab() {
           </div>
         ))}
       </div>
+
+      {diagnosticModel && (
+        <ThinkingDiagnosticModal
+          modelSlug={diagnosticModel.slug}
+          modelName={diagnosticModel.display_name}
+          onClose={() => setDiagnosticModel(null)}
+        />
+      )}
     </div>
   );
 }

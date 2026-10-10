@@ -57,6 +57,8 @@ export interface Message {
   thinkingMs?: number;
   finishReason?: string;
   memoryUpdated?: boolean;
+  extendedThinking?: boolean;
+  thinkingPlan?: { level: "low" | "medium" | "high"; reason?: string };
 }
 
 export interface Conversation {

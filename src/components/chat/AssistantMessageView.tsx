@@ -203,20 +203,15 @@ export default function AssistantMessageView({
           }}
         />
 
-        {(message.isThinking || message.thinking) && (
-          <div className="mb-2">
-            <ThoughtProcess
-              isThinking={Boolean(message.isThinking)}
-              thoughts={message.thinking}
-              thinkingStartedAt={message.thinkingStartedAt}
-              firstTokenAt={message.firstTokenAt}
-              thinkingMs={message.thinkingMs}
-              hasAnswerToken={!message.isThinking}
-              isSearchingWeb={message.isSearchingWeb}
-              sources={message.sources}
-            />
-          </div>
-        )}
+        <div className="mb-2">
+          <ThoughtProcess
+            isThinking={Boolean(message.isThinking)} thoughts={message.thinking}
+            thinkingStartedAt={message.thinkingStartedAt} firstTokenAt={message.firstTokenAt}
+            thinkingMs={message.thinkingMs} hasAnswerToken={!message.isThinking}
+            isSearchingWeb={message.isSearchingWeb} sources={message.sources}
+            extendedThinking={message.extendedThinking} thinkingPlan={message.thinkingPlan}
+          />
+        </div>
 
         <div
           dir={isArabic ? "rtl" : "ltr"}

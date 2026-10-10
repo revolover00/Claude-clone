@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { ai, apiKey } from "../lib/gemini";
 import { createClient } from "@supabase/supabase-js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
+import { runThinkingDiagnostic } from "../lib/testThinking";
 
 const router = Router();
 
@@ -243,44 +244,50 @@ router.post("/:id/test", requireAuth, async (req: AuthenticatedRequest, res: Res
       res.status(403).json({ error: "Forbidden: Admin access required" });
       return;
     }
-
-    const { id } = req.params;
-    let targetModel: any = null;
-
-    if (isRealSupabaseConfigured && supabaseServer) {
-      const { data, error } = await supabaseServer.from("models").select("*").eq("id", id).single();
-      if (!error && data) targetModel = data;
-    } else {
-      const saved = localStorage.getItem("claude_clone_mock_models");
-      const current = saved ? JSON.parse(saved) : DEFAULT_SEED_MODELS;
-      targetModel = current.find((m: any) => m.id === id);
-    }
-
+    const all = await getModelsFromDB(true);
+    const targetModel = all.find(m => m.id === req.params.id || m.slug === req.params.id);
     if (!targetModel) {
       res.status(404).json({ error: "Model not found" });
       return;
     }
-
-    if (!apiKey) {
+    if (!apiKey || !ai) {
       res.status(403).json({ error: "API key is not configured on the server" });
       return;
     }
-
     const start = Date.now();
     try {
-      await ai.models.generateContent({
-        model: targetModel.api_model_id,
-        contents: "Hi",
-        config: { maxOutputTokens: 3 }
-      });
-      const latencyMs = Date.now() - start;
-      res.json({ ok: true, latencyMs });
+      await ai.models.generateContent({ model: targetModel.api_model_id, contents: "Hi", config: { maxOutputTokens: 3 } });
+      res.json({ ok: true, latencyMs: Date.now() - start });
     } catch (apiErr: any) {
-      const latencyMs = Date.now() - start;
-      res.json({ ok: false, latencyMs, error: apiErr.message || "API request failed" });
+      res.json({ ok: false, latencyMs: Date.now() - start, error: apiErr.message || "API request failed" });
     }
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/models/:slug/test-thinking (Admin only)
+router.post("/:slug/test-thinking", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const isAdmin = await checkIsAdmin(req.user?.id || "");
+    if (!isAdmin) {
+      res.status(403).json({ error: "Forbidden: Admin access required" });
+      return;
+    }
+    const all = await getModelsFromDB(true);
+    const target = all.find(m => m.slug === req.params.slug || m.id === req.params.slug);
+    if (!target) {
+      res.status(404).json({ error: "Model not found" });
+      return;
+    }
+    if (!apiKey || !ai) {
+      res.status(403).json({ error: "API key is not configured on the server" });
+      return;
+    }
+    const result = await runThinkingDiagnostic(ai, target.api_model_id);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to run thinking test" });
   }
 });
 
