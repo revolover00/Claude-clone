@@ -33,21 +33,26 @@ export default function ModelMenu({
     // Resolve last saved model or default
     const saved = localStorage.getItem("claude_clone_last_model");
     const normalizedSaved = saved ? normalizeSlug(saved) : null;
-    
-    const exists = models.find((m: Model) => m.slug === normalizedSaved || m.id === normalizedSaved);
+
+    const exists = models.find(
+      (m: Model) => m.slug === normalizedSaved || m.id === normalizedSaved
+    );
     const targetModel = exists || defaultModel;
 
     if (targetModel && model !== targetModel.slug) {
       onSelectModel(targetModel.slug);
       localStorage.setItem("claude_clone_last_model", targetModel.slug);
       if (saved && !exists) {
-        showToast(`Previously selected model was disabled. Switched to ${targetModel.display_name}.`, "info");
+        showToast(
+          `Previously selected model was disabled. Switched to ${targetModel.display_name}.`,
+          "info"
+        );
       }
     }
   }, [models, model, onSelectModel, showToast, normalizeSlug, defaultModel]);
 
-  const currentModelObj = models.find((m: Model) => m.slug === model || m.id === model) || defaultModel;
-
+  const currentModelObj =
+    models.find((m: Model) => m.slug === model || m.id === model) || defaultModel;
 
   const toggleOpen = () => {
     setIsOpen((prev) => {
@@ -75,25 +80,26 @@ export default function ModelMenu({
   }, [isOpen, closeMenu]);
 
   const handleSelectModelLocal = (selectedSlug: string) => {
-    localStorage.setItem("claude_clone_last_model", selectedSlug);
-    onSelectModel(selectedSlug);
+    const normalized = normalizeSlug(selectedSlug);
+    localStorage.setItem("claude_clone_last_model", normalized);
+    onSelectModel(normalized);
     closeMenu();
   };
 
   return (
     <div className="relative flex items-center gap-1 font-sans" ref={menuRef}>
-      {/* Trigger Button */}
+      {/* Trigger Button with display name + effort */}
       <button
         type="button"
         onClick={toggleOpen}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className="flex h-8 items-center gap-2 rounded-md px-2 transition-colors duration-150 hover:bg-elev-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
+        className="flex h-8 items-center gap-1.5 rounded-md px-2 transition-colors duration-150 hover:bg-elev-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
       >
         <span className="text-[13.5px] font-medium text-ink-soft">
           {currentModelObj.display_name}
         </span>
-        <span className="text-[13.5px] text-ink-muted">{effort}</span>
+        <span className="text-[13.5px] text-ink-muted">· {effort}</span>
       </button>
 
       <button
@@ -116,38 +122,62 @@ export default function ModelMenu({
             Model
           </p>
           <div className="space-y-1 max-h-[220px] overflow-y-auto scroll-slim">
-            {models.filter((m: Model) => m.kind === 'chat' && m.enabled).map((m: Model) => (
-              <button
-                key={m.id || m.slug}
-                type="button"
-                role="menuitemradio"
-                aria-checked={model === m.slug}
-                onClick={() => handleSelectModelLocal(m.slug)}
-                className={cn(
-                  "flex w-full items-start justify-between rounded-lg p-2 text-start transition-colors cursor-pointer",
-                  model === m.slug
-                    ? "bg-elev-2 text-ink"
-                    : "text-ink-soft hover:bg-elev-2 hover:text-ink"
-                )}
-              >
-                <div className="flex-1 min-w-0 pr-2">
-                  <div className="flex items-center gap-1.5 flex-wrap">
+            {models
+              .filter((m: Model) => m.kind === "chat" && m.enabled)
+              .map((m: Model) => (
+                <button
+                  key={m.id || m.slug}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={model === m.slug}
+                  onClick={() => handleSelectModelLocal(m.slug)}
+                  className={cn(
+                    "flex w-full items-start justify-between rounded-lg p-2 text-start transition-colors cursor-pointer",
+                    model === m.slug
+                      ? "bg-elev-2 text-ink"
+                      : "text-ink-soft hover:bg-elev-2 hover:text-ink"
+                  )}
+                >
+                  <div className="flex-1 min-w-0 pr-2">
                     <p className="text-[13px] font-semibold">{m.display_name}</p>
-                    <div className="flex gap-1">
-                      {m.supports_thinking && <span title="Supports Thinking"><Brain size={10} className="text-amber-400" /></span>}
-                      {m.supports_search && <span title="Supports Search"><Globe size={10} className="text-sky-400" /></span>}
-                      {m.supports_vision && <span title="Supports Vision"><Eye size={10} className="text-emerald-400" /></span>}
+                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                      {m.supports_thinking && (
+                        <span
+                          title="Thinking"
+                          className="inline-flex items-center gap-0.5 rounded px-1 py-0.2 text-[9.5px] font-medium bg-amber-500/15 text-amber-300 border border-amber-500/20"
+                        >
+                          <Brain size={9} />
+                          Thinking
+                        </span>
+                      )}
+                      {m.supports_search && (
+                        <span
+                          title="Search"
+                          className="inline-flex items-center gap-0.5 rounded px-1 py-0.2 text-[9.5px] font-medium bg-sky-500/15 text-sky-300 border border-sky-500/20"
+                        >
+                          <Globe size={9} />
+                          Search
+                        </span>
+                      )}
+                      {m.supports_vision && (
+                        <span
+                          title="Vision"
+                          className="inline-flex items-center gap-0.5 rounded px-1 py-0.2 text-[9.5px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
+                        >
+                          <Eye size={9} />
+                          Vision
+                        </span>
+                      )}
                     </div>
+                    <p className="text-[11.5px] text-ink-muted leading-tight mt-1 break-words">
+                      {m.description || "Conversational chat model."}
+                    </p>
                   </div>
-                  <p className="text-[11.5px] text-ink-muted leading-tight mt-0.5 break-words">
-                    {m.description || "Conversational chat model."}
-                  </p>
-                </div>
-                {model === m.slug && (
-                  <Check size={14} className="text-accent shrink-0 mt-1" />
-                )}
-              </button>
-            ))}
+                  {model === m.slug && (
+                    <Check size={14} className="text-accent shrink-0 mt-1" />
+                  )}
+                </button>
+              ))}
           </div>
 
           <div className="my-2 border-t border-line" />

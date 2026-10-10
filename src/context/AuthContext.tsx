@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../utils/supabaseClient";
 import { importLocalChatsToSupabase } from "../utils/supabaseImport";
+import { normalizeSlug } from "../hooks/useModels";
 import type { Session, User } from "@supabase/supabase-js";
 
 interface AuthContextType {
@@ -36,6 +37,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select("*")
         .eq("user_id", uId)
         .single();
+      if (prefs?.settings) {
+        if (prefs.settings.model) {
+          prefs.settings.model = normalizeSlug(prefs.settings.model);
+        }
+        if (prefs.settings.model_id) {
+          prefs.settings.model_id = normalizeSlug(prefs.settings.model_id);
+        }
+      }
       setPreferences(prefs);
     } catch (err) {
       console.error("Error loading user details:", err);

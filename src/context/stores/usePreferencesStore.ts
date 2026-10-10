@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
 import type { UserPreferences } from "../../types/chat";
 
+import { normalizeSlug } from "../../hooks/useModels";
+
 const STORAGE_KEY_PREFS = "claude_clone_preferences_v3";
 
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -25,6 +27,12 @@ export function usePreferencesStore() {
         const fallbackShowThinking = localStorage.getItem("claude_show_thinking");
         if (fallbackShowThinking && !parsed.settings?.show_thinking) {
           parsed.settings = { ...(parsed.settings || {}), show_thinking: fallbackShowThinking };
+        }
+        if (parsed.settings?.model) {
+          parsed.settings.model = normalizeSlug(parsed.settings.model);
+        }
+        if (parsed.settings?.model_id) {
+          parsed.settings.model_id = normalizeSlug(parsed.settings.model_id);
         }
         return parsed;
       }

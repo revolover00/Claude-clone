@@ -62,9 +62,9 @@ CREATE POLICY "Allow admins to manage admins"
 -- Seed default models
 INSERT INTO public.models (slug, display_name, description, api_model_id, kind, supports_thinking, supports_search, supports_vision, is_default, sort_order)
 VALUES
-  ('sonnet-5', 'Sonnet 5', 'Fast and highly balanced intelligence, ideal for general chat and multimodal tasks.', 'gemini-3.8-flash', 'chat', false, true, true, true, 1),
-  ('opus-5', 'Opus 5', 'State-of-the-art capability for complex tasks and deep reasoning.', 'gemini-3.1-pro-preview', 'chat', true, true, true, false, 2),
-  ('haiku-4-5', 'Haiku 4.5', 'Incredible speed and low latency for quick conversations and summaries.', 'gemini-3.1-flash-lite', 'chat', false, false, true, false, 3),
+  ('gemini-3-8-flash', 'Gemini 3.8 Flash', 'Fast and highly balanced intelligence, ideal for general chat and multimodal tasks.', 'gemini-3.8-flash', 'chat', false, true, true, true, 1),
+  ('gemini-3-1-pro', 'Gemini 3.1 Pro (Preview)', 'State-of-the-art capability for complex tasks and deep reasoning.', 'gemini-3.1-pro-preview', 'chat', true, true, true, false, 2),
+  ('gemini-3-1-flash-lite', 'Gemini 3.1 Flash-Lite', 'Incredible speed and low latency for quick conversations and summaries.', 'gemini-3.1-flash-lite', 'chat', false, false, true, false, 3),
   ('gemini-light', 'Gemini Light', 'Internal model optimized for automated metadata, tags, and suggestions.', 'gemini-3.1-flash-lite', 'light', false, false, false, false, 4),
   ('gemini-embedding', 'Gemini Embedding', 'High-performance text embeddings for semantic search and knowledge.', 'text-embedding-004', 'embedding', false, false, false, false, 5)
 ON CONFLICT (slug) DO NOTHING;

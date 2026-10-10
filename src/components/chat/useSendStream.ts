@@ -7,6 +7,8 @@ import { useSendQueue } from "./useSendQueue";
 import { type SendStreamOptions } from "./useSendStreamTypes";
 import { createMessagePair } from "./sendStreamHelpers";
 
+import { useModels } from "../../hooks/useModels";
+
 export function useSendStream({
   activeConversationId,
   activeConversation,
@@ -26,14 +28,15 @@ export function useSendStream({
   setComposerInitial,
 }: SendStreamOptions) {
   const { showToast } = useToast();
+  const { defaultModel } = useModels();
 
   const [followups, setFollowups] = useState<string[]>([]);
-  const [lastOptions, setLastOptions] = useState({
-    model: "sonnet-5",
+  const [lastOptions, setLastOptions] = useState(() => ({
+    model: defaultModel?.slug || "gemini-3-8-flash",
     effort: "Medium",
     webSearch: false,
     extendedThinking: false,
-  });
+  }));
 
   const retryCountRef = useRef(0);
   const isFirstExchange = !activeConversation || activeConversation.messages.length === 0;

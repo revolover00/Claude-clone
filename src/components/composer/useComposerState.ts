@@ -14,8 +14,14 @@ export function useComposerState({
   onChangeValue,
 }: ComposerStateOptions) {
   const [value, setValue] = useState(initialValue);
-  const { defaultModel } = useModels();
-  const [model, setModel] = useState<string>(defaultModel?.slug || "gemini-3-8-flash");
+  const { defaultModel, normalizeSlug } = useModels();
+  const [model, setModel] = useState<string>(() => {
+    const saved =
+      typeof localStorage !== "undefined"
+        ? localStorage.getItem("claude_clone_last_model")
+        : null;
+    return saved ? normalizeSlug(saved) : (defaultModel?.slug || "gemini-3-8-flash");
+  });
   const [effort, setEffort] = useState<Effort>("Medium");
 
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
@@ -23,6 +29,13 @@ export function useComposerState({
   const [activeChipExamples, setActiveChipExamples] = useState<string[] | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("claude_clone_last_model");
+    if (!saved && defaultModel?.slug && model !== defaultModel.slug) {
+      setModel(defaultModel.slug);
+    }
+  }, [defaultModel, model]);
 
   useEffect(() => {
     const goOnline = () => setIsOffline(false);
