@@ -4,13 +4,14 @@ import { useChat } from "../../context/ChatContext";
 import { useFocusTrap } from "../../utils/useFocusTrap";
 import ModelsTab from "./ModelsTab";
 import MemoryTab from "./MemoryTab";
+import SkillsTab from "./SkillsTab";
 
 export default function SettingsModal() {
   const {
     settingsModalOpen, setSettingsModalOpen, preferences, updatePreferences, conversations, clearAllData,
   } = useChat();
 
-  const [activeTab, setActiveTab] = useState<"general" | "appearance" | "data" | "models" | "memory">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "appearance" | "data" | "models" | "memory" | "skills">("general");
   const [confirmClear, setConfirmClear] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -67,6 +68,7 @@ export default function SettingsModal() {
             <TabBtn id="appearance" label="Appearance" />
             <TabBtn id="data" label="Data" />
             <TabBtn id="memory" label="Memory" />
+            <TabBtn id="skills" label="Skills" />
             {isAdmin && <TabBtn id="models" label="Models" />}
           </nav>
         </div>
@@ -88,6 +90,8 @@ export default function SettingsModal() {
               </div>
             </div>
           )}
+
+          {activeTab === "skills" && <SkillsTab />}
 
           {activeTab === "appearance" && (
             <div className="space-y-6">

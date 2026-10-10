@@ -18,6 +18,8 @@ if (typeof global.localStorage === "undefined") {
   };
 }
 
+dotenv.config();
+
 // Import route handlers & middleware
 import healthRouter from "./server/routes/health";
 import chatRouter from "./server/routes/chat";
@@ -25,9 +27,8 @@ import titleRouter from "./server/routes/title";
 import suggestRouter from "./server/routes/suggest";
 import modelsRouter from "./server/routes/models";
 import memoryRouter from "./server/routes/memory";
+import skillsRouter from "./server/routes/skills";
 import { requireAuth } from "./server/middleware/auth";
-
-dotenv.config();
 
 if (process.env.NODE_ENV === "production") {
   const missing = [];
@@ -75,6 +76,7 @@ app.use("/api/title", requireAuth, apiLimiter, titleRouter);
 app.use("/api/suggest", requireAuth, apiLimiter, suggestRouter);
 app.use("/api/models", modelsRouter);
 app.use("/api/memory", memoryRouter);
+app.use("/api/skills", skillsRouter);
 
 // Open healthcheck route
 app.use("/api", healthRouter);
