@@ -33,6 +33,23 @@ export interface Artifact {
   isStreaming?: boolean;
 }
 
+export interface DocumentItem {
+  id: string;
+  format: "docx" | "pdf" | "pptx" | "xlsx";
+  title: string;
+  fileName: string;
+  size: number;
+  url: string;
+  createdAt: number;
+}
+
+export interface DocumentErrorItem {
+  format: "docx" | "pdf" | "pptx" | "xlsx";
+  title: string;
+  spec?: any;
+  error: string;
+}
+
 export interface Message {
   id: string;
   parentId?: string | null;
@@ -59,6 +76,8 @@ export interface Message {
   memoryUpdated?: boolean;
   extendedThinking?: boolean;
   thinkingPlan?: { level: "low" | "medium" | "high"; reason?: string };
+  documents?: DocumentItem[];
+  documentErrors?: DocumentErrorItem[];
 }
 
 export interface Conversation {

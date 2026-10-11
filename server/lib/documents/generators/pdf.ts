@@ -102,7 +102,7 @@ export async function generatePdfBuffer(title: string, spec: DocxPdfSpec): Promi
 
       case "table": {
         const rowHeight = 24;
-        const totalRows = (element.headers ? 1 : 0) + element.rows.length;
+        const _totalRows = (element.headers ? 1 : 0) + element.rows.length;
         const colCount = Math.max(
           element.headers?.length || 0,
           ...element.rows.map((r) => r.length)

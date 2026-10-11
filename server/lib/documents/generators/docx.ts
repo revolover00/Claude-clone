@@ -9,13 +9,11 @@ import {
   TableRow,
   TableCell,
   WidthType,
-  BorderStyle,
-  Header,
   Footer,
   PageNumber,
   ImageRun,
 } from "docx";
-import { DocxPdfSpec, DocElement } from "../types";
+import { DocxPdfSpec } from "../types";
 import { isArabicText } from "../arabicHelper";
 
 export async function generateDocxBuffer(title: string, spec: DocxPdfSpec): Promise<Buffer> {
