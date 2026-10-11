@@ -207,6 +207,12 @@ export function useSendStream({
             receivedSources = sources;
             callUpdate("", true, !firstTokenTimestamp, accumulatedThoughts || undefined, sources);
           },
+          onDocument: (doc) => {
+            callUpdate("", true, false, undefined, receivedSources, undefined, { document: doc });
+          },
+          onDocumentError: (docErr) => {
+            callUpdate("", true, false, undefined, receivedSources, undefined, { documentError: docErr });
+          },
           onToken: (token) => {
             if (!firstTokenTimestamp) {
               firstTokenTimestamp = Date.now();

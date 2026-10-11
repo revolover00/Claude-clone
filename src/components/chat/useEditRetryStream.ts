@@ -169,6 +169,12 @@ export function useEditRetryStream(options: EditRetryStreamOptions) {
             { thinkingStartedAt: thinkingStartTime }
           );
         },
+        onDocument: (doc) => {
+          updateMessageContent(activeConversationId, newAssistantMsg.id, "", true, false, undefined, undefined, receivedSources, false, { thinkingStartedAt: thinkingStartTime }, false, undefined, { extendedThinking: lastOptions.extendedThinking, thinkingPlan: receivedPlan, document: doc });
+        },
+        onDocumentError: (docErr) => {
+          updateMessageContent(activeConversationId, newAssistantMsg.id, "", true, false, undefined, undefined, receivedSources, false, { thinkingStartedAt: thinkingStartTime }, false, undefined, { extendedThinking: lastOptions.extendedThinking, thinkingPlan: receivedPlan, documentError: docErr });
+        },
         onToken: (token) => {
           if (!firstTokenTimestamp) {
             firstTokenTimestamp = Date.now();
