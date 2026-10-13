@@ -29,6 +29,7 @@ import modelsRouter from "./server/routes/models";
 import memoryRouter from "./server/routes/memory";
 import skillsRouter from "./server/routes/skills";
 import documentsRouter from "./server/routes/documents";
+import providersRouter from "./server/routes/providers";
 import { requireAuth } from "./server/middleware/auth";
 
 if (process.env.NODE_ENV === "production") {
@@ -76,6 +77,11 @@ app.use("/api/chat", requireAuth, apiLimiter, chatRouter);
 app.use("/api/title", requireAuth, apiLimiter, titleRouter);
 app.use("/api/suggest", requireAuth, apiLimiter, suggestRouter);
 app.use("/api/models", modelsRouter);
+app.put("/api/models/prefs", requireAuth, (req, res, next) => {
+  req.url = "/prefs";
+  providersRouter(req, res, next);
+});
+app.use("/api/providers", requireAuth, apiLimiter, providersRouter);
 app.use("/api/memory", memoryRouter);
 app.use("/api/skills", skillsRouter);
 app.use("/api/documents", documentsRouter);

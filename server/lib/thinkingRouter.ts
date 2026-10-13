@@ -11,9 +11,20 @@ export interface ThinkingConfigResult {
   thinkingBudget?: number;
 }
 
+export type RegisteredProviderId = "gemini" | "groq" | "openrouter";
+export const REGISTERED_PROVIDERS: readonly RegisteredProviderId[] = ["gemini", "groq", "openrouter"] as const;
+
+export interface ThinkingAttachment {
+  name?: string;
+  type?: string;
+  url?: string;
+  isImage?: boolean;
+}
+
 export interface ThinkingRouterInput {
   content?: string;
-  attachments?: any[];
+  attachmentsCount?: number;
+  attachments?: ThinkingAttachment[];
 }
 
 export interface ThinkingRouterOptions {
@@ -176,9 +187,9 @@ export function routeThinking(
 
   // When toggle is OFF: Adaptive thinking
   const content = latestMessage.content || "";
-  const attachments = latestMessage.attachments || [];
+  const attachmentsCount = latestMessage.attachmentsCount ?? (latestMessage.attachments?.length || 0);
 
-  if (attachments.length > 0) {
+  if (attachmentsCount > 0) {
     return {
       level: "high",
       reason: "Message contains file or image attachments",
@@ -213,34 +224,37 @@ export function routeThinking(
 }
 
 export function buildThinkingConfigFromLevel(
-  provider: string,
+  provider: RegisteredProviderId,
   modelId: string,
   level: ThinkingLevel
 ): ThinkingConfigResult {
-  if (provider === 'gemini') {
+  if (provider === "gemini") {
     const isGemini3 = /gemini-3/i.test(modelId);
     return isGemini3
       ? { includeThoughts: true, thinkingLevel: level }
-      : { includeThoughts: true, thinkingBudget: level === 'high' ? 16384 : level === 'medium' ? 4096 : 1024 };
-  }
-  
-  if (provider === 'groq') {
-    return { includeThoughts: true, thinkingLevel: level }; // Maps to reasoning_effort
+      : { includeThoughts: true, thinkingBudget: level === "high" ? 16384 : level === "medium" ? 4096 : 1024 };
   }
 
-  if (provider === 'openrouter') {
-    return { includeThoughts: true, thinkingLevel: level }; // Maps to reasoning.effort
+  if (provider === "groq") {
+    return { includeThoughts: true, thinkingLevel: level };
   }
 
-  return { includeThoughts: false };
+  if (provider === "openrouter") {
+    return { includeThoughts: true, thinkingLevel: level };
+  }
+
+  throw new Error(`Unknown provider: "${provider}". Expected one of: ${REGISTERED_PROVIDERS.join(", ")}`);
 }
 
 export function getThinkingPlanAndConfig(
-  provider: string,
+  provider: RegisteredProviderId,
   modelId: string,
   latestMessage: ThinkingRouterInput = {},
   options: ThinkingRouterOptions = {}
 ): { plan: ThinkingPlan; config: ThinkingConfigResult } {
+  if (!REGISTERED_PROVIDERS.includes(provider)) {
+    throw new Error(`Unknown provider: "${provider}". Expected one of: ${REGISTERED_PROVIDERS.join(", ")}`);
+  }
   const plan = routeThinking(latestMessage, { ...options, modelId });
   const config = buildThinkingConfigFromLevel(provider, modelId, plan.level);
 

@@ -15,12 +15,28 @@ export interface ModelInfo {
   raw: any;
 }
 
+export interface ValidationResult {
+  valid: boolean;
+  status?: number;
+  code?: string;
+  message?: string;
+}
+
+export interface ProviderStreamParams {
+  modelId: string;
+  apiKey: string;
+  messages: any[];
+  config?: any;
+  res: any;
+  abortSignal?: AbortSignal;
+}
+
 export interface Provider {
   id: string;
   label: string;
   docsUrl: string;
   keyHelpUrl: string;
-  validateKey(key: string): Promise<boolean>;
+  validateKey(key: string): Promise<ValidationResult>;
   listModels(key: string): Promise<ModelInfo[]>;
-  streamChat(params: any): Promise<any>;
+  streamChat(params: ProviderStreamParams): Promise<any>;
 }

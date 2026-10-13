@@ -57,7 +57,7 @@ export async function runSingleLevelDiagnostic(
   level: ThinkingLevel
 ): Promise<LevelDiagnosticResult> {
   const config: any = {
-    thinkingConfig: buildThinkingConfigFromLevel(apiModelId, level),
+    thinkingConfig: buildThinkingConfigFromLevel("gemini", apiModelId, level),
     maxOutputTokens: 256,
   };
 

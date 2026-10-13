@@ -26,6 +26,8 @@ export function useSendStream({
   abortRef,
   streamerRef,
   setComposerInitial,
+  onDocument,
+  onDocumentError,
 }: SendStreamOptions) {
   const { showToast } = useToast();
   const { defaultModel } = useModels();
@@ -207,12 +209,8 @@ export function useSendStream({
             receivedSources = sources;
             callUpdate("", true, !firstTokenTimestamp, accumulatedThoughts || undefined, sources);
           },
-          onDocument: (doc) => {
-            callUpdate("", true, false, undefined, receivedSources, undefined, { document: doc });
-          },
-          onDocumentError: (docErr) => {
-            callUpdate("", true, false, undefined, receivedSources, undefined, { documentError: docErr });
-          },
+          onDocument: (doc) => { onDocument?.(doc); },
+          onDocumentError: (docErr) => { onDocumentError?.(docErr); },
           onToken: (token) => {
             if (!firstTokenTimestamp) {
               firstTokenTimestamp = Date.now();

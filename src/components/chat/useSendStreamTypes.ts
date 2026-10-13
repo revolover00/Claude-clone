@@ -1,4 +1,4 @@
-import type { Message, Project } from "../../types/chat";
+import type { Message, Project, DocumentItem, DocumentErrorItem } from "../../types/chat";
 import type { SmoothStreamer } from "../../utils/smoothStreamer";
 
 export interface SendStreamOptions {
@@ -33,4 +33,6 @@ export interface SendStreamOptions {
   abortRef: React.RefObject<AbortController | null>;
   streamerRef: React.RefObject<SmoothStreamer | null>;
   setComposerInitial: (val: string) => void;
+  onDocument?: (doc: DocumentItem) => void;
+  onDocumentError?: (err: DocumentErrorItem) => void;
 }
