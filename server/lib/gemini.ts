@@ -140,41 +140,7 @@ Memory: use remembered facts about the user only when they clearly improve the a
   return template.replace(/\{\{MODEL_NAME\}\}/g, modelDisplayName);
 }
 
-export interface ThinkingConfigResult {
-  includeThoughts: boolean;
-  thinkingLevel?: string;
-  thinkingBudget?: number;
-}
-
-export function buildThinkingConfig(modelId: string, effort?: string, isExtendedThinking = true): ThinkingConfigResult {
-  const isGemini3 = /gemini-3/i.test(modelId);
-
-  if (isGemini3) {
-    let thinkingLevel = "low";
-    if (isExtendedThinking) {
-      thinkingLevel = "medium";
-      if (effort === "Low") thinkingLevel = "low";
-      else if (effort === "High") thinkingLevel = "high";
-    }
-    return {
-      includeThoughts: true,
-      thinkingLevel,
-    };
-  }
-
-  // Gemini 2.5 or other models supporting thinkingBudget
-  let thinkingBudget = 1024;
-  if (isExtendedThinking) {
-    thinkingBudget = 4096;
-    if (effort === "Low") thinkingBudget = 1024;
-    else if (effort === "High") thinkingBudget = 16384;
-  }
-
-  return {
-    includeThoughts: true,
-    thinkingBudget,
-  };
-}
+export type { ThinkingConfigResult } from "./thinkingRouter";
 
 export async function startGeminiStream(
   modelId: string,

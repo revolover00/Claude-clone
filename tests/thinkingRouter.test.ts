@@ -107,31 +107,54 @@ describe("thinkingRouter - classification", () => {
 
 describe("thinkingRouter - level mapping", () => {
   it("maps Gemini 3 models to thinkingLevel strings with includeThoughts", () => {
-    const low = buildThinkingConfigFromLevel("gemini-3.1-pro-preview", "low");
+    const low = buildThinkingConfigFromLevel("gemini", "gemini-3.1-pro-preview", "low");
     expect(low).toEqual({ includeThoughts: true, thinkingLevel: "low" });
 
-    const med = buildThinkingConfigFromLevel("gemini-3.8-flash", "medium");
+    const med = buildThinkingConfigFromLevel("gemini", "gemini-3.8-flash", "medium");
     expect(med).toEqual({ includeThoughts: true, thinkingLevel: "medium" });
 
-    const high = buildThinkingConfigFromLevel("gemini-3.1-pro-preview", "high");
+    const high = buildThinkingConfigFromLevel("gemini", "gemini-3.1-pro-preview", "high");
     expect(high).toEqual({ includeThoughts: true, thinkingLevel: "high" });
   });
 
   it("maps Gemini 2.5 models to thinkingBudget numeric values with includeThoughts", () => {
-    const low = buildThinkingConfigFromLevel("gemini-2.5-pro", "low");
+    const low = buildThinkingConfigFromLevel("gemini", "gemini-2.5-pro", "low");
     expect(low).toEqual({ includeThoughts: true, thinkingBudget: 1024 });
 
-    const med = buildThinkingConfigFromLevel("gemini-2.5-flash", "medium");
+    const med = buildThinkingConfigFromLevel("gemini", "gemini-2.5-flash", "medium");
     expect(med).toEqual({ includeThoughts: true, thinkingBudget: 4096 });
 
-    const high = buildThinkingConfigFromLevel("gemini-2.5-pro", "high");
+    const high = buildThinkingConfigFromLevel("gemini", "gemini-2.5-pro", "high");
     expect(high).toEqual({ includeThoughts: true, thinkingBudget: 16384 });
   });
 
   it("getThinkingPlanAndConfig coordinates plan and config together", () => {
-    const result = getThinkingPlanAndConfig("gemini-3.1-pro-preview", { content: "debug this function" });
+    const result = getThinkingPlanAndConfig("gemini", "gemini-3.1-pro-preview", { content: "debug this function" });
     expect(result.plan.level).toBe("high");
     expect(result.config.thinkingLevel).toBe("high");
     expect(result.config.includeThoughts).toBe(true);
+  });
+
+  it("throws clear error for unknown provider", () => {
+    expect(() => buildThinkingConfigFromLevel("unknown" as any, "model", "low")).toThrow(/Unknown provider/);
+    expect(() => getThinkingPlanAndConfig("unknown" as any, "model", {})).toThrow(/Unknown provider/);
+  });
+
+  it("regression: for provider 'gemini' + a Gemini 3 model + toggle OFF and ON, config.includeThoughts is true", () => {
+    const offResult = getThinkingPlanAndConfig("gemini", "gemini-3.8-flash", { content: "hello" }, { extendedThinking: false });
+    expect(offResult.config.includeThoughts).toBe(true);
+    expect(offResult.config.thinkingLevel).toBe("low");
+
+    const onResult = getThinkingPlanAndConfig("gemini", "gemini-3.8-flash", { content: "hello" }, { extendedThinking: true, effort: "High" });
+    expect(onResult.config.includeThoughts).toBe(true);
+    expect(onResult.config.thinkingLevel).toBe("high");
+  });
+
+  it("maps Groq and OpenRouter providers with includeThoughts: true", () => {
+    const groq = buildThinkingConfigFromLevel("groq", "llama-3.3-70b-versatile", "medium");
+    expect(groq).toEqual({ includeThoughts: true, thinkingLevel: "medium" });
+
+    const openrouter = buildThinkingConfigFromLevel("openrouter", "anthropic/claude-3.7-sonnet", "high");
+    expect(openrouter).toEqual({ includeThoughts: true, thinkingLevel: "high" });
   });
 });

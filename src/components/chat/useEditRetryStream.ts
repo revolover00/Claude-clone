@@ -1,6 +1,6 @@
 import { SmoothStreamer } from "../../utils/smoothStreamer";
 import { streamRealResponse } from "../../utils/streamResponse";
-import type { Message, Project } from "../../types/chat";
+import type { Message, Project, DocumentItem, DocumentErrorItem } from "../../types/chat";
 import { useRetryStream } from "./useRetryStream";
 import { useChat } from "../../context/ChatContext";
 
@@ -32,6 +32,8 @@ interface EditRetryStreamOptions {
   abortRef: React.RefObject<AbortController | null>;
   streamerRef: React.RefObject<SmoothStreamer | null>;
   lastOptions: any;
+  onDocument?: (doc: DocumentItem) => void;
+  onDocumentError?: (err: DocumentErrorItem) => void;
 }
 
 export function useEditRetryStream(options: EditRetryStreamOptions) {
@@ -47,6 +49,8 @@ export function useEditRetryStream(options: EditRetryStreamOptions) {
     abortRef,
     streamerRef,
     lastOptions,
+    onDocument,
+    onDocumentError,
   } = options;
 
   const { activeConversation } = useChat();
@@ -170,10 +174,10 @@ export function useEditRetryStream(options: EditRetryStreamOptions) {
           );
         },
         onDocument: (doc) => {
-          updateMessageContent(activeConversationId, newAssistantMsg.id, "", true, false, undefined, undefined, receivedSources, false, { thinkingStartedAt: thinkingStartTime }, false, undefined, { extendedThinking: lastOptions.extendedThinking, thinkingPlan: receivedPlan, document: doc });
+          onDocument?.(doc);
         },
         onDocumentError: (docErr) => {
-          updateMessageContent(activeConversationId, newAssistantMsg.id, "", true, false, undefined, undefined, receivedSources, false, { thinkingStartedAt: thinkingStartTime }, false, undefined, { extendedThinking: lastOptions.extendedThinking, thinkingPlan: receivedPlan, documentError: docErr });
+          onDocumentError?.(docErr);
         },
         onToken: (token) => {
           if (!firstTokenTimestamp) {
