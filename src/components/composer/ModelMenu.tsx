@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ChevronDown, Check, Brain, Globe, Eye } from "lucide-react";
+import { ChevronDown, Check, Brain, Globe, Eye, Layers } from "lucide-react";
 import { cn } from "../../utils/cn";
 import { useToast } from "../../context/ToastContext";
 import { useModels } from "../../hooks/useModels";
@@ -148,6 +148,15 @@ export default function ModelMenu({
                         >
                           <Brain size={9} />
                           Thinking
+                        </span>
+                      )}
+                      {m.supports_tools && (
+                        <span
+                          title="Tools"
+                          className="inline-flex items-center gap-0.5 rounded px-1 py-0.2 text-[9.5px] font-medium bg-indigo-500/15 text-indigo-300 border border-indigo-500/20"
+                        >
+                          <Layers size={9} />
+                          Tools
                         </span>
                       )}
                       {m.supports_search && (
