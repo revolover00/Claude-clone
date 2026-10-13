@@ -140,6 +140,7 @@ export interface Model {
   api_model_id: string;
   kind: "chat" | "light" | "embedding";
   supports_thinking: boolean;
+  supports_tools: boolean;
   supports_search: boolean;
   supports_vision: boolean;
   max_output_tokens: number | null;

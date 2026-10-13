@@ -12,6 +12,7 @@ interface Model {
   api_model_id: string;
   kind: "chat" | "light" | "embedding";
   supports_thinking: boolean;
+  supports_tools: boolean;
   supports_search: boolean;
   supports_vision: boolean;
   max_output_tokens: number | null;
@@ -42,7 +43,7 @@ export default function ModelsTab() {
   const [showAdd, setShowAdd] = useState(false);
   const [newForm, setNewForm] = useState<Partial<Model>>({
     slug: "", display_name: "", description: "", api_model_id: "", kind: "chat", provider: "google",
-    supports_thinking: false, supports_search: false, supports_vision: false, enabled: true, is_default: false
+    supports_thinking: false, supports_tools: false, supports_search: false, supports_vision: false, enabled: true, is_default: false
   });
 
   const loadModels = async () => {
@@ -140,7 +141,7 @@ export default function ModelsTab() {
       const added = await res.json();
       setModels(prev => [...prev, added]);
       setShowAdd(false);
-      setNewForm({ slug: "", display_name: "", description: "", api_model_id: "", kind: "chat", provider: "google", supports_thinking: false, supports_search: false, supports_vision: false, enabled: true, is_default: false });
+      setNewForm({ slug: "", display_name: "", description: "", api_model_id: "", kind: "chat", provider: "google", supports_thinking: false, supports_tools: false, supports_search: false, supports_vision: false, enabled: true, is_default: false });
     } catch { setError("Failed to create model"); }
   };
 

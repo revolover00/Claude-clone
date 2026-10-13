@@ -213,39 +213,39 @@ export function routeThinking(
 }
 
 export function buildThinkingConfigFromLevel(
+  provider: string,
   modelId: string,
   level: ThinkingLevel
 ): ThinkingConfigResult {
-  const isGemini3 = /gemini-3/i.test(modelId);
-
-  if (isGemini3) {
-    return {
-      includeThoughts: true,
-      thinkingLevel: level, // "low", "medium", or "high" (never "minimal")
-    };
+  if (provider === 'gemini') {
+    const isGemini3 = /gemini-3/i.test(modelId);
+    return isGemini3
+      ? { includeThoughts: true, thinkingLevel: level }
+      : { includeThoughts: true, thinkingBudget: level === 'high' ? 16384 : level === 'medium' ? 4096 : 1024 };
+  }
+  
+  if (provider === 'groq') {
+    return { includeThoughts: true, thinkingLevel: level }; // Maps to reasoning_effort
   }
 
-  // Gemini 2.5 or other models supporting thinkingBudget
-  let thinkingBudget = 4096;
-  if (level === "low") thinkingBudget = 1024;
-  else if (level === "high") thinkingBudget = 16384;
+  if (provider === 'openrouter') {
+    return { includeThoughts: true, thinkingLevel: level }; // Maps to reasoning.effort
+  }
 
-  return {
-    includeThoughts: true,
-    thinkingBudget,
-  };
+  return { includeThoughts: false };
 }
 
 export function getThinkingPlanAndConfig(
+  provider: string,
   modelId: string,
   latestMessage: ThinkingRouterInput = {},
   options: ThinkingRouterOptions = {}
 ): { plan: ThinkingPlan; config: ThinkingConfigResult } {
   const plan = routeThinking(latestMessage, { ...options, modelId });
-  const config = buildThinkingConfigFromLevel(modelId, plan.level);
+  const config = buildThinkingConfigFromLevel(provider, modelId, plan.level);
 
   if (process.env.NODE_ENV !== "production") {
-    console.log(`[ThinkingRouter] Model: ${modelId}, Level: ${plan.level}, Reason: ${plan.reason}`);
+    console.log(`[ThinkingRouter] Provider: ${provider}, Model: ${modelId}, Level: ${plan.level}, Reason: ${plan.reason}`);
   }
 
   return { plan, config };
