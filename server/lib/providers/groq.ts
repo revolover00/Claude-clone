@@ -2,7 +2,7 @@ import { Provider, ModelInfo, ValidationResult, ProviderStreamParams } from "./t
 import { streamOpenAICompatibleChat } from "./streamChat";
 
 export function normalizeGroqModel(m: any): ModelInfo {
-  const isReasoning = /deepseek-r1|qwen-2\.5-32b/i.test(m.id || "");
+  const isReasoning = /deepseek-r1|qwen-2\.5-32b|gpt-oss/i.test(m.id || "") || Boolean(m.supports_reasoning || m.supportsReasoning);
   const isVision = /vision|llava/i.test(m.id || "");
 
   return {

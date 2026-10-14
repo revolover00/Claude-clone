@@ -51,7 +51,7 @@ export default function Composer({
     createNewChat, deleteConversation, updatePreferences, activeBranch,
   } = useChat();
   const { showToast } = useToast();
-  const { models } = useModels();
+  const { models, normalizeSlug } = useModels();
 
   const {
     value, setValue, model, setModel, effort, setEffort,
@@ -64,14 +64,14 @@ export default function Composer({
   const isSlashMenuOpen = value.startsWith("/") && (!value.includes(" ") || value.startsWith("/model"));
   const filteredCommands = allCommands.filter((cmd) => {
     if (value === "/") return true;
-    if (value.startsWith("/model")) {
-      return (
-        cmd.name.toLowerCase().startsWith(value.toLowerCase()) ||
-        cmd.action.startsWith("model")
-      );
-    }
+    if (value.startsWith("/model")) return cmd.name.toLowerCase().startsWith(value.toLowerCase()) || cmd.action.startsWith("model");
     return cmd.name.toLowerCase().startsWith(value.toLowerCase());
   });
+
+  const currentModelObj = models.find((m) => m.slug === model || m.id === model || normalizeSlug(m.slug) === normalizeSlug(model));
+  const currentModelSupportsReasoning = Boolean(
+    currentModelObj ? (currentModelObj.supports_thinking || (currentModelObj as any).supportsReasoning || /gemini-3/i.test(currentModelObj.slug || currentModelObj.id)) : true
+  );
 
   const { executeCommand } = useSlashCommands({
     activeConversationId, activeBranch, preferences, model, setModel,
@@ -137,38 +137,33 @@ export default function Composer({
 
     if (areaRef.current) areaRef.current.style.height = "auto";
 
+    const target = currentModelObj;
+    let modelToSend = model;
+    if (modelToSend.includes(":")) {
+      // already provider:modelId
+    } else if (target) {
+      const p = target.provider === "google" ? "gemini" : (target.provider || "gemini");
+      const apiId = target.api_model_id || target.id || target.slug;
+      modelToSend = `${p}:${apiId}`;
+    } else {
+      modelToSend = `gemini:${normalizeSlug(model)}`;
+    }
+
     onSend?.(textToSend, attsToSend, {
-      model,
+      model: modelToSend,
       effort,
       webSearch: webSearchEnabled,
-      extendedThinking: extendedThinkingEnabled,
+      extendedThinking: currentModelSupportsReasoning ? extendedThinkingEnabled : false,
     });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (isSlashMenuOpen && filteredCommands.length > 0) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSlashIndex((prev) => (prev + 1) % filteredCommands.length);
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSlashIndex((prev) => (prev - 1 + filteredCommands.length) % filteredCommands.length);
-        return;
-      }
-      if (e.key === "Enter" || e.key === "Tab") {
-        e.preventDefault();
-        executeCommand(filteredCommands[slashIndex].action);
-        return;
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        setValue("");
-        return;
-      }
+      if (e.key === "ArrowDown") { e.preventDefault(); setSlashIndex((prev) => (prev + 1) % filteredCommands.length); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setSlashIndex((prev) => (prev - 1 + filteredCommands.length) % filteredCommands.length); return; }
+      if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); executeCommand(filteredCommands[slashIndex].action); return; }
+      if (e.key === "Escape") { e.preventDefault(); setValue(""); return; }
     }
-
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -231,6 +226,7 @@ export default function Composer({
             onToggleWebSearch={() => setWebSearchEnabled((v) => !v)}
             extendedThinkingEnabled={extendedThinkingEnabled}
             onToggleExtendedThinking={() => setExtendedThinkingEnabled((v) => !v)}
+            supportsReasoning={currentModelSupportsReasoning}
           />
 
           <div className="relative flex items-center gap-1.5">

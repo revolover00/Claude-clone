@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense, lazy } from "react";
 import { X, Sun, Moon, Download, Trash2, Check } from "lucide-react";
 import { useChat } from "../../context/ChatContext";
 import { useFocusTrap } from "../../utils/useFocusTrap";
@@ -6,12 +6,16 @@ import ModelsTab from "./ModelsTab";
 import MemoryTab from "./MemoryTab";
 import SkillsTab from "./SkillsTab";
 
+const ProvidersSettingsView = lazy(() =>
+  import("../views/ProvidersSettingsView").then((m) => ({ default: m.ProvidersSettingsView }))
+);
+
 export default function SettingsModal() {
   const {
     settingsModalOpen, setSettingsModalOpen, preferences, updatePreferences, conversations, clearAllData,
   } = useChat();
 
-  const [activeTab, setActiveTab] = useState<"general" | "appearance" | "data" | "models" | "memory" | "skills">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "appearance" | "data" | "models" | "memory" | "skills" | "providers">("general");
   const [confirmClear, setConfirmClear] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -69,6 +73,7 @@ export default function SettingsModal() {
             <TabBtn id="data" label="Data" />
             <TabBtn id="memory" label="Memory" />
             <TabBtn id="skills" label="Skills" />
+            <TabBtn id="providers" label="Providers" />
             {isAdmin && <TabBtn id="models" label="Models" />}
           </nav>
         </div>
@@ -192,6 +197,12 @@ export default function SettingsModal() {
 
           {activeTab === "models" && <ModelsTab />}
           {activeTab === "memory" && <MemoryTab />}
+          {activeTab === "skills" && <SkillsTab />}
+          {activeTab === "providers" && (
+            <Suspense fallback={<div className="p-4 text-xs text-ink-muted">Loading providers...</div>}>
+              <ProvidersSettingsView />
+            </Suspense>
+          )}
         </div>
       </div>
     </div>

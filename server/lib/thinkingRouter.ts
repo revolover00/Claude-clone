@@ -31,6 +31,7 @@ export interface ThinkingRouterOptions {
   extendedThinking?: boolean;
   effort?: string;
   modelId?: string;
+  supportsReasoning?: boolean;
 }
 
 // Patterns indicating complex reasoning, coding, math, or planning
@@ -246,15 +247,37 @@ export function buildThinkingConfigFromLevel(
   throw new Error(`Unknown provider: "${provider}". Expected one of: ${REGISTERED_PROVIDERS.join(", ")}`);
 }
 
+export function modelSupportsReasoning(
+  provider: RegisteredProviderId,
+  modelId: string,
+  catalogEntry?: { supportsReasoning?: boolean; supports_thinking?: boolean }
+): boolean {
+  if (catalogEntry?.supportsReasoning !== undefined) return Boolean(catalogEntry.supportsReasoning);
+  if (catalogEntry?.supports_thinking !== undefined) return Boolean(catalogEntry.supports_thinking);
+  if (provider === "gemini") return /gemini-3/i.test(modelId);
+  if (provider === "groq") return /deepseek-r1|qwen-2\.5-32b|gpt-oss/i.test(modelId);
+  return false;
+}
+
 export function getThinkingPlanAndConfig(
   provider: RegisteredProviderId,
   modelId: string,
   latestMessage: ThinkingRouterInput = {},
-  options: ThinkingRouterOptions = {}
-): { plan: ThinkingPlan; config: ThinkingConfigResult } {
+  options: ThinkingRouterOptions = {},
+  catalogEntry?: { supportsReasoning?: boolean; supports_thinking?: boolean }
+): { plan: ThinkingPlan | null; config: ThinkingConfigResult | null } {
   if (!REGISTERED_PROVIDERS.includes(provider)) {
     throw new Error(`Unknown provider: "${provider}". Expected one of: ${REGISTERED_PROVIDERS.join(", ")}`);
   }
+
+  const effectiveCatalog = options.supportsReasoning !== undefined
+    ? { supportsReasoning: options.supportsReasoning }
+    : catalogEntry;
+
+  if (!modelSupportsReasoning(provider, modelId, effectiveCatalog)) {
+    return { plan: null, config: null };
+  }
+
   const plan = routeThinking(latestMessage, { ...options, modelId });
   const config = buildThinkingConfigFromLevel(provider, modelId, plan.level);
 

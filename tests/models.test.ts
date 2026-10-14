@@ -5,7 +5,7 @@ vi.mock("@supabase/supabase-js", () => ({
   createClient: () => null,
 }));
 
-import { getModelsFromDB, invalidateModelCache } from "../server/routes/models";
+import { getModelsFromDB, invalidateModelCache } from "../server/lib/modelsStore";
 
 // Mock localStorage for server side node environment test support
 if (typeof localStorage === "undefined") {

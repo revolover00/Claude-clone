@@ -16,7 +16,7 @@ export function normalizeOpenRouterModel(m: any): ModelInfo {
     inputModalities: isVision ? ["text", "image"] : ["text"],
     outputModalities: ["text"],
     supportsTools: params.includes("tools"),
-    supportsReasoning: params.includes("reasoning") || /thinking|reasoning|r1/i.test(m.id || ""),
+    supportsReasoning: params.includes("reasoning"),
     supportsVision: isVision,
     pricing: m.pricing
       ? {

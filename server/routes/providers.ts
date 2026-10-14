@@ -10,7 +10,7 @@ import {
   getUserDecryptedKey,
   redact,
 } from "../lib/providers/credentialsStore";
-import { getCachedModels, getUserModelPrefs, saveModelPrefs } from "../lib/providers/modelsCache";
+import { getCachedModels, getUserModelPrefs } from "../lib/providers/modelsCache";
 
 const router = Router();
 
@@ -180,26 +180,5 @@ router.get("/:provider/models", async (req: AuthenticatedRequest, res: Response)
   }
 });
 
-// PUT /api/providers/prefs or /api/models/prefs
-router.put("/prefs", async (req: AuthenticatedRequest, res: Response) => {
-  const userId = req.user?.id;
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-
-  const { prefs } = req.body;
-  if (!Array.isArray(prefs)) {
-    res.status(400).json({ error: "prefs must be an array" });
-    return;
-  }
-
-  try {
-    const count = await saveModelPrefs(userId, prefs);
-    res.json({ success: true, count });
-  } catch (err: any) {
-    res.status(500).json({ error: `Failed to save model preferences: ${redact(err.message)}` });
-  }
-});
 
 export default router;

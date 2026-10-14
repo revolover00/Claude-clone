@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { apiKey } from "../lib/gemini";
-import { getModelsFromDB } from "./models";
+import { getModelsFromDB } from "../lib/modelsStore";
 
 const router = Router();
 
