@@ -13,6 +13,7 @@ import {
 import IconButton from "../shared/IconButton";
 import { useToast } from "../../context/ToastContext";
 import { useChat } from "../../context/ChatContext";
+import { cn } from "../../utils/cn";
 import type { ResponseStyle } from "../../types/chat";
 
 interface Props {
@@ -23,6 +24,7 @@ interface Props {
   extendedThinkingEnabled: boolean;
   onToggleExtendedThinking: () => void;
   onOpenStateChange?: (open: boolean) => void;
+  supportsReasoning?: boolean;
 }
 
 const STYLES: ResponseStyle[] = ["Normal", "Concise", "Explanatory", "Formal"];
@@ -35,6 +37,7 @@ export default function PlusMenu({
   extendedThinkingEnabled,
   onToggleExtendedThinking,
   onOpenStateChange,
+  supportsReasoning = true,
 }: Props) {
   const { preferences, updatePreferences } = useChat();
   const { showToast } = useToast();
@@ -143,7 +146,10 @@ export default function PlusMenu({
           {/* Extended Thinking Toggle */}
           <button
             type="button"
+            disabled={supportsReasoning === false}
+            title={supportsReasoning === false ? "Extended thinking is not supported by this model" : undefined}
             onClick={() => {
+              if (supportsReasoning === false) return;
               onToggleExtendedThinking();
               showToast(
                 !extendedThinkingEnabled
@@ -152,13 +158,18 @@ export default function PlusMenu({
                 "info"
               );
             }}
-            className="flex h-8 w-full items-center justify-between rounded-lg px-2.5 text-[13px] text-ink-soft transition-colors hover:bg-elev-2 hover:text-ink"
+            className={cn(
+              "flex h-8 w-full items-center justify-between rounded-lg px-2.5 text-[13px] transition-colors",
+              supportsReasoning === false
+                ? "opacity-45 cursor-not-allowed text-ink-muted"
+                : "text-ink-soft hover:bg-elev-2 hover:text-ink cursor-pointer"
+            )}
           >
             <div className="flex items-center gap-2.5">
               <Brain size={15} className="text-ink-muted" />
               <span>Extended thinking</span>
             </div>
-            {extendedThinkingEnabled && <Check size={14} className="text-accent" />}
+            {extendedThinkingEnabled && supportsReasoning !== false && <Check size={14} className="text-accent" />}
           </button>
 
           {/* Response Style Submenu */}

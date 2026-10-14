@@ -86,9 +86,12 @@ export default function ModelMenu({
     closeMenu();
   };
 
+  const providerLabel = currentModelObj.provider === "google" ? "gemini" : (currentModelObj.provider || "gemini");
+  const displayName = currentModelObj.display_name || currentModelObj.slug;
+
   return (
     <div className="relative flex items-center gap-1 font-sans" ref={menuRef}>
-      {/* Trigger Button with display name + effort */}
+      {/* Trigger Button with display name · provider + effort */}
       <button
         type="button"
         onClick={toggleOpen}
@@ -97,7 +100,7 @@ export default function ModelMenu({
         className="flex h-8 items-center gap-1.5 rounded-md px-2 transition-colors duration-150 hover:bg-elev-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
       >
         <span className="text-[13.5px] font-medium text-ink-soft">
-          {currentModelObj.display_name}
+          {displayName} · {providerLabel}
         </span>
         <span className="text-[13.5px] text-ink-muted">· {effort}</span>
       </button>
@@ -139,7 +142,22 @@ export default function ModelMenu({
                   )}
                 >
                   <div className="flex-1 min-w-0 pr-2">
-                    <p className="text-[13px] font-semibold">{m.display_name}</p>
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-[13px] font-semibold truncate">{m.display_name}</p>
+                      <span className="text-[9.5px] uppercase font-mono px-1 py-0.2 rounded bg-elev-3 text-ink-muted border border-line shrink-0">
+                        {m.provider === "google" ? "gemini" : (m.provider || "gemini")}
+                      </span>
+                    </div>
+                    {((m as any).contextLength || (m as any).pricing) && (
+                      <div className="flex items-center gap-1.5 text-[10.5px] text-ink-muted mt-0.5 font-mono">
+                        {(m as any).contextLength && (
+                          <span>{Math.round((m as any).contextLength / 1000)}k ctx</span>
+                        )}
+                        {(m as any).pricing && (
+                          <span>• ${(m as any).pricing.inputPerMTok?.toFixed(2)}/1M</span>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center gap-1 mt-1 flex-wrap">
                       {m.supports_thinking && (
                         <span

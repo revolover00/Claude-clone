@@ -2,8 +2,8 @@ import { Router } from "express";
 import { mapGeminiError, formatMessage, buildSystemInstruction, startGeminiStream } from "../lib/gemini";
 import { getAvailableSkillsSummary } from "../lib/skills/db";
 import { executeSkillFunctionCall, runSkillToolStream } from "../lib/skills/toolLoop";
-import { getThinkingPlanAndConfig, type RegisteredProviderId } from "../lib/thinkingRouter";
-import { getModelsFromDB } from "./models";
+import { getThinkingPlanAndConfig, modelSupportsReasoning, type RegisteredProviderId } from "../lib/thinkingRouter";
+import { getModelsFromDB } from "../lib/modelsStore";
 import { normalizeSlug } from "../../src/hooks/useModels";
 import { retrieveUserMemoryPrompt } from "../lib/chatMemory";
 import { createClient } from "@supabase/supabase-js";
@@ -108,9 +108,7 @@ router.post("/", async (req, res) => {
       searchGroundingDisabledNotice = true;
     }
 
-    const supportsThinking = Boolean(
-      resolvedModel?.supports_thinking || provider === "groq" || provider === "openrouter" || /gemini-3|thinking/i.test(modelId)
-    );
+    const supportsThinking = modelSupportsReasoning(provider, modelId, resolvedModel);
     let thinkingDecision: any = null;
     if (supportsThinking) {
       const latestUserMsg = messages[messages.length - 1];
@@ -120,9 +118,12 @@ router.post("/", async (req, res) => {
         provider,
         modelId,
         { content: latestText, attachmentsCount },
-        { extendedThinking: Boolean(extendedThinking), effort }
+        { extendedThinking: Boolean(extendedThinking), effort },
+        resolvedModel
       );
-      config.thinkingConfig = thinkingDecision.config;
+      if (thinkingDecision?.config) {
+        config.thinkingConfig = thinkingDecision.config;
+      }
     }
 
     // Stream through provider adapter if Groq or OpenRouter

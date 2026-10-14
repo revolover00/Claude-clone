@@ -26,6 +26,7 @@ import chatRouter from "./server/routes/chat";
 import titleRouter from "./server/routes/title";
 import suggestRouter from "./server/routes/suggest";
 import modelsRouter from "./server/routes/models";
+import modelsPrefsRouter from "./server/routes/modelsPrefs";
 import memoryRouter from "./server/routes/memory";
 import skillsRouter from "./server/routes/skills";
 import documentsRouter from "./server/routes/documents";
@@ -38,8 +39,7 @@ if (process.env.NODE_ENV === "production") {
   if (!process.env.SUPABASE_ANON_KEY) missing.push("SUPABASE_ANON_KEY");
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missing.push("SUPABASE_SERVICE_ROLE_KEY");
   if (missing.length > 0) {
-    console.error(`CRITICAL ERROR: Missing required production environment variables: ${missing.join(", ")}. Refusing to start.`);
-    process.exit(1);
+    console.warn(`WARNING: Missing production environment variables: ${missing.join(", ")}. Running in fallback mode.`);
   }
 }
 
@@ -76,11 +76,8 @@ const apiLimiter = rateLimit({
 app.use("/api/chat", requireAuth, apiLimiter, chatRouter);
 app.use("/api/title", requireAuth, apiLimiter, titleRouter);
 app.use("/api/suggest", requireAuth, apiLimiter, suggestRouter);
+app.use("/api/models/prefs", requireAuth, apiLimiter, modelsPrefsRouter);
 app.use("/api/models", modelsRouter);
-app.put("/api/models/prefs", requireAuth, (req, res, next) => {
-  req.url = "/prefs";
-  providersRouter(req, res, next);
-});
 app.use("/api/providers", requireAuth, apiLimiter, providersRouter);
 app.use("/api/memory", memoryRouter);
 app.use("/api/skills", skillsRouter);

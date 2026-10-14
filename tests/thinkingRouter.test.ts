@@ -130,9 +130,9 @@ describe("thinkingRouter - level mapping", () => {
 
   it("getThinkingPlanAndConfig coordinates plan and config together", () => {
     const result = getThinkingPlanAndConfig("gemini", "gemini-3.1-pro-preview", { content: "debug this function" });
-    expect(result.plan.level).toBe("high");
-    expect(result.config.thinkingLevel).toBe("high");
-    expect(result.config.includeThoughts).toBe(true);
+    expect(result.plan?.level).toBe("high");
+    expect(result.config?.thinkingLevel).toBe("high");
+    expect(result.config?.includeThoughts).toBe(true);
   });
 
   it("throws clear error for unknown provider", () => {
@@ -142,12 +142,12 @@ describe("thinkingRouter - level mapping", () => {
 
   it("regression: for provider 'gemini' + a Gemini 3 model + toggle OFF and ON, config.includeThoughts is true", () => {
     const offResult = getThinkingPlanAndConfig("gemini", "gemini-3.8-flash", { content: "hello" }, { extendedThinking: false });
-    expect(offResult.config.includeThoughts).toBe(true);
-    expect(offResult.config.thinkingLevel).toBe("low");
+    expect(offResult.config?.includeThoughts).toBe(true);
+    expect(offResult.config?.thinkingLevel).toBe("low");
 
     const onResult = getThinkingPlanAndConfig("gemini", "gemini-3.8-flash", { content: "hello" }, { extendedThinking: true, effort: "High" });
-    expect(onResult.config.includeThoughts).toBe(true);
-    expect(onResult.config.thinkingLevel).toBe("high");
+    expect(onResult.config?.includeThoughts).toBe(true);
+    expect(onResult.config?.thinkingLevel).toBe("high");
   });
 
   it("maps Groq and OpenRouter providers with includeThoughts: true", () => {
@@ -156,5 +156,54 @@ describe("thinkingRouter - level mapping", () => {
 
     const openrouter = buildThinkingConfigFromLevel("openrouter", "anthropic/claude-3.7-sonnet", "high");
     expect(openrouter).toEqual({ includeThoughts: true, thinkingLevel: "high" });
+  });
+
+  describe("Reasoning support filtering", () => {
+    it("Groq: non-reasoning llama model does not request reasoning, while openai/gpt-oss-120b does", () => {
+      // Non-reasoning Groq llama model
+      const llamaResult = getThinkingPlanAndConfig("groq", "llama-3.3-70b-versatile", { content: "solve math puzzle" });
+      expect(llamaResult.plan).toBeNull();
+      expect(llamaResult.config).toBeNull();
+
+      // Reasoning Groq model (openai/gpt-oss-120b)
+      const gptOssResult = getThinkingPlanAndConfig("groq", "openai/gpt-oss-120b", { content: "solve math puzzle" });
+      expect(gptOssResult.plan).not.toBeNull();
+      expect(gptOssResult.plan?.level).toBe("high");
+      expect(gptOssResult.config?.includeThoughts).toBe(true);
+      expect(gptOssResult.config?.thinkingLevel).toBe("high");
+    });
+
+    it("OpenRouter: model with 'reasoning' in supported_parameters requests reasoning, while model without does not", () => {
+      // Model with reasoning
+      const reasoningModel = {
+        id: "anthropic/claude-3.7-sonnet:thinking",
+        supportsReasoning: true,
+      };
+      const resWithReasoning = getThinkingPlanAndConfig(
+        "openrouter",
+        reasoningModel.id,
+        { content: "plan architecture" },
+        {},
+        reasoningModel
+      );
+      expect(resWithReasoning.plan).not.toBeNull();
+      expect(resWithReasoning.plan?.level).toBe("high");
+      expect(resWithReasoning.config?.includeThoughts).toBe(true);
+
+      // Model without reasoning in supported_parameters
+      const nonReasoningModel = {
+        id: "meta-llama/llama-3-8b-instruct",
+        supportsReasoning: false,
+      };
+      const resWithoutReasoning = getThinkingPlanAndConfig(
+        "openrouter",
+        nonReasoningModel.id,
+        { content: "plan architecture" },
+        {},
+        nonReasoningModel
+      );
+      expect(resWithoutReasoning.plan).toBeNull();
+      expect(resWithoutReasoning.config).toBeNull();
+    });
   });
 });

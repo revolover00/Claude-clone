@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { ProviderCard } from "../providers/ProviderCard";
+import { ModelBrowser } from "../providers/ModelBrowser";
 
 interface ProviderData {
   id: string;
@@ -94,6 +95,8 @@ export const ProvidersSettingsView: React.FC = () => {
         ))}
       </div>
       {loading && <p className="text-xs text-ink-muted animate-pulse">Syncing providers...</p>}
+
+      <ModelBrowser />
     </div>
   );
 };
