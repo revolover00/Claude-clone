@@ -79,6 +79,7 @@ Create a `.env` file in the root directory (based on `.env.example`):
 | `ALLOWED_ORIGIN` | No | Same-origin only | Allowed CORS origin (e.g. `https://yourdomain.com`). If unset, requests are restricted to same-origin. |
 | `ALLOW_GUEST` | No | `false` | Development only: lets `requireAuth` accept the guest/mock bearer token. Never honoured when `NODE_ENV=production`. |
 | `VITE_ALLOW_LOCAL_MODE` | No | `false` | Development only: the client creates a local mock session so the app can be used without a Supabase project. |
+| `VITE_BRAND_LOGO_URL` | No | unset | Opt-in URL for externally hosted brand artwork; the app uses its local vector mark by default. |
 | `NODE_ENV` | No | `development` | Set to `production` when building for deployment. |
 
 ---

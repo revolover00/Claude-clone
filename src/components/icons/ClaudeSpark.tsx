@@ -3,25 +3,13 @@ type Props = {
   className?: string;
 };
 
-/** Claude's hand-drawn starburst mark — thin rays of varying length. */
-const RAYS: Array<[angle: number, length: number]> = [
-  [0, 10.2],
-  [28, 7.6],
-  [58, 10.4],
-  [90, 7.2],
-  [118, 10.0],
-  [150, 8.4],
-  [180, 10.2],
-  [212, 7.4],
-  [240, 10.0],
-  [268, 8.6],
-  [298, 9.4],
-  [330, 7.8],
-];
+const CENTER = 12;
+const INNER_RADIUS = 2.25;
+const STEP = 360 / 12;
+const RAY_LENGTHS = [10.8, 7.9, 10.1, 7.6, 10.6, 8.2, 10.7, 7.8, 10.2, 8.5, 10.4, 7.7] as const;
+const ANGLE_OFFSETS = [0, -1.5, 1, 0, -1, 1.5, 0, -1, 0.5, 0, -1, 1] as const;
 
-const INNER = 2.4;
-const C = 12;
-
+/** Claude-inspired starburst built from local, parametrically positioned vector rays. */
 export default function ClaudeSpark({ size = 44, className }: Props) {
   return (
     <svg
@@ -30,17 +18,20 @@ export default function ClaudeSpark({ size = 44, className }: Props) {
       viewBox="0 0 24 24"
       fill="none"
       aria-hidden="true"
+      focusable="false"
+      data-mark="claude-spark"
       className={className}
     >
-      {RAYS.map(([deg, len], i) => {
-        const rad = (deg * Math.PI) / 180;
-        const x1 = C + Math.cos(rad) * INNER;
-        const y1 = C + Math.sin(rad) * INNER;
-        const x2 = C + Math.cos(rad) * len;
-        const y2 = C + Math.sin(rad) * len;
+      {RAY_LENGTHS.map((length, index) => {
+        const angle = ((index * STEP + ANGLE_OFFSETS[index]) * Math.PI) / 180;
+        const x1 = CENTER + Math.cos(angle) * INNER_RADIUS;
+        const y1 = CENTER + Math.sin(angle) * INNER_RADIUS;
+        const x2 = CENTER + Math.cos(angle) * length;
+        const y2 = CENTER + Math.sin(angle) * length;
+
         return (
           <line
-            key={i}
+            key={index}
             x1={x1.toFixed(2)}
             y1={y1.toFixed(2)}
             x2={x2.toFixed(2)}
