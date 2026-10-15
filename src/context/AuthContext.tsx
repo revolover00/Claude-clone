@@ -62,6 +62,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(({ data: { session: s } }: any) => {
       setSession(s);
       setUser(s?.user ?? null);
+      if (s?.access_token) {
+        try { localStorage.setItem("supabase_token", s.access_token); } catch {}
+      }
       if (s?.user) {
         fetchUserData(s.user.id);
         // Run migration in background asynchronously
@@ -74,6 +77,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, s: any) => {
       setSession(s);
       setUser(s?.user ?? null);
+      if (s?.access_token) {
+        try { localStorage.setItem("supabase_token", s.access_token); } catch {}
+      } else {
+        try { localStorage.removeItem("supabase_token"); } catch {}
+      }
       if (event === "SIGNED_IN" && s?.user) {
         await fetchUserData(s.user.id);
         // Trigger check/migration
@@ -96,6 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     setLoading(true);
+    try { localStorage.removeItem("supabase_token"); } catch {}
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, Brain, AlertCircle, CheckCircle2, HelpCircle } from "lucide-react";
+import { authFetch } from "../../utils/safeFetch";
 
 export interface LevelDiagnosticResult {
   level: "low" | "medium" | "high";
@@ -40,7 +41,7 @@ export default function ThinkingDiagnosticModal({ modelSlug, modelName, onClose 
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/models/${modelSlug}/test-thinking`, {
+        const res = await authFetch(`/api/models/${modelSlug}/test-thinking`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
         });

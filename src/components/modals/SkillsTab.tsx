@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Brain, Trash2, Loader2 } from "lucide-react";
 import { SettingsErrorCard } from "../shared/SettingsErrorCard";
-import { safeFetchJson } from "../../utils/safeFetch";
+import { safeFetchJson, authFetch } from "../../utils/safeFetch";
 
 interface Skill {
   id: string;
@@ -38,7 +38,7 @@ export default function SkillsTab() {
 
   const toggleSkill = async (id: string, enabled: boolean) => {
     try {
-      await fetch(`/api/skills/${id}/toggle`, {
+      await authFetch(`/api/skills/${id}/toggle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled }),

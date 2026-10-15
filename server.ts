@@ -105,7 +105,10 @@ if (!isProd && !isVercel) {
 }
 
 if (!isVercel) {
-  const port = Number(process.env.PORT) || 3000;
+  const args = process.argv.slice(2);
+  const portIndex = args.indexOf("--port");
+  const cliPort = portIndex !== -1 && args[portIndex + 1] ? Number(args[portIndex + 1]) : null;
+  const port = cliPort || (!isProd ? 3000 : (Number(process.env.PORT) || 3000));
   app.listen(port, "0.0.0.0", () => {
     console.log(`Server is running at http://0.0.0.0:${port}`);
   });

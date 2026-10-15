@@ -26,7 +26,7 @@ export interface AuthenticatedRequest extends Request {
 export async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   const isProd = process.env.NODE_ENV === "production";
-  const allowGuest = process.env.ALLOW_GUEST === "true";
+  const allowGuest = process.env.ALLOW_GUEST === "true" || process.env.VITE_ALLOW_GUEST === "true";
 
   // Check if it's a mock guest token in development/test
   if (!isProd && allowGuest && authHeader && authHeader.startsWith("Bearer mock-jwt-token-")) {

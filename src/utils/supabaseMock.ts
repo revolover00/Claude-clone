@@ -1,7 +1,8 @@
 import { FALLBACK_MODELS, normalizeSlug } from "../hooks/useModels";
 
-const isDev = (import.meta as any).env.DEV;
-const allowLocalMode = (import.meta as any).env.VITE_ALLOW_LOCAL_MODE === "true";
+const env = (import.meta as any)?.env || (typeof process !== "undefined" ? process.env : {}) || {};
+const isDev = Boolean(env.DEV ?? (env.NODE_ENV !== "production"));
+const allowLocalMode = env.VITE_ALLOW_LOCAL_MODE === "true" || env.ALLOW_GUEST === "true";
 
 function getMockSession() {
   if (isDev && allowLocalMode) {

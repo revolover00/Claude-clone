@@ -1,16 +1,9 @@
 import { useState, useEffect } from "react";
 import type { Model } from "../types/chat";
+import { authFetch } from "../utils/safeFetch";
 
-export const MODEL_ALIAS_MAP: Record<string, string> = {
-  "sonnet-5": "gemini-3-8-flash",
-  "opus-5": "gemini-3-1-pro",
-  "haiku-4-5": "gemini-3-1-flash-lite",
-};
-
-export function normalizeSlug(slug: string): string {
-  if (!slug) return slug;
-  return MODEL_ALIAS_MAP[slug] || slug;
-}
+import { MODEL_ALIAS_MAP, normalizeSlug } from "../shared/normalizeSlug";
+export { MODEL_ALIAS_MAP, normalizeSlug };
 
 import { FALLBACK_MODELS } from "../shared/fallbackModels";
 export { FALLBACK_MODELS };
@@ -27,7 +20,7 @@ export async function fetchModels(): Promise<Model[]> {
   if (cachedModels) return cachedModels;
   if (activeFetchPromise) return activeFetchPromise;
 
-  activeFetchPromise = fetch("/api/models")
+  activeFetchPromise = authFetch("/api/models")
     .then((res) => {
       if (!res.ok) throw new Error("Failed to load models");
       return res.json();

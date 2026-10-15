@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/shared/Card";
 import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
 import { Badge } from "@/components/shared/Badge";
+import { authFetch } from "../../utils/safeFetch";
 
 export interface ProviderCardProps {
   id: string;
@@ -51,11 +52,10 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`/api/providers/${id}/credentials`, {
+      const res = await authFetch(`/api/providers/${id}/credentials`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("supabase_token") || "mock-jwt-token-guest"}`,
         },
         body: JSON.stringify({ key: key.trim(), label: "default" }),
       });
@@ -78,11 +78,8 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`/api/providers/${id}/credentials/${credentialId}/verify`, {
+      const res = await authFetch(`/api/providers/${id}/credentials/${credentialId}/verify`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("supabase_token") || "mock-jwt-token-guest"}`,
-        },
       });
       const data = await res.json();
       if (!res.ok) {
@@ -101,11 +98,8 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`/api/providers/${id}/credentials/${credentialId}`, {
+      const res = await authFetch(`/api/providers/${id}/credentials/${credentialId}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("supabase_token") || "mock-jwt-token-guest"}`,
-        },
       });
       if (res.ok) {
         onRefresh?.();

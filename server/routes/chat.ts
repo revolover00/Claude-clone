@@ -4,7 +4,7 @@ import { getAvailableSkillsSummary } from "../lib/skills/db";
 import { executeSkillFunctionCall, runSkillToolStream } from "../lib/skills/toolLoop";
 import { getThinkingPlanAndConfig, modelSupportsReasoning, type RegisteredProviderId } from "../lib/thinkingRouter";
 import { getModelsFromDB } from "../lib/modelsStore";
-import { normalizeSlug } from "../../src/hooks/useModels";
+import { normalizeSlug } from "../../src/shared/normalizeSlug";
 import { retrieveUserMemoryPrompt } from "../lib/chatMemory";
 import { createClient } from "@supabase/supabase-js";
 import { validateChatMessages, DEFAULT_CHAT_TOOLS, pumpGeminiStream } from "../lib/chatStreamHelpers";

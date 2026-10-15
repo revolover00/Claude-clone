@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Trash2, Pin, PinOff, Edit2, Check, Download, Search } from "lucide-react";
 import { useChat } from "../../context/ChatContext";
 import { SettingsErrorCard } from "../shared/SettingsErrorCard";
-import { safeFetchJson } from "../../utils/safeFetch";
+import { safeFetchJson, authFetch } from "../../utils/safeFetch";
 
 interface Memory {
   id: string;
@@ -44,7 +44,7 @@ export default function MemoryTab() {
 
   const handleUpdateMemory = async (id: string, partial: Partial<Memory>) => {
     try {
-      const res = await fetch(`/api/memory/${id}`, {
+      const res = await authFetch(`/api/memory/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(partial)
@@ -58,7 +58,7 @@ export default function MemoryTab() {
 
   const handleDeleteMemory = async (id: string) => {
     try {
-      const res = await fetch(`/api/memory/${id}`, { method: "DELETE" });
+      const res = await authFetch(`/api/memory/${id}`, { method: "DELETE" });
       if (res.ok) {
         setMemories(prev => prev.filter(m => m.id !== id));
       }
@@ -67,7 +67,7 @@ export default function MemoryTab() {
 
   const handleDeleteAll = async () => {
     try {
-      const res = await fetch("/api/memory/clear", { method: "POST" });
+      const res = await authFetch("/api/memory/clear", { method: "POST" });
       if (res.ok) {
         setMemories([]);
         setConfirmClear(false);
@@ -88,10 +88,6 @@ export default function MemoryTab() {
   const handleTogglePref = (key: "memory_enabled" | "sensitive_memory") => {
     const val = !preferences[key as keyof typeof preferences];
     updatePreferences({ [key]: val });
-    // Also sync with server in background
-    fetch("/api/models?all=true").then(async () => {
-      // In a real app we'd PATCH preferences, the client mock automatically updates localStorage preferences state.
-    });
   };
 
   const filteredMemories = memories.filter(m => 
