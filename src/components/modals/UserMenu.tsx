@@ -2,8 +2,10 @@ import { useEffect, useRef } from "react";
 import {
   Settings,
   LogOut,
+  Keyboard,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useChat } from "../../context/ChatContext";
 import { useFocusTrap } from "../../utils/useFocusTrap";
 
 type Props = {
@@ -13,6 +15,7 @@ type Props = {
 
 export default function UserMenu({ isOpen, onClose }: Props) {
   const { user, profile, signOut } = useAuth();
+  const { setSettingsModalOpen } = useChat();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useFocusTrap(menuRef, isOpen, onClose);
@@ -55,14 +58,34 @@ export default function UserMenu({ isOpen, onClose }: Props) {
       <div className="py-1 space-y-0.5">
         <button
           type="button"
+          aria-label="Settings"
           onClick={() => {
             onClose();
-            // TODO: Open settings
+            setSettingsModalOpen(true);
           }}
-          className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] text-ink-soft transition-colors hover:bg-elev-2 hover:text-ink cursor-pointer"
+          className="flex h-9 w-full items-center justify-between rounded-lg px-2.5 text-[13.5px] text-ink-soft transition-colors hover:bg-elev-2 hover:text-ink cursor-pointer"
         >
-          <Settings size={16} className="text-ink-muted" />
-          <span>Settings</span>
+          <div className="flex items-center gap-2.5">
+            <Settings size={16} className="text-ink-muted" />
+            <span>Settings</span>
+          </div>
+          <kbd className="text-[10.5px] font-mono text-ink-muted bg-elev-2 px-1.5 py-0.5 rounded border border-line">⌘,</kbd>
+        </button>
+
+        <button
+          type="button"
+          aria-label="Keyboard shortcuts"
+          onClick={() => {
+            onClose();
+            window.dispatchEvent(new CustomEvent("open-shortcuts-dialog"));
+          }}
+          className="flex h-9 w-full items-center justify-between rounded-lg px-2.5 text-[13.5px] text-ink-soft transition-colors hover:bg-elev-2 hover:text-ink cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5">
+            <Keyboard size={16} className="text-ink-muted" />
+            <span>Keyboard shortcuts</span>
+          </div>
+          <kbd className="text-[10.5px] font-mono text-ink-muted bg-elev-2 px-1.5 py-0.5 rounded border border-line">?</kbd>
         </button>
       </div>
 
@@ -73,7 +96,7 @@ export default function UserMenu({ isOpen, onClose }: Props) {
             onClose();
             signOut();
           }}
-          className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] text-ink-soft transition-colors hover:bg-elev-2 hover:text-ink"
+          className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] text-ink-soft transition-colors hover:bg-elev-2 hover:text-ink cursor-pointer"
         >
           <LogOut size={16} className="text-ink-muted" />
           <span>Log out</span>

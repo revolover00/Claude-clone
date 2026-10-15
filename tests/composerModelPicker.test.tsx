@@ -1,0 +1,246 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import React from "react";
+import ModelMenu from "../src/components/composer/ModelMenu";
+import * as ChatContextCore from "../src/context/ChatContextCore";
+import * as useModelsHook from "../src/hooks/useModels";
+
+describe("Composer Model Picker Component Tests", () => {
+  const mockSetSettingsModalOpen = vi.fn();
+  const mockOnSelectModel = vi.fn();
+  const mockOnSelectEffort = vi.fn();
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+
+    vi.spyOn(ChatContextCore, "useChat").mockReturnValue({
+      setSettingsModalOpen: mockSetSettingsModalOpen,
+    } as any);
+  });
+
+  it("renders pill with display name and provider label (never raw provider id)", async () => {
+    // Mock /api/providers returning groq credentials and /api/providers/groq/models
+    vi.spyOn(global, "fetch").mockImplementation(async (url: any) => {
+      const urlStr = String(url);
+      if (urlStr.includes("/api/providers/groq/models")) {
+        return {
+          ok: true,
+          json: async () => ({
+            models: [
+              {
+                id: "llama-3.3-70b-versatile",
+                displayName: "Llama 3.3 70B",
+                provider: "groq",
+                isEnabled: true,
+                isPinned: false,
+                supportsReasoning: false,
+              },
+            ],
+          }),
+        } as any;
+      }
+      if (urlStr.endsWith("/api/providers")) {
+        return {
+          ok: true,
+          json: async () => ({
+            providers: [{ id: "groq", label: "Groq" }],
+            credentials: [{ provider: "groq", status: "active" }],
+          }),
+        } as any;
+      }
+      return { ok: true, json: async () => [] } as any;
+    });
+
+    render(
+      <ModelMenu
+        model="groq:llama-3.3-70b-versatile"
+        onSelectModel={mockOnSelectModel}
+        effort="Medium"
+        onSelectEffort={mockOnSelectEffort}
+      />
+    );
+
+    // Pill must show provider label "Groq", never raw provider id
+    await waitFor(() => {
+      expect(screen.getByText(/Groq/)).toBeDefined();
+      expect(screen.getByText(/Llama 3.3 70B · Groq/)).toBeDefined();
+    });
+  });
+
+  it("groups models under provider headers and puts pinned models first", async () => {
+    vi.spyOn(global, "fetch").mockImplementation(async (url: any) => {
+      const urlStr = String(url);
+      if (urlStr.endsWith("/api/providers")) {
+        return {
+          ok: true,
+          json: async () => ({
+            providers: [
+              { id: "gemini", label: "Google AI Studio" },
+              { id: "groq", label: "Groq" },
+            ],
+            credentials: [
+              { provider: "gemini", status: "active" },
+              { provider: "groq", status: "active" },
+            ],
+          }),
+        } as any;
+      }
+      if (urlStr.includes("/api/providers/gemini/models")) {
+        return {
+          ok: true,
+          json: async () => ({
+            models: [
+              {
+                id: "gemini-3.8-flash",
+                displayName: "Gemini 3.8 Flash",
+                provider: "gemini",
+                isEnabled: true,
+                isPinned: false,
+                supportsReasoning: true,
+              },
+              {
+                id: "gemini-3.1-pro-preview",
+                displayName: "Gemini 3.1 Pro (Preview)",
+                provider: "gemini",
+                isEnabled: true,
+                isPinned: true, // PINNED!
+                supportsReasoning: true,
+              },
+            ],
+          }),
+        } as any;
+      }
+      if (urlStr.includes("/api/providers/groq/models")) {
+        return {
+          ok: true,
+          json: async () => ({
+            models: [
+              {
+                id: "llama-3.3-70b-versatile",
+                displayName: "Llama 3.3 70B",
+                provider: "groq",
+                isEnabled: true,
+                isPinned: false,
+              },
+            ],
+          }),
+        } as any;
+      }
+      return { ok: true, json: async () => [] } as any;
+    });
+
+    render(
+      <ModelMenu
+        model="gemini:gemini-3.8-flash"
+        onSelectModel={mockOnSelectModel}
+        effort="High"
+        onSelectEffort={mockOnSelectEffort}
+      />
+    );
+
+    // Click trigger to open dropdown
+    const trigger = screen.getByRole("button", { name: /model options/i });
+    fireEvent.click(trigger);
+
+    // Expect provider headers with labels
+    await waitFor(() => {
+      expect(screen.getByText("Google AI Studio")).toBeDefined();
+      expect(screen.getByText("Groq")).toBeDefined();
+    });
+
+    // Pinned model (Gemini 3.1 Pro) should appear
+    const pinnedModel = screen.getByText("Gemini 3.1 Pro (Preview)");
+    expect(pinnedModel).toBeDefined();
+
+    // Select a model
+    const groqModelBtn = screen.getByText("Llama 3.3 70B");
+    fireEvent.click(groqModelBtn);
+
+    expect(mockOnSelectModel).toHaveBeenCalledWith("groq:llama-3.3-70b-versatile");
+    expect(localStorage.getItem("claude_clone_last_model")).toBe("groq:llama-3.3-70b-versatile");
+  });
+
+  it("filters models via search box", async () => {
+    vi.spyOn(global, "fetch").mockImplementation(async (url: any) => {
+      const urlStr = String(url);
+      if (urlStr.endsWith("/api/providers")) {
+        return {
+          ok: true,
+          json: async () => ({
+            providers: [{ id: "groq", label: "Groq" }],
+            credentials: [{ provider: "groq", status: "active" }],
+          }),
+        } as any;
+      }
+      if (urlStr.includes("/api/providers/groq/models")) {
+        return {
+          ok: true,
+          json: async () => ({
+            models: [
+              { id: "llama-3.3-70b", displayName: "Llama 3.3 70B", provider: "groq", isEnabled: true },
+              { id: "mixtral-8x7b", displayName: "Mixtral 8x7B", provider: "groq", isEnabled: true },
+            ],
+          }),
+        } as any;
+      }
+      return { ok: true, json: async () => [] } as any;
+    });
+
+    render(
+      <ModelMenu
+        model="groq:llama-3.3-70b"
+        onSelectModel={mockOnSelectModel}
+        effort="Low"
+        onSelectEffort={mockOnSelectEffort}
+      />
+    );
+
+    const trigger = screen.getByRole("button", { name: /model options/i });
+    fireEvent.click(trigger);
+
+    await waitFor(() => {
+      expect(screen.getByText("Llama 3.3 70B")).toBeDefined();
+      expect(screen.getByText("Mixtral 8x7B")).toBeDefined();
+    });
+
+    const searchInput = screen.getByPlaceholderText("Search models...");
+    fireEvent.change(searchInput, { target: { value: "mixtral" } });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Llama 3.3 70B")).toBeNull();
+      expect(screen.getByText("Mixtral 8x7B")).toBeDefined();
+    });
+  });
+
+  it("shows empty state 'Connect an API key' linking to Settings > Providers when no models exist", async () => {
+    vi.spyOn(useModelsHook, "useModels").mockReturnValue({
+      models: [],
+      loading: false,
+      defaultModel: null as any,
+      normalizeSlug: (s: string) => s,
+      refetch: vi.fn(),
+    });
+
+    render(
+      <ModelMenu
+        model=""
+        onSelectModel={mockOnSelectModel}
+        effort="Medium"
+        onSelectEffort={mockOnSelectEffort}
+      />
+    );
+
+    const trigger = screen.getByRole("button", { name: /model options/i });
+    fireEvent.click(trigger);
+
+    await waitFor(() => {
+      const connectBtn = screen.getByRole("button", { name: /connect an api key/i });
+      expect(connectBtn).toBeDefined();
+
+      fireEvent.click(connectBtn);
+      expect(mockSetSettingsModalOpen).toHaveBeenCalledWith(true);
+      expect(localStorage.getItem("claude_clone_settings_tab")).toBe("providers");
+    });
+  });
+});

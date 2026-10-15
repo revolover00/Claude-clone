@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isArabicText, getTimeGreeting } from "../src/utils/text";
+import { isArabicText, getTimeGreeting, formatGreeting } from "../src/utils/text";
 
 describe("text utils", () => {
   describe("isArabicText", () => {
@@ -33,6 +33,25 @@ describe("text utils", () => {
     it("returns a valid greeting ending with comma", () => {
       const greeting = getTimeGreeting();
       expect(["Morning,", "Afternoon,", "Evening,", "Late night,"]).toContain(greeting);
+    });
+  });
+
+  describe("formatGreeting", () => {
+    it("formats known name with a single comma and no double commas", () => {
+      expect(formatGreeting("Morning,", "Alice")).toBe("Morning, Alice");
+      expect(formatGreeting("Afternoon,", "Bob")).toBe("Afternoon, Bob");
+      expect(formatGreeting("Evening,", "Carol")).toBe("Evening, Carol");
+      expect(formatGreeting("Late night,", "Dave")).toBe("Late night, Dave");
+      expect(formatGreeting("Morning", "Alice")).toBe("Morning, Alice");
+    });
+
+    it("formats unknown or default name without double commas", () => {
+      expect(formatGreeting("Morning,", "")).toBe("Morning, how are things?");
+      expect(formatGreeting("Morning,", "   ")).toBe("Morning, how are things?");
+      expect(formatGreeting("Morning,", "You")).toBe("Morning, how are things?");
+      expect(formatGreeting("Morning,", null)).toBe("Morning, how are things?");
+      expect(formatGreeting("Morning,", undefined)).toBe("Morning, how are things?");
+      expect(formatGreeting("Evening", "")).toBe("Evening, how are things?");
     });
   });
 });

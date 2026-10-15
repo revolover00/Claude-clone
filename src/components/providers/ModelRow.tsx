@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Pin, Brain, Wrench, Eye, Edit2, Check, X } from "lucide-react";
 import { cn } from "../../utils/cn";
+import { formatPricing } from "../../shared/pricing";
 
 export interface ProviderModelItem {
   provider: string;
@@ -33,13 +34,6 @@ function formatContext(tokens: number | null): string {
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(tokens % 1_000_000 === 0 ? 0 : 1)}M`;
   if (tokens >= 1_000) return `${Math.round(tokens / 1_000)}k`;
   return `${tokens}`;
-}
-
-function formatPricing(pricing: ProviderModelItem["pricing"]): string {
-  if (!pricing) return "Free / Included";
-  const inp = pricing.inputPerMTok < 0.01 ? pricing.inputPerMTok.toFixed(4) : pricing.inputPerMTok.toFixed(2);
-  const out = pricing.outputPerMTok < 0.01 ? pricing.outputPerMTok.toFixed(4) : pricing.outputPerMTok.toFixed(2);
-  return `$${inp} / $${out} / 1M`;
 }
 
 export const ModelRow: React.FC<ModelRowProps> = ({

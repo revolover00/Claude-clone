@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ChevronDown, Check, Brain, Globe, Eye, Layers } from "lucide-react";
+import { ChevronDown, Check, Search, Key } from "lucide-react";
 import { cn } from "../../utils/cn";
-import { useToast } from "../../context/ToastContext";
-import { useModels } from "../../hooks/useModels";
-import type { Model } from "../../types/chat";
+import { useChat } from "../../context/ChatContext";
+import { useComposerModels } from "./modelPicker/useComposerModels";
+import { ModelPickerItem } from "./modelPicker/ModelPickerItem";
 
 export const EFFORTS = ["Low", "Medium", "High"] as const;
 export type Effort = (typeof EFFORTS)[number];
@@ -25,34 +25,27 @@ export default function ModelMenu({
   onOpenStateChange,
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
-  const { models, defaultModel, normalizeSlug } = useModels();
   const menuRef = useRef<HTMLDivElement>(null);
-  const { showToast } = useToast();
+  const { setSettingsModalOpen } = useChat();
 
+  const {
+    allModels,
+    groupedProviders,
+    activeModelObj,
+    pillLabel,
+    searchQuery,
+    setSearchQuery,
+  } = useComposerModels(model);
+
+  // Sync initial selection if needed
   useEffect(() => {
-    // Resolve last saved model or default
-    const saved = localStorage.getItem("claude_clone_last_model");
-    const normalizedSaved = saved ? normalizeSlug(saved) : null;
-
-    const exists = models.find(
-      (m: Model) => m.slug === normalizedSaved || m.id === normalizedSaved
-    );
-    const targetModel = exists || defaultModel;
-
-    if (targetModel && model !== targetModel.slug) {
-      onSelectModel(targetModel.slug);
-      localStorage.setItem("claude_clone_last_model", targetModel.slug);
-      if (saved && !exists) {
-        showToast(
-          `Previously selected model was disabled. Switched to ${targetModel.display_name}.`,
-          "info"
-        );
+    if (activeModelObj && model !== activeModelObj.uniqueKey && model !== activeModelObj.id) {
+      const saved = localStorage.getItem("claude_clone_last_model");
+      if (!saved) {
+        onSelectModel(activeModelObj.uniqueKey);
       }
     }
-  }, [models, model, onSelectModel, showToast, normalizeSlug, defaultModel]);
-
-  const currentModelObj =
-    models.find((m: Model) => m.slug === model || m.id === model) || defaultModel;
+  }, [activeModelObj, model, onSelectModel]);
 
   const toggleOpen = () => {
     setIsOpen((prev) => {
@@ -79,19 +72,17 @@ export default function ModelMenu({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen, closeMenu]);
 
-  const handleSelectModelLocal = (selectedSlug: string) => {
-    const normalized = normalizeSlug(selectedSlug);
-    localStorage.setItem("claude_clone_last_model", normalized);
-    onSelectModel(normalized);
+  const handleSelectModelLocal = (selectedKey: string) => {
+    localStorage.setItem("claude_clone_last_model", selectedKey);
+    onSelectModel(selectedKey);
     closeMenu();
   };
 
-  const providerLabel = currentModelObj.provider === "google" ? "gemini" : (currentModelObj.provider || "gemini");
-  const displayName = currentModelObj.display_name || currentModelObj.slug;
+  const currentSelectedKey = activeModelObj?.uniqueKey || model;
 
   return (
     <div className="relative flex items-center gap-1 font-sans" ref={menuRef}>
-      {/* Trigger Button with display name · provider + effort */}
+      {/* Trigger Button with display name · provider label + effort */}
       <button
         type="button"
         onClick={toggleOpen}
@@ -100,7 +91,7 @@ export default function ModelMenu({
         className="flex h-8 items-center gap-1.5 rounded-md px-2 transition-colors duration-150 hover:bg-elev-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
       >
         <span className="text-[13.5px] font-medium text-ink-soft">
-          {displayName} · {providerLabel}
+          {pillLabel}
         </span>
         <span className="text-[13.5px] text-ink-muted">· {effort}</span>
       </button>
@@ -114,127 +105,96 @@ export default function ModelMenu({
         <ChevronDown size={15} strokeWidth={2} />
       </button>
 
-      {/* Dropdown Menu */}
+      {/* Dropdown Menu - capped to viewport, internal scroll, pinned effort */}
       {isOpen && (
         <div
           role="menu"
-          className="anim-popover-in absolute bottom-full right-0 z-45 mb-2 w-72 rounded-xl border border-line bg-elev-1 p-2 shadow-[0_16px_36px_rgba(0,0,0,0.5)]"
+          className="anim-popover-in absolute bottom-full right-0 z-45 mb-2 w-80 max-h-[min(520px,calc(100vh-140px))] flex flex-col rounded-xl border border-line bg-elev-1 shadow-[0_16px_36px_rgba(0,0,0,0.5)] overflow-hidden"
         >
-          {/* Models list */}
-          <p className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wider text-ink-faint">
-            Model
-          </p>
-          <div className="space-y-1 max-h-[220px] overflow-y-auto scroll-slim">
-            {models
-              .filter((m: Model) => m.kind === "chat" && m.enabled)
-              .map((m: Model) => (
-                <button
-                  key={m.id || m.slug}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={model === m.slug}
-                  onClick={() => handleSelectModelLocal(m.slug)}
-                  className={cn(
-                    "flex w-full items-start justify-between rounded-lg p-2 text-start transition-colors cursor-pointer",
-                    model === m.slug
-                      ? "bg-elev-2 text-ink"
-                      : "text-ink-soft hover:bg-elev-2 hover:text-ink"
-                  )}
-                >
-                  <div className="flex-1 min-w-0 pr-2">
-                    <div className="flex items-center justify-between gap-1">
-                      <p className="text-[13px] font-semibold truncate">{m.display_name}</p>
-                      <span className="text-[9.5px] uppercase font-mono px-1 py-0.2 rounded bg-elev-3 text-ink-muted border border-line shrink-0">
-                        {m.provider === "google" ? "gemini" : (m.provider || "gemini")}
-                      </span>
-                    </div>
-                    {((m as any).contextLength || (m as any).pricing) && (
-                      <div className="flex items-center gap-1.5 text-[10.5px] text-ink-muted mt-0.5 font-mono">
-                        {(m as any).contextLength && (
-                          <span>{Math.round((m as any).contextLength / 1000)}k ctx</span>
-                        )}
-                        {(m as any).pricing && (
-                          <span>• ${(m as any).pricing.inputPerMTok?.toFixed(2)}/1M</span>
-                        )}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1 mt-1 flex-wrap">
-                      {m.supports_thinking && (
-                        <span
-                          title="Thinking"
-                          className="inline-flex items-center gap-0.5 rounded px-1 py-0.2 text-[9.5px] font-medium bg-amber-500/15 text-amber-300 border border-amber-500/20"
-                        >
-                          <Brain size={9} />
-                          Thinking
-                        </span>
-                      )}
-                      {m.supports_tools && (
-                        <span
-                          title="Tools"
-                          className="inline-flex items-center gap-0.5 rounded px-1 py-0.2 text-[9.5px] font-medium bg-indigo-500/15 text-indigo-300 border border-indigo-500/20"
-                        >
-                          <Layers size={9} />
-                          Tools
-                        </span>
-                      )}
-                      {m.supports_search && (
-                        <span
-                          title="Search"
-                          className="inline-flex items-center gap-0.5 rounded px-1 py-0.2 text-[9.5px] font-medium bg-sky-500/15 text-sky-300 border border-sky-500/20"
-                        >
-                          <Globe size={9} />
-                          Search
-                        </span>
-                      )}
-                      {m.supports_vision && (
-                        <span
-                          title="Vision"
-                          className="inline-flex items-center gap-0.5 rounded px-1 py-0.2 text-[9.5px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
-                        >
-                          <Eye size={9} />
-                          Vision
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11.5px] text-ink-muted leading-tight mt-1 break-words">
-                      {m.description || "Conversational chat model."}
-                    </p>
-                  </div>
-                  {model === m.slug && (
-                    <Check size={14} className="text-accent shrink-0 mt-1" />
-                  )}
-                </button>
-              ))}
+          {/* Pinned search box */}
+          <div className="p-2 border-b border-line shrink-0 bg-elev-1">
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted" />
+              <input
+                type="text"
+                placeholder="Search models..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-md border border-line bg-elev-2 pl-8 pr-3 py-1 text-[12.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent"
+                autoFocus
+              />
+            </div>
           </div>
 
-          <div className="my-2 border-t border-line" />
+          {/* Internally scrollable models list */}
+          <div className="flex-1 overflow-y-auto scroll-slim p-1.5 min-h-0 space-y-2">
+            {allModels.length === 0 ? (
+              <div className="p-4 text-center">
+                <p className="text-xs text-ink-muted mb-2.5">No connected models available.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeMenu();
+                    localStorage.setItem("claude_clone_settings_tab", "providers");
+                    setSettingsModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer"
+                >
+                  <Key size={13} />
+                  <span>Connect an API key</span>
+                </button>
+              </div>
+            ) : groupedProviders.length === 0 ? (
+              <div className="p-4 text-center text-xs text-ink-muted">
+                No models match "{searchQuery}"
+              </div>
+            ) : (
+              groupedProviders.map((group) => (
+                <div key={group.providerLabel} className="space-y-0.5">
+                  <p className="px-2 pt-1 pb-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-ink-faint">
+                    {group.providerLabel}
+                  </p>
+                  {group.models.map((m) => (
+                    <ModelPickerItem
+                      key={m.uniqueKey}
+                      model={m}
+                      isSelected={currentSelectedKey === m.uniqueKey}
+                      onSelect={handleSelectModelLocal}
+                    />
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
 
-          {/* Effort section */}
-          <p className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wider text-ink-faint">
-            Effort
-          </p>
-          <div className="space-y-0.5">
-            {EFFORTS.map((e) => (
-              <button
-                key={e}
-                type="button"
-                role="menuitemradio"
-                aria-checked={effort === e}
-                onClick={() => {
-                  onSelectEffort(e);
-                  closeMenu();
-                }}
-                className={cn(
-                  "flex h-8 w-full items-center justify-between rounded-md px-2 text-[12.5px] transition-colors cursor-pointer",
-                  effort === e
-                    ? "text-ink font-medium bg-elev-2"
-                    : "text-ink-soft hover:bg-elev-2"
-                )}
-              >
-                <span>{e}</span>
-                {effort === e && <Check size={13} className="text-accent" />}
-              </button>
-            ))}
+          {/* Pinned Effort section at bottom */}
+          <div className="shrink-0 border-t border-line bg-elev-1 p-2">
+            <p className="px-2 pb-1 text-[10.5px] font-medium uppercase tracking-wider text-ink-faint">
+              Effort
+            </p>
+            <div className="flex gap-1">
+              {EFFORTS.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={effort === e}
+                  onClick={() => {
+                    onSelectEffort(e);
+                    closeMenu();
+                  }}
+                  className={cn(
+                    "flex-1 h-7 flex items-center justify-center gap-1 rounded-md text-[12px] transition-colors cursor-pointer",
+                    effort === e
+                      ? "text-ink font-medium bg-elev-3 border border-line"
+                      : "text-ink-soft hover:bg-elev-2"
+                  )}
+                >
+                  <span>{e}</span>
+                  {effort === e && <Check size={12} className="text-accent" />}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

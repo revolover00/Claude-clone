@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { ProviderCard } from "../providers/ProviderCard";
 import { ModelBrowser } from "../providers/ModelBrowser";
+import { SettingsErrorCard } from "../shared/SettingsErrorCard";
+import { safeFetchJson } from "../../utils/safeFetch";
 
 interface ProviderData {
   id: string;
@@ -41,35 +43,35 @@ const DEFAULT_PROVIDERS: ProviderData[] = [
 export const ProvidersSettingsView: React.FC = () => {
   const [providerList, setProviderList] = useState<ProviderData[]>(DEFAULT_PROVIDERS);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<any>(null);
 
   const fetchProviders = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch("/api/providers", {
+      const data = await safeFetchJson<{ providers?: any[]; credentials?: any[] }>("/api/providers", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("supabase_token") || "mock-jwt-token-guest"}`,
         },
       });
-      if (res.ok) {
-        const data = await res.json();
-        // Merge registry info and user credentials
-        const updated = DEFAULT_PROVIDERS.map((def) => {
-          const cred = data.credentials?.find((c: any) => c.provider === def.id);
-          if (cred) {
-            return {
-              ...def,
-              status: cred.status || "active",
-              last4: cred.key_last4 || cred.last4,
-              lastVerified: cred.last_verified_at,
-              lastError: cred.last_error,
-              credentialId: cred.id,
-            };
-          }
-          return def;
-        });
-        setProviderList(updated);
-      }
-    } catch (err) {
+
+      const updated = DEFAULT_PROVIDERS.map((def) => {
+        const cred = data.credentials?.find((c: any) => c.provider === def.id);
+        if (cred) {
+          return {
+            ...def,
+            status: (cred.status as any) || "active",
+            last4: cred.key_last4 || cred.last4,
+            lastVerified: cred.last_verified_at,
+            lastError: cred.last_error,
+            credentialId: cred.id,
+          };
+        }
+        return def;
+      });
+      setProviderList(updated);
+    } catch (err: any) {
+      setError(err);
       console.warn("Failed to fetch provider credentials:", err);
     } finally {
       setLoading(false);
@@ -89,12 +91,17 @@ export const ProvidersSettingsView: React.FC = () => {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {providerList.map((p) => (
-          <ProviderCard key={p.id} {...p} onRefresh={fetchProviders} />
-        ))}
-      </div>
-      {loading && <p className="text-xs text-ink-muted animate-pulse">Syncing providers...</p>}
+      {error ? (
+        <SettingsErrorCard onRetry={fetchProviders} error={error} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {providerList.map((p) => (
+            <ProviderCard key={p.id} {...p} onRefresh={fetchProviders} />
+          ))}
+        </div>
+      )}
+
+      {loading && !error && <p className="text-xs text-ink-muted animate-pulse">Syncing providers...</p>}
 
       <ModelBrowser />
     </div>

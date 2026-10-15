@@ -2,24 +2,9 @@ import { useState, useEffect } from "react";
 import { Trash2, Play, Plus, ArrowUp, ArrowDown, Brain } from "lucide-react";
 import AddModelForm from "./AddModelForm";
 import ThinkingDiagnosticModal from "./ThinkingDiagnosticModal";
-
-interface Model {
-  id: string;
-  slug: string;
-  display_name: string;
-  description: string;
-  provider: string;
-  api_model_id: string;
-  kind: "chat" | "light" | "embedding";
-  supports_thinking: boolean;
-  supports_tools: boolean;
-  supports_search: boolean;
-  supports_vision: boolean;
-  max_output_tokens: number | null;
-  enabled: boolean;
-  is_default: boolean;
-  sort_order: number;
-}
+import type { Model } from "../../types/chat";
+import { SettingsErrorCard } from "../shared/SettingsErrorCard";
+import { safeFetchJson } from "../../utils/safeFetch";
 
 interface DiscoverModel {
   name: string;
@@ -46,14 +31,16 @@ export default function ModelsTab() {
     supports_thinking: false, supports_tools: false, supports_search: false, supports_vision: false, enabled: true, is_default: false
   });
 
+  const [loadError, setLoadError] = useState<any>(null);
+
   const loadModels = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const res = await fetch("/api/models?all=true");
-      if (!res.ok) throw new Error("Failed to load models");
-      const data = await res.json();
-      setModels(data);
+      const data = await safeFetchJson<Model[]>("/api/models?all=true");
+      setModels(Array.isArray(data) ? data : []);
     } catch (err: any) {
+      setLoadError(err);
       setError(err.message || "Error loading models");
     } finally {
       setLoading(false);
@@ -188,7 +175,12 @@ export default function ModelsTab() {
         </button>
       </div>
 
-      {error && <div className="rounded-lg bg-danger-bg border border-danger/25 text-danger p-2 text-[12px]">{error}</div>}
+      {loadError && (
+        <SettingsErrorCard onRetry={loadModels} error={loadError} />
+      )}
+      {!loadError && error && (
+        <div className="rounded-lg bg-danger-bg border border-danger/25 text-danger p-2 text-[12px]">{error}</div>
+      )}
 
       {showAdd && (
         <AddModelForm

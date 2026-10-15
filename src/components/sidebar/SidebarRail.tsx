@@ -8,6 +8,7 @@ import {
   Archive,
   Shapes,
   Search,
+  Settings,
 } from "lucide-react";
 import IconButton from "../shared/IconButton";
 import UserMenu from "../modals/UserMenu";
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export default function SidebarRail({ onToggle }: Props) {
-  const { createNewChat, setSearchModalOpen } = useChat();
+  const { createNewChat, setSearchModalOpen, setSettingsModalOpen } = useChat();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -101,13 +102,26 @@ export default function SidebarRail({ onToggle }: Props) {
         </IconButton>
       </div>
 
-      {/* User avatar at bottom */}
+      {/* Settings entry on rail */}
+      <div className="flex flex-col items-center pb-2">
+        <IconButton
+          label="Settings (⌘,)"
+          aria-label="Settings"
+          onClick={() => setSettingsModalOpen(true)}
+        >
+          <Settings size={18} strokeWidth={1.8} />
+        </IconButton>
+      </div>
+
+      {/* User avatar at bottom with accessible UserMenu */}
       <div className="relative flex h-14 w-full shrink-0 items-center justify-center border-t border-line-soft">
         <button
           type="button"
-          title="Account"
+          title="Account menu"
+          aria-label="Account menu"
+          aria-haspopup="dialog"
           onClick={() => setUserMenuOpen((v) => !v)}
-          className="flex h-7 w-7 items-center justify-center rounded-full bg-elev-3 text-[12px] font-semibold text-ink-soft transition-colors hover:bg-elev-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          className="flex h-7 w-7 items-center justify-center rounded-full bg-elev-3 text-[12px] font-semibold text-ink-soft transition-colors hover:bg-elev-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
         >
           N
         </button>

@@ -29,3 +29,17 @@ export function getTimeGreeting(): string {
   }
   return "Late night,";
 }
+
+/**
+ * Formats greeting ensuring no double commas.
+ * With a known name: "Morning, <name>"
+ * Without a name: "Morning, how are things?"
+ */
+export function formatGreeting(rawPrefix: string, userName?: string | null): string {
+  const cleanPrefix = rawPrefix.replace(/,+$/, "");
+  const trimmed = userName?.trim();
+  if (trimmed && trimmed !== "You") {
+    return `${cleanPrefix}, ${trimmed}`;
+  }
+  return `${cleanPrefix}, how are things?`;
+}

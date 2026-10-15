@@ -54,7 +54,7 @@ export default function SettingsModal() {
     <button
       type="button"
       onClick={() => setActiveTab(id)}
-      className={`flex w-full items-center rounded-lg px-2.5 py-1.5 text-[13.5px] font-medium transition-colors cursor-pointer ${
+      className={`flex items-center shrink-0 sm:w-full rounded-lg px-2.5 py-1.5 text-[13px] sm:text-[13.5px] font-medium transition-colors cursor-pointer ${
         activeTab === id ? "bg-elev-3 text-ink" : "text-ink-muted hover:bg-elev-2 hover:text-ink"
       }`}
     >
@@ -63,11 +63,21 @@ export default function SettingsModal() {
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm font-sans" onClick={() => setSettingsModalOpen(false)}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" className="anim-modal-in flex h-[500px] w-full max-w-[620px] overflow-hidden rounded-xl border border-line bg-elev-1 shadow-[0_24px_64px_rgba(0,0,0,0.5)]" onClick={e => e.stopPropagation()}>
-        <div className="w-44 shrink-0 border-r border-line bg-panel p-3">
-          <h2 className="mb-3 px-2 text-[14px] font-semibold text-ink">Settings</h2>
-          <nav className="space-y-1">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 sm:p-4 backdrop-blur-sm font-sans" onClick={() => setSettingsModalOpen(false)}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" className="anim-modal-in flex flex-col sm:flex-row h-full w-full max-w-none rounded-none sm:h-[80vh] sm:max-h-[800px] sm:max-w-[960px] sm:rounded-xl overflow-hidden border-0 sm:border border-line bg-elev-1 shadow-[0_24px_64px_rgba(0,0,0,0.5)]" onClick={e => e.stopPropagation()}>
+        <div className="w-full sm:w-48 sm:shrink-0 border-b sm:border-b-0 sm:border-r border-line bg-panel p-3">
+          <div className="flex items-center justify-between sm:block mb-2 sm:mb-3 px-1 sm:px-2">
+            <h2 className="text-[14px] font-semibold text-ink">Settings</h2>
+            <button
+              type="button"
+              onClick={() => setSettingsModalOpen(false)}
+              className="sm:hidden text-ink-muted hover:text-ink p-1 cursor-pointer"
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <nav className="flex sm:flex-col gap-1 overflow-x-auto sm:overflow-x-visible pb-1 sm:pb-0 scroll-slim">
             <TabBtn id="general" label="Profile" />
             <TabBtn id="appearance" label="Appearance" />
             <TabBtn id="data" label="Data" />
@@ -78,8 +88,8 @@ export default function SettingsModal() {
           </nav>
         </div>
 
-        <div className="relative flex flex-1 flex-col overflow-y-auto p-6">
-          <button type="button" onClick={() => setSettingsModalOpen(false)} className="absolute right-4 top-4 text-ink-muted hover:text-ink" aria-label="Close">
+        <div className="relative flex flex-1 flex-col overflow-y-auto p-4 sm:p-6 min-w-0">
+          <button type="button" onClick={() => setSettingsModalOpen(false)} className="hidden sm:block absolute right-4 top-4 text-ink-muted hover:text-ink cursor-pointer" aria-label="Close">
             <X size={16} />
           </button>
 

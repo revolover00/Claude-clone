@@ -12,6 +12,7 @@ import { isRealSupabaseConfigured } from "./utils/supabaseClient";
 const ArtifactPanel = lazy(() => import("./components/artifacts/ArtifactPanel"));
 const SearchModal = lazy(() => import("./components/modals/SearchModal"));
 const SettingsModal = lazy(() => import("./components/modals/SettingsModal"));
+const KeyboardShortcutsModal = lazy(() => import("./components/modals/KeyboardShortcutsModal"));
 const LoginView = lazy(() => import("./components/views/LoginView"));
 const MotionReview = lazy(() => import("./components/views/MotionReview"));
 const ResetPasswordView = lazy(() => import("./components/views/ResetPasswordView"));
@@ -240,6 +241,7 @@ function AppContent() {
 
       <Suspense fallback={null}><SearchModal /></Suspense>
       <Suspense fallback={null}><SettingsModal /></Suspense>
+      <Suspense fallback={null}><KeyboardShortcutsModal /></Suspense>
 
       <div className={`fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/65 backdrop-blur-[2px] pointer-events-none transition-opacity duration-150 ${windowDragActive ? "opacity-100" : "opacity-0"}`} aria-hidden={!windowDragActive}>
         <div className="flex h-72 w-full max-w-xl flex-col items-center justify-center rounded-2xl border-2 border-dashed border-accent bg-elev-1/95 p-6 shadow-2xl">
