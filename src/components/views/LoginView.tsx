@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/supabaseClient";
 import { useToast } from "../../context/ToastContext";
-import { Sparkles, Mail, Lock, UserPlus, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { Mail, Lock, UserPlus, Eye, EyeOff, RefreshCw } from "lucide-react";
+import BrandLogo from "../brand/BrandLogo";
 
 export default function LoginView({ from = "/" }: { from?: string }) {
   const navigate = useNavigate();
@@ -141,9 +142,7 @@ export default function LoginView({ from = "/" }: { from?: string }) {
       <div className="w-full max-w-[420px] rounded-2xl border border-line bg-elev-1 p-8 shadow-2xl anim-rise relative overflow-hidden">
         <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-accent/40 via-accent to-accent/40" />
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/15 text-accent shadow-sm mb-4">
-            <Sparkles size={24} className="anim-thinking-spark text-accent" />
-          </div>
+          <BrandLogo size="md" className="mb-5" />
           <h1 className="font-serif text-[28px] font-semibold text-ink leading-tight tracking-wide">
             {mode === "login" ? "Welcome back" : mode === "signup" ? "Create your account" : "Reset your password"}
           </h1>

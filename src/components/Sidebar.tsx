@@ -13,6 +13,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { cn } from "../utils/cn";
+import BrandLogo from "./brand/BrandLogo";
 import IconButton from "./shared/IconButton";
 import SidebarRail from "./sidebar/SidebarRail";
 import ChatList from "./sidebar/ChatList";
@@ -60,33 +61,20 @@ export default function Sidebar({ open, onToggle }: Props) {
   // Expanded sidebar view
   return (
     <aside className="fixed inset-y-0 start-0 z-40 flex h-full shrink-0 flex-col border-e border-line bg-panel transition-all duration-200 ease-out lg:static w-[85vw] max-w-[320px] lg:w-[280px] lg:max-w-none font-sans">
-      {/* Top toolbar with Panel toggle, Search, and History Back/Forward */}
-      <div className="flex h-12 shrink-0 items-center justify-between px-2">
+      <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-line/40 px-3">
+        <BrandLogo size="sm" />
         <div className="flex items-center gap-0.5">
-          <IconButton label="Close sidebar" onClick={onToggle}>
-            <PanelLeft size={18} strokeWidth={1.9} />
-          </IconButton>
-
-          <IconButton
-            label="Search (⌘K)"
-            onClick={() => setSearchModalOpen(true)}
-          >
+          <IconButton label="Search (⌘K)" onClick={() => setSearchModalOpen(true)}>
             <Search size={18} strokeWidth={1.9} />
           </IconButton>
-        </div>
-
-        <div className="flex items-center gap-0.5">
-          <IconButton
-            label="Back in history"
-            onClick={() => navigate(-1)}
-          >
+          <IconButton label="Back in history" onClick={() => navigate(-1)}>
             <ArrowLeft size={17} strokeWidth={1.9} />
           </IconButton>
-          <IconButton
-            label="Forward in history"
-            onClick={() => navigate(1)}
-          >
+          <IconButton label="Forward in history" onClick={() => navigate(1)}>
             <ArrowRight size={17} strokeWidth={1.9} />
+          </IconButton>
+          <IconButton label="Close sidebar" onClick={onToggle}>
+            <PanelLeft size={18} strokeWidth={1.9} />
           </IconButton>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { SSEParser } from "./sseParser";
 import { supabase } from "./supabaseClient";
+import { authFetch } from "./authHeaders";
 
 export interface StreamCallbacks {
   onThinkingStart?: () => void;
@@ -73,11 +74,11 @@ export function streamRealResponse(
         throw err;
       }
 
-      const response = await fetch("/api/chat", {
+      const response = await authFetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           messages: [

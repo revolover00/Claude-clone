@@ -10,6 +10,7 @@ import {
   Search,
   Settings,
 } from "lucide-react";
+import BrandLogo from "../brand/BrandLogo";
 import IconButton from "../shared/IconButton";
 import UserMenu from "../modals/UserMenu";
 import { useChat } from "../../context/ChatContext";
@@ -35,8 +36,11 @@ export default function SidebarRail({ onToggle }: Props) {
 
   return (
     <aside className="fixed inset-y-0 start-0 z-40 flex h-full shrink-0 flex-col items-center border-e border-line bg-panel transition-all duration-200 ease-out -translate-x-full lg:translate-x-0 lg:static lg:w-[52px] font-sans">
-      {/* Toggle button to expand */}
-      <div className="flex h-12 w-full shrink-0 items-center justify-center">
+      <div className="flex h-11 w-full shrink-0 items-center justify-center">
+        <BrandLogo size="sm" showWordmark={false} />
+      </div>
+
+      <div className="flex h-9 w-full shrink-0 items-center justify-center">
         <IconButton label="Open sidebar" onClick={onToggle}>
           <PanelLeft size={18} strokeWidth={1.9} />
         </IconButton>
