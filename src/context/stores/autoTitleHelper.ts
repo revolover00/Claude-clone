@@ -1,4 +1,4 @@
-import { supabase } from "../../utils/supabaseClient";
+import { authFetch } from "../../utils/safeFetch";
 
 export async function runAutoTitle(
   conversationId: string,
@@ -8,22 +8,11 @@ export async function runAutoTitle(
 ) {
   let targetTitle = "New conversation";
   try {
-    let token = "";
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        token = session.access_token;
-      }
-    } catch (err) {
-      console.warn("Could not retrieve auth session token for auto title:", err);
-    }
-
-    const res = await fetch("/api/title", {
+    // authFetch resolves the bearer token from the live session (and the persisted
+    // fallback), so the shared helper is used here instead of reading the session again.
+    const res = await authFetch("/api/title", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ firstUserMsg, firstReply }),
     });
     if (res.ok) {
