@@ -77,7 +77,24 @@ Create a `.env` file in the root directory (based on `.env.example`):
 | `GEMINI_API_KEY` | **Yes** | - | Your Google Gemini API key from Google AI Studio. |
 | `PORT` | No | `3000` | Port for the full-stack server (default is 3000). |
 | `ALLOWED_ORIGIN` | No | Same-origin only | Allowed CORS origin (e.g. `https://yourdomain.com`). If unset, requests are restricted to same-origin. |
+| `ALLOW_GUEST` | No | `false` | Development only: lets `requireAuth` accept the guest/mock bearer token. Never honoured when `NODE_ENV=production`. |
+| `VITE_ALLOW_LOCAL_MODE` | No | `false` | Development only: the client creates a local mock session so the app can be used without a Supabase project. |
 | `NODE_ENV` | No | `development` | Set to `production` when building for deployment. |
+
+---
+
+## Local Development Without Supabase
+
+Every user-scoped endpoint (`/api/chat`, `/api/skills`, `/api/providers`, `/api/models/prefs`, ...) is guarded by `requireAuth` and expects the bearer token of the active session, so they answer `401` by default. To try the app locally with no Supabase project, set both flags:
+
+```bash
+ALLOW_GUEST=true VITE_ALLOW_LOCAL_MODE=true npm run dev
+```
+
+- `VITE_ALLOW_LOCAL_MODE=true` makes the client create a local mock session, so the app skips the login screen and `authFetch` (`src/utils/authHeaders.ts`) has a token to attach.
+- `ALLOW_GUEST=true` lets the Express middleware accept that mock/guest token in development.
+
+Requests never carry a hard-coded token: `authFetch` reads the access token from the live session on every call (falling back to the persisted `supabase_token`), so a rotated token after `refreshSession()` is picked up automatically and the Skills/Providers panels keep working.
 
 ---
 
