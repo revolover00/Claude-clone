@@ -10,59 +10,97 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-serif: "Source Serif 4", "Georgia", "Times New Roman", serif;
+  --font-serif: "Source Serif 4", "Iowan Old Style", "Georgia", "Times New Roman", serif;
 
-  --color-shell: #211f1d; /* main surface */
-  --color-panel: #1b1a18; /* sidebar surface */
-  --color-line: #2e2c29; /* hairline borders */
+  --color-shell: #1c1b19;
+  --color-panel: #191816;
+  --color-line: #33312d;
   --color-line-soft: #292724;
 
-  --color-elev-1: #262523; /* segmented control, pill */
-  --color-elev-2: #2e2c2a; /* hover, chips */
-  --color-elev-3: #383634; /* stronger hover */
-  --color-elev-4: #42403c; /* active segment */
-  --color-composer: #2a2826;
-  --color-composer-line: #3b3936;
+  --color-elev-1: #232220;
+  --color-elev-2: #2c2a27;
+  --color-elev-3: #373430;
+  --color-elev-4: #403d39;
+  --color-composer: #252421;
+  --color-composer-line: #3d3a35;
 
-  --color-ink: #e9e6e0;
-  --color-ink-soft: #c9c5bd;
-  --color-ink-muted: #8d897f;
-  --color-ink-faint: #67635b;
+  --color-ink: #f0eee9;
+  --color-ink-soft: #d0cbc2;
+  --color-ink-muted: #99948a;
+  --color-ink-faint: #746f66;
 
   --color-accent: #d97757;
-  --color-link: #7db4f5;
+  --color-accent-hover: #e38261;
+  --color-accent-soft: rgb(217 119 87 / 12%);
+  --color-accent-border: rgb(217 119 87 / 35%);
+  --color-accent-ring: rgb(217 119 87 / 13%);
+  --color-link: #8fb9ef;
+  --color-link-hover: #b5d2f7;
+  --color-selection: rgb(217 119 87 / 34%);
+  --color-selection-ink: #fffaf3;
+  --color-scrollbar: #403d39;
+
+  --color-code-ink: #e9e6e0;
+  --color-code-comment: #918b80;
+  --color-code-keyword: #e48a6b;
+  --color-code-string: #b8ce9c;
+  --color-code-number: #edb07f;
+  --color-code-built-in: #98bfef;
+  --color-code-params: #d0cbc2;
+  --color-code-tag: #e48a6b;
+  --color-code-attribute: #d5c9a5;
+  --color-line-number: #746f66;
 
   --color-danger: #f08578;
-  --color-danger-bg: rgba(240, 133, 120, 0.12);
-  --color-danger-border: rgba(240, 133, 120, 0.35);
+  --color-danger-bg: rgb(240 133 120 / 12%);
+  --color-danger-border: rgb(240 133 120 / 35%);
   --color-danger-hover: #fa9a8f;
 }
 
-/* claude.ai Light palette (warm cream #faf9f5) */
+/* Warm paper surfaces and tuned ink contrast in the light appearance. */
 [data-theme="light"] {
-  --color-shell: #faf9f5;
-  --color-panel: #f3f1ea;
-  --color-line: #e3dfd6;
-  --color-line-soft: #eae7df;
+  --color-shell: #faf9f6;
+  --color-panel: #f4f2ed;
+  --color-line: #e4e0d8;
+  --color-line-soft: #ece9e2;
 
-  --color-elev-1: #ece9e2;
-  --color-elev-2: #e4e0d7;
-  --color-elev-3: #dbd6cb;
-  --color-elev-4: #d0c9bc;
+  --color-elev-1: #f0eee8;
+  --color-elev-2: #eae7df;
+  --color-elev-3: #ddd9d0;
+  --color-elev-4: #d4cec2;
   --color-composer: #ffffff;
-  --color-composer-line: #d8d4c9;
+  --color-composer-line: #d9d4ca;
 
-  --color-ink: #22211e;
-  --color-ink-soft: #4a4742;
-  --color-ink-muted: #79756d;
-  --color-ink-faint: #9c978e;
+  --color-ink: #262521;
+  --color-ink-soft: #55514a;
+  --color-ink-muted: #77736b;
+  --color-ink-faint: #99938a;
 
-  --color-accent: #d97757;
+  --color-accent: #c76547;
+  --color-accent-hover: #b85639;
+  --color-accent-soft: rgb(199 101 71 / 10%);
+  --color-accent-border: rgb(183 83 56 / 30%);
+  --color-accent-ring: rgb(183 83 56 / 14%);
   --color-link: #306eb5;
+  --color-link-hover: #24588e;
+  --color-selection: rgb(194 95 62 / 18%);
+  --color-selection-ink: #2a2520;
+  --color-scrollbar: #d0cbc1;
+
+  --color-code-ink: #282621;
+  --color-code-comment: #79756c;
+  --color-code-keyword: #ad4e35;
+  --color-code-string: #47753f;
+  --color-code-number: #b85e25;
+  --color-code-built-in: #306eb5;
+  --color-code-params: #55514a;
+  --color-code-tag: #ad4e35;
+  --color-code-attribute: #7a6026;
+  --color-line-number: #928d83;
 
   --color-danger: #c5382a;
-  --color-danger-bg: rgba(197, 56, 42, 0.08);
-  --color-danger-border: rgba(197, 56, 42, 0.25);
+  --color-danger-bg: rgb(197 56 42 / 8%);
+  --color-danger-border: rgb(197 56 42 / 25%);
   --color-danger-hover: #a82e22;
 }
 
@@ -83,20 +121,20 @@ body {
 }
 
 ::selection {
-  background: rgba(217, 119, 87, 0.35);
-  color: #f4f1ea;
+  background: var(--color-selection);
+  color: var(--color-selection-ink);
 }
 
-/* slim scrollbars for the sidebar list */
+/* Slim, low-contrast scrollbars stay legible in both theme variants. */
 .scroll-slim {
   scrollbar-width: thin;
-  scrollbar-color: #343230 transparent;
+  scrollbar-color: var(--color-scrollbar) transparent;
 }
 .scroll-slim::-webkit-scrollbar {
   width: 8px;
 }
 .scroll-slim::-webkit-scrollbar-thumb {
-  background: #343230;
+  background: var(--color-scrollbar);
   border-radius: 8px;
 }
 .scroll-slim::-webkit-scrollbar-track {
@@ -122,10 +160,10 @@ body {
 @keyframes micpulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(217, 119, 87, 0.35);
+    box-shadow: 0 0 0 0 var(--color-accent-ring);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(217, 119, 87, 0);
+    box-shadow: 0 0 0 6px transparent;
   }
 }
 .anim-mic {
@@ -162,7 +200,7 @@ textarea {
   }
 }
 .anim-thinking-text {
-  background: linear-gradient(90deg, #8d897f 0%, #edeae4 50%, #8d897f 100%);
+  background: linear-gradient(90deg, var(--color-ink-muted) 0%, var(--color-ink) 50%, var(--color-ink-muted) 100%);
   background-size: 200% 100%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -242,7 +280,7 @@ textarea {
   animation: chat-item-in 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* Links in markdown */
+/* Markdown links and code blocks inherit the active Claude palette. */
 .font-serif a {
   color: var(--color-link);
   text-decoration: underline;
@@ -250,29 +288,28 @@ textarea {
   transition: color 150ms ease;
 }
 .font-serif a:hover {
-  color: #9cc6f8;
+  color: var(--color-link-hover);
 }
 
-/* Code block syntax highlighting matching dark Claude palette */
 pre code.hljs {
   display: block;
   overflow-x: auto;
   padding: 1rem 1.15rem;
   background: transparent;
-  color: #e9e6e0;
+  color: var(--color-code-ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 13.5px;
   line-height: 1.6;
 }
 .hljs-comment,
 .hljs-quote {
-  color: #79756c;
+  color: var(--color-code-comment);
   font-style: italic;
 }
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-subst {
-  color: #d97757;
+  color: var(--color-code-keyword);
   font-weight: 500;
 }
 .hljs-string,
@@ -284,34 +321,42 @@ pre code.hljs {
 .hljs-template-variable,
 .hljs-type,
 .hljs-addition {
-  color: #a4c988;
+  color: var(--color-code-string);
 }
 .hljs-number,
 .hljs-variable,
 .hljs-symbol,
 .hljs-bullet {
-  color: #e8a87c;
+  color: var(--color-code-number);
 }
 .hljs-built_in,
 .hljs-builtin-name,
 .hljs-selector-id,
 .hljs-selector-attr,
-.hljs-selector-pseudo {
-  color: #7db4f5;
-}
+.hljs-selector-pseudo,
 .hljs-function .hljs-title,
 .hljs-title.function_ {
-  color: #9cc6f8;
+  color: var(--color-code-built-in);
 }
 .hljs-params {
-  color: #c9c5bd;
+  color: var(--color-code-params);
 }
 .hljs-tag,
 .hljs-name {
-  color: #d97757;
+  color: var(--color-code-tag);
 }
 .hljs-attr {
-  color: #cbb98f;
+  color: var(--color-code-attribute);
+}
+
+.composer-surface {
+  background: var(--color-composer);
+  border-color: var(--color-composer-line);
+  transition: border-color var(--dur-base) ease, box-shadow var(--dur-base) ease;
+}
+.composer-surface:focus-within {
+  border-color: var(--color-accent-border);
+  box-shadow: 0 0 0 3px var(--color-accent-ring);
 }
 
 /* Menu & Dropdown entrance (140ms scale 0.96->1 + fade) */
@@ -361,7 +406,7 @@ button:active:not(:disabled) {
   display: inline-block;
   width: 2.4rem;
   padding-right: 1rem;
-  color: #67635b;
+  color: var(--color-line-number);
   text-align: right;
   user-select: none;
 }

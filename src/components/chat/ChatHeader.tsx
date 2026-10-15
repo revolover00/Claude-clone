@@ -181,7 +181,7 @@ export default function ChatHeader({
             )}
 
             {activeConversation.isIncognito && (
-              <span className="flex items-center gap-1 rounded bg-[#211f1d]/50 dark:bg-elev-3 border border-line px-1.5 py-0.5 text-[11px] font-medium text-ink-muted select-none">
+              <span className="flex items-center gap-1 rounded border border-line bg-elev-1 px-1.5 py-0.5 text-[11px] font-medium text-ink-muted select-none">
                 <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
                 Incognito
               </span>
@@ -192,7 +192,7 @@ export default function ChatHeader({
             <h2 className="truncate text-[14px] font-medium text-ink select-none">
               New Incognito Conversation
             </h2>
-            <span className="flex items-center gap-1 rounded bg-[#211f1d]/50 dark:bg-elev-3 border border-line px-1.5 py-0.5 text-[11px] font-medium text-ink-muted select-none">
+            <span className="flex items-center gap-1 rounded border border-line bg-elev-1 px-1.5 py-0.5 text-[11px] font-medium text-ink-muted select-none">
               <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
               Incognito
             </span>
