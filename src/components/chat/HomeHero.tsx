@@ -2,7 +2,7 @@ import React from "react";
 import { FolderGit2 } from "lucide-react";
 import ClaudeSpark from "../icons/ClaudeSpark";
 import Composer from "../Composer";
-import { getTimeGreeting } from "../../utils/text";
+import { getTimeGreeting, formatGreeting } from "../../utils/text";
 import { useChat } from "../../context/ChatContext";
 import type { Attachment, Project } from "../../types/chat";
 
@@ -36,12 +36,7 @@ export const HomeHero: React.FC<Props> = ({
     return localStorage.getItem("claude_clone_memory_first_run_seen") !== "true";
   });
 
-  const greetingPrefix = getTimeGreeting();
-  const userName = preferences.userName?.trim();
-  const greetingText =
-    userName && userName !== "You"
-      ? `${greetingPrefix}, ${userName}`
-      : `${greetingPrefix}, how are things?`;
+  const greetingText = formatGreeting(getTimeGreeting(), preferences.userName);
 
   const handleEnableMemory = () => {
     updatePreferences({ memory_enabled: true });

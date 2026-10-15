@@ -12,60 +12,8 @@ export function normalizeSlug(slug: string): string {
   return MODEL_ALIAS_MAP[slug] || slug;
 }
 
-// Exactly one minimal fallback constant (used only when /api/models is unreachable) with REAL Gemini names
-export const FALLBACK_MODELS: Model[] = [
-  {
-    id: "gemini-3-8-flash",
-    slug: "gemini-3-8-flash",
-    display_name: "Gemini 3.8 Flash",
-    description: "Fast and highly balanced intelligence, ideal for general chat and multimodal tasks.",
-    provider: "google",
-    api_model_id: "gemini-3.8-flash",
-    kind: "chat",
-    supports_thinking: false,
-    supports_tools: false,
-    supports_search: true,
-    supports_vision: true,
-    max_output_tokens: null,
-    enabled: true,
-    is_default: true,
-    sort_order: 1,
-  },
-  {
-    id: "gemini-3-1-pro",
-    slug: "gemini-3-1-pro",
-    display_name: "Gemini 3.1 Pro (Preview)",
-    description: "State-of-the-art capability for complex tasks and deep reasoning.",
-    provider: "google",
-    api_model_id: "gemini-3.1-pro-preview",
-    kind: "chat",
-    supports_thinking: true,
-    supports_tools: true,
-    supports_search: true,
-    supports_vision: true,
-    max_output_tokens: null,
-    enabled: true,
-    is_default: false,
-    sort_order: 2,
-  },
-  {
-    id: "gemini-3-1-flash-lite",
-    slug: "gemini-3-1-flash-lite",
-    display_name: "Gemini 3.1 Flash-Lite",
-    description: "Incredible speed and low latency for quick conversations and summaries.",
-    provider: "google",
-    api_model_id: "gemini-3.1-flash-lite",
-    kind: "chat",
-    supports_thinking: false,
-    supports_tools: false,
-    supports_search: false,
-    supports_vision: true,
-    max_output_tokens: null,
-    enabled: true,
-    is_default: false,
-    sort_order: 3,
-  },
-];
+import { FALLBACK_MODELS } from "../shared/fallbackModels";
+export { FALLBACK_MODELS };
 
 let cachedModels: Model[] | null = null;
 let activeFetchPromise: Promise<Model[]> | null = null;

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Trash2, Pin, PinOff, Edit2, Check, Download, Search } from "lucide-react";
 import { useChat } from "../../context/ChatContext";
+import { SettingsErrorCard } from "../shared/SettingsErrorCard";
+import { safeFetchJson } from "../../utils/safeFetch";
 
 interface Memory {
   id: string;
@@ -14,6 +16,7 @@ export default function MemoryTab() {
   const { preferences, updatePreferences } = useChat();
   const [memories, setMemories] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
@@ -21,13 +24,16 @@ export default function MemoryTab() {
 
   const loadMemories = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch("/api/memory");
-      if (res.ok) {
-        const data = await res.json();
+      const data = await safeFetchJson<any[]>("/api/memory");
+      if (Array.isArray(data)) {
         setMemories(data.filter((m: any) => m.status === "active"));
+      } else {
+        setMemories([]);
       }
-    } catch (err) {
+    } catch (err: any) {
+      setError(err);
       console.error("Error loading memories:", err);
     } finally {
       setLoading(false);
@@ -134,7 +140,11 @@ export default function MemoryTab() {
         <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search memories..." className="w-full rounded-lg border border-line bg-elev-2 pl-9 pr-4 py-1.5 text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent" />
       </div>
 
-      {loading ? <div className="p-6 text-center text-ink-muted animate-pulse">Loading memories...</div> : (
+      {error ? (
+        <SettingsErrorCard onRetry={loadMemories} error={error} />
+      ) : loading ? (
+        <div className="p-6 text-center text-ink-muted animate-pulse">Loading memories...</div>
+      ) : (
         <div className="space-y-4 max-h-[220px] overflow-y-auto scroll-slim pr-1">
           {categories.map(cat => {
             const catMemories = filteredMemories.filter(m => m.category === cat);

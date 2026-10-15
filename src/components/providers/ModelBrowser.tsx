@@ -3,6 +3,7 @@ import { RefreshCw } from "lucide-react";
 import { ModelRow, type ProviderModelItem } from "./ModelRow";
 import { ModelBrowserFilters } from "./ModelBrowserFilters";
 import { useToast } from "../../context/ToastContext";
+import { SettingsErrorCard } from "../shared/SettingsErrorCard";
 
 interface Props {
   onModelsChanged?: () => void;
@@ -21,6 +22,7 @@ const VIEWPORT_HEIGHT = 440;
 export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
   const [models, setModels] = useState<ProviderModelItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedProvider, setSelectedProvider] = useState("all");
@@ -37,10 +39,12 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
   const fetchProviderModels = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true);
     else setLoading(true);
+    setLoadError(null);
 
     try {
       const providersToFetch = ["gemini", "groq", "openrouter"];
       const allResults: ProviderModelItem[] = [];
+      const fetchErrors: string[] = [];
 
       await Promise.all(
         providersToFetch.map(async (pId) => {
@@ -52,22 +56,29 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
               },
             });
             if (res.ok) {
-              const data = await res.json();
+              const text = await res.text();
+              const data = JSON.parse(text);
               if (Array.isArray(data.models)) {
                 allResults.push(...data.models);
               }
+            } else if (res.status !== 404) {
+              fetchErrors.push(`${pId}: HTTP ${res.status}`);
             }
-          } catch {
-            // Ignore individual provider errors
+          } catch (e: any) {
+            fetchErrors.push(`${pId}: ${e.message}`);
           }
         })
       );
 
       setModels(allResults);
+      if (allResults.length === 0 && fetchErrors.length > 0) {
+        setLoadError(new Error(`Failed to load provider catalogs:\n${fetchErrors.join("\n")}`));
+      }
       if (refresh) {
         showToast("Model catalogs refreshed successfully", "success");
       }
     } catch (err: any) {
+      setLoadError(err);
       showToast(`Failed to load models: ${err.message}`, "error");
     } finally {
       setLoading(false);
@@ -202,6 +213,12 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
         onToggleEnabledOnly={() => setFilterEnabledOnly(!filterEnabledOnly)}
         onBulkEnable={handleBulkEnable}
       />
+
+      {loadError && (
+        <div className="my-2">
+          <SettingsErrorCard onRetry={() => fetchProviderModels(true)} error={loadError} />
+        </div>
+      )}
 
       {/* Model Virtualized List */}
       <div

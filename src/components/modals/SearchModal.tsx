@@ -185,6 +185,9 @@ export default function SearchModal() {
             <kbd className="rounded bg-elev-3 px-1.5 py-0.5 text-[10.5px] font-mono">↵</kbd> open
           </span>
           <span>
+            <kbd className="rounded bg-elev-3 px-1.5 py-0.5 text-[10.5px] font-mono">⌘,</kbd> settings
+          </span>
+          <span>
             <kbd className="rounded bg-elev-3 px-1.5 py-0.5 text-[10.5px] font-mono">esc</kbd> close
           </span>
         </div>
