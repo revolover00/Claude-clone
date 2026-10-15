@@ -4,7 +4,7 @@ import AddModelForm from "./AddModelForm";
 import ThinkingDiagnosticModal from "./ThinkingDiagnosticModal";
 import type { Model } from "../../types/chat";
 import { SettingsErrorCard } from "../shared/SettingsErrorCard";
-import { safeFetchJson } from "../../utils/safeFetch";
+import { safeFetchJson, authFetch } from "../../utils/safeFetch";
 
 interface DiscoverModel {
   name: string;
@@ -51,7 +51,7 @@ export default function ModelsTab() {
 
   const handleToggleEnable = async (id: string, enabled: boolean) => {
     try {
-      await fetch(`/api/models/${id}`, {
+      await authFetch(`/api/models/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled })
@@ -64,14 +64,14 @@ export default function ModelsTab() {
 
   const handleSetDefault = async (id: string) => {
     try {
-      await fetch(`/api/models/${id}`, {
+      await authFetch(`/api/models/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ is_default: true })
       });
       setModels(prev => prev.map(m => m.id === id ? { ...m, is_default: true } : { ...m, is_default: false }));
       models.filter(m => m.id !== id && m.is_default).forEach(async (m) => {
-        await fetch(`/api/models/${m.id}`, {
+        await authFetch(`/api/models/${m.id}`, {
           method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_default: false })
         });
       });
@@ -81,7 +81,7 @@ export default function ModelsTab() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure?")) return;
     try {
-      await fetch(`/api/models/${id}`, { method: "DELETE" });
+      await authFetch(`/api/models/${id}`, { method: "DELETE" });
       setModels(prev => prev.filter(m => m.id !== id));
     } catch { setError("Failed to delete model"); }
   };
@@ -89,7 +89,7 @@ export default function ModelsTab() {
   const handleTestModel = async (id: string) => {
     setTestResults(prev => ({ ...prev, [id]: { loading: true, text: "Testing...", ok: false } }));
     try {
-      const res = await fetch(`/api/models/${id}/test`, { method: "POST" });
+      const res = await authFetch(`/api/models/${id}/test`, { method: "POST" });
       const data = await res.json();
       if (data.ok) {
         setTestResults(prev => ({ ...prev, [id]: { loading: false, text: `OK (${data.latencyMs}ms)`, ok: true } }));
@@ -105,7 +105,7 @@ export default function ModelsTab() {
     setLoadingDiscover(true);
     setShowDiscover(true);
     try {
-      const res = await fetch("/api/models/discover");
+      const res = await authFetch("/api/models/discover");
       if (!res.ok) throw new Error("Could not fetch models");
       const data = await res.json();
       setDiscoverList(data);
@@ -120,7 +120,7 @@ export default function ModelsTab() {
     e.preventDefault();
     if (!newForm.slug || !newForm.display_name || !newForm.api_model_id) return;
     try {
-      const res = await fetch("/api/models", {
+      const res = await authFetch("/api/models", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...newForm, sort_order: models.length + 1 })
@@ -134,7 +134,7 @@ export default function ModelsTab() {
 
   const handleSaveEdit = async (id: string) => {
     try {
-      const res = await fetch(`/api/models/${id}`, {
+      const res = await authFetch(`/api/models/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editForm)
@@ -155,7 +155,7 @@ export default function ModelsTab() {
     newModels.forEach((m, idx) => { m.sort_order = idx + 1; });
     setModels(newModels);
     newModels.forEach(async (m) => {
-      await fetch(`/api/models/${m.id}`, {
+      await authFetch(`/api/models/${m.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sort_order: m.sort_order })
       });
     });

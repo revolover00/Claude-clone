@@ -49,11 +49,7 @@ export const ProvidersSettingsView: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await safeFetchJson<{ providers?: any[]; credentials?: any[] }>("/api/providers", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("supabase_token") || "mock-jwt-token-guest"}`,
-        },
-      });
+      const data = await safeFetchJson<{ providers?: any[]; credentials?: any[] }>("/api/providers");
 
       const updated = DEFAULT_PROVIDERS.map((def) => {
         const cred = data.credentials?.find((c: any) => c.provider === def.id);

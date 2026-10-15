@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { FALLBACK_MODELS, type FallbackModel as Model } from "../../src/shared/fallbackModels";
-import { normalizeSlug } from "../../src/hooks/useModels";
+import { normalizeSlug } from "../../src/shared/normalizeSlug";
 
 export type { Model };
 export { FALLBACK_MODELS };

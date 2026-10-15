@@ -8,6 +8,7 @@ import { ChatProvider, useChat } from "./context/ChatContext";
 import { ToastProvider } from "./context/ToastContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { isRealSupabaseConfigured } from "./utils/supabaseClient";
+import { authFetch } from "./utils/safeFetch";
 
 const ArtifactPanel = lazy(() => import("./components/artifacts/ArtifactPanel"));
 const SearchModal = lazy(() => import("./components/modals/SearchModal"));
@@ -68,7 +69,7 @@ function AppContent() {
         setBackendUnreachable(true);
       });
 
-    fetch("/api/models?all=true")
+    authFetch("/api/models?all=true")
       .then((res) => {
         if (res.ok) setIsAdmin(true);
       })
@@ -153,7 +154,7 @@ function AppContent() {
   const isMotionPage = window.location.pathname === "/motion";
   if (isMotionPage) return <Suspense fallback={null}><MotionReview /></Suspense>;
 
-  const isThinkingDemo = (import.meta as any).env.DEV && window.location.pathname === "/thinking-demo";
+  const isThinkingDemo = (import.meta as any)?.env?.DEV && window.location.pathname === "/thinking-demo";
   if (isThinkingDemo) {
     const ThinkingDemo = lazy(() => import("./components/views/ThinkingDemo"));
     return <Suspense fallback={null}><ThinkingDemo /></Suspense>;
@@ -162,7 +163,7 @@ function AppContent() {
   const isResetPage = window.location.pathname === "/reset-password";
   if (isResetPage) return <Suspense fallback={null}><ResetPasswordView /></Suspense>;
 
-  if ((import.meta as any).env.PROD && !isRealSupabaseConfigured) {
+  if ((import.meta as any)?.env?.PROD && !isRealSupabaseConfigured) {
     return <BackendNotConfiguredPage />;
   }
 

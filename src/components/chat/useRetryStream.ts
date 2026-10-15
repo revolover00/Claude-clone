@@ -1,5 +1,6 @@
 import { SmoothStreamer } from "../../utils/smoothStreamer";
 import { streamRealResponse } from "../../utils/streamResponse";
+import { authFetch } from "../../utils/safeFetch";
 import type { Message, Project } from "../../types/chat";
 import { useChat } from "../../context/ChatContext";
 
@@ -194,7 +195,7 @@ export function useRetryStream({
           streamer.markDone();
           
           if (preferences.memory_enabled !== false && activeConversation && !activeConversation.isIncognito) {
-            fetch("/api/memory/extract", {
+            authFetch("/api/memory/extract", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({

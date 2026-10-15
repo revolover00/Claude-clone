@@ -4,6 +4,7 @@ import { ModelRow, type ProviderModelItem } from "./ModelRow";
 import { ModelBrowserFilters } from "./ModelBrowserFilters";
 import { useToast } from "../../context/ToastContext";
 import { SettingsErrorCard } from "../shared/SettingsErrorCard";
+import { authFetch } from "../../utils/safeFetch";
 
 interface Props {
   onModelsChanged?: () => void;
@@ -50,11 +51,7 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
         providersToFetch.map(async (pId) => {
           try {
             const url = `/api/providers/${pId}/models${refresh ? "?refresh=1" : ""}`;
-            const res = await fetch(url, {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("supabase_token") || "mock-jwt-token-guest"}`,
-              },
-            });
+            const res = await authFetch(url);
             if (res.ok) {
               const text = await res.text();
               const data = JSON.parse(text);
@@ -92,11 +89,10 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
 
   const savePrefs = async (items: Array<{ provider: string; model_id: string; enabled?: boolean; pinned?: boolean; alias?: string }>) => {
     try {
-      const res = await fetch("/api/models/prefs", {
+      const res = await authFetch("/api/models/prefs", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("supabase_token") || "mock-jwt-token-guest"}`,
         },
         body: JSON.stringify({ items }),
       });

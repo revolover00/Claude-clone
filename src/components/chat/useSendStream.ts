@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useToast } from "../../context/ToastContext";
 import { SmoothStreamer } from "../../utils/smoothStreamer";
 import { streamRealResponse } from "../../utils/streamResponse";
+import { authFetch } from "../../utils/safeFetch";
 import type { Attachment } from "../../types/chat";
 import { useSendQueue } from "./useSendQueue";
 import { type SendStreamOptions } from "./useSendStreamTypes";
@@ -230,7 +231,7 @@ export function useSendStream({
             }
             
             if (preferences.memory_enabled !== false && !isIncognito) {
-              fetch("/api/memory/extract", {
+              authFetch("/api/memory/extract", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

@@ -1,8 +1,12 @@
+import { authFetch, getAuthToken, getAuthHeaders } from "./authHeaders";
+
+export { authFetch, getAuthToken, getAuthHeaders };
+
 export async function safeFetchJson<T = any>(
   url: string,
   options?: RequestInit
 ): Promise<T> {
-  const res = await fetch(url, options);
+  const res = await authFetch(url, options);
   if (!res.ok) {
     let bodyText = "";
     try {
@@ -20,8 +24,7 @@ export async function safeFetchJson<T = any>(
     return JSON.parse(rawText) as T;
   } catch (err: any) {
     throw new Error(
-      `Invalid response format (expected JSON, received: "${rawText.slice(0, 100)}..."): ${err.message}`,
-      { cause: err }
+      `Invalid response format (expected JSON, received: "${rawText.slice(0, 100)}..."): ${err.message}`
     );
   }
 }

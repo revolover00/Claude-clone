@@ -5,6 +5,7 @@ import { useFocusTrap } from "../../utils/useFocusTrap";
 import ModelsTab from "./ModelsTab";
 import MemoryTab from "./MemoryTab";
 import SkillsTab from "./SkillsTab";
+import { authFetch } from "../../utils/safeFetch";
 
 const ProvidersSettingsView = lazy(() =>
   import("../views/ProvidersSettingsView").then((m) => ({ default: m.ProvidersSettingsView }))
@@ -32,7 +33,7 @@ export default function SettingsModal() {
       } else {
         setActiveTab("general");
       }
-      fetch("/api/models?all=true")
+      authFetch("/api/models?all=true")
         .then(res => setIsAdmin(res.ok))
         .catch(() => setIsAdmin(false));
     }

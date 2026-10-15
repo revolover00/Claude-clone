@@ -2,7 +2,7 @@ import { Router, Response } from "express";
 import { ai, apiKey } from "../lib/gemini";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
 import { runThinkingDiagnostic } from "../lib/testThinking";
-import { normalizeSlug } from "../../src/hooks/useModels";
+import { normalizeSlug } from "../../src/shared/normalizeSlug";
 import { 
   checkIsAdmin, 
   getModelsFromDB, 

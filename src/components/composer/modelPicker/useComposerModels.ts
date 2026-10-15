@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useModels } from "../../../hooks/useModels";
+import { authFetch } from "../../../utils/safeFetch";
 import type { UnifiedModel, ProviderGroup } from "./types";
 
 export const PROVIDER_LABELS: Record<string, string> = {
@@ -25,11 +26,7 @@ export function useComposerModels(selectedModelId: string) {
   const fetchAllProviderModels = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/providers", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("supabase_token") || "mock-jwt-token-guest"}`,
-        },
-      });
+      const res = await authFetch("/api/providers");
 
       if (!res.ok) {
         setProviderModels([]);
@@ -56,11 +53,7 @@ export function useComposerModels(selectedModelId: string) {
       await Promise.all(
         connectedProviderIds.map(async (providerId) => {
           try {
-            const mRes = await fetch(`/api/providers/${providerId}/models`, {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("supabase_token") || "mock-jwt-token-guest"}`,
-              },
-            });
+            const mRes = await authFetch(`/api/providers/${providerId}/models`);
             if (!mRes.ok) return;
             const mData = await mRes.json();
             const list: any[] = Array.isArray(mData.models) ? mData.models : [];
