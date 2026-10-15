@@ -24,7 +24,8 @@ export async function safeFetchJson<T = any>(
     return JSON.parse(rawText) as T;
   } catch (err: any) {
     throw new Error(
-      `Invalid response format (expected JSON, received: "${rawText.slice(0, 100)}..."): ${err.message}`
+      `Invalid response format (expected JSON, received: "${rawText.slice(0, 100)}..."): ${err.message}`,
+      { cause: err }
     );
   }
 }

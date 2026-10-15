@@ -21,6 +21,9 @@ function getAllFiles(dirPath: string, arrayOfFiles: string[] = []): string[] {
 describe("Zero Fake Model Names Policy", () => {
   it("ensures Sonnet, Opus, and Haiku never appear in src/ or server/ outside MODEL_ALIAS_MAP", () => {
     const rootDir = path.resolve(__dirname, "..");
+    // The alias map lives in src/shared/normalizeSlug.ts and is re-exported from
+    // src/hooks/useModels.ts; both may mention legacy slugs as mapping keys.
+    const aliasMapFiles = ["src/hooks/useModels.ts", "src/shared/normalizeSlug.ts"];
     const srcFiles = getAllFiles(path.join(rootDir, "src"));
     const serverFiles = getAllFiles(path.join(rootDir, "server"));
     const allFiles = [...srcFiles, ...serverFiles];
@@ -34,9 +37,10 @@ describe("Zero Fake Model Names Policy", () => {
       const lines = content.split("\n");
 
       lines.forEach((line, index) => {
-        // Exclude lines specifically within the alias map declaration in useModels.ts
+        // Exclude the alias map declaration itself: a line that maps a legacy slug
+        // onto its real Gemini slug is the compatibility shim, not a fake model name.
         if (
-          relativePath === "src/hooks/useModels.ts" &&
+          aliasMapFiles.includes(relativePath) &&
           (line.includes("sonnet-5") || line.includes("opus-5") || line.includes("haiku-4-5")) &&
           (line.includes("gemini-3-8-flash") || line.includes("gemini-3-1-pro") || line.includes("gemini-3-1-flash-lite"))
         ) {

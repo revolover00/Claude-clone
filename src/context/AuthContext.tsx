@@ -63,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.access_token) {
-        try { localStorage.setItem("supabase_token", s.access_token); } catch {}
+        try { localStorage.setItem("supabase_token", s.access_token); } catch { /* storage unavailable */ }
       }
       if (s?.user) {
         fetchUserData(s.user.id);
@@ -78,9 +78,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.access_token) {
-        try { localStorage.setItem("supabase_token", s.access_token); } catch {}
+        try { localStorage.setItem("supabase_token", s.access_token); } catch { /* storage unavailable */ }
       } else {
-        try { localStorage.removeItem("supabase_token"); } catch {}
+        try { localStorage.removeItem("supabase_token"); } catch { /* storage unavailable */ }
       }
       if (event === "SIGNED_IN" && s?.user) {
         await fetchUserData(s.user.id);
@@ -104,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     setLoading(true);
-    try { localStorage.removeItem("supabase_token"); } catch {}
+    try { localStorage.removeItem("supabase_token"); } catch { /* storage unavailable */ }
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
