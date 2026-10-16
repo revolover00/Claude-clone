@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import React from "react";
 import ModelMenu from "../src/components/composer/ModelMenu";
 import * as ChatContextCore from "../src/context/ChatContextCore";
@@ -143,5 +143,36 @@ describe("Composer picker without connected keys", () => {
     await waitFor(() => expect(mockSetSettingsModalOpen).toHaveBeenCalledWith(true));
     expect(mockOnSelectModel).not.toHaveBeenCalled();
     expect(localStorage.getItem("claude_clone_settings_tab")).toBe("providers");
+  });
+
+  it("filters the model list by vendor through the picker's filter chips", async () => {
+    render(
+      <ModelMenu
+        model="openai:gpt-5"
+        onSelectModel={mockOnSelectModel}
+        effort="Medium"
+        onSelectEffort={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByText("GPT-5 · OpenAI · key needed")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /model options/i }));
+
+    // One chip per vendor present in the catalog, plus "All".
+    const group = await screen.findByRole("group", { name: "Filter by vendor" });
+    await waitFor(() => expect(within(group).getByRole("button", { name: "OpenAI" })).toBeTruthy());
+    expect(within(group).getByRole("button", { name: "xAI" })).toBeTruthy();
+    expect(within(group).getByRole("button", { name: "All" })).toBeTruthy();
+    expect(screen.getByText("Grok 4")).toBeTruthy();
+
+    // Picking a vendor hides every model that does not belong to it.
+    fireEvent.click(within(group).getByRole("button", { name: "xAI" }));
+    await waitFor(() => expect(screen.queryByText("GPT-5")).toBeNull());
+    expect(screen.getByText("Grok 4")).toBeTruthy();
+
+    // "All" restores the full list.
+    fireEvent.click(within(group).getByRole("button", { name: "All" }));
+    await waitFor(() => expect(screen.getByText("GPT-5")).toBeTruthy());
+    expect(screen.getByText("Grok 4")).toBeTruthy();
   });
 });

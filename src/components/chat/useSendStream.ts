@@ -5,6 +5,7 @@ import { streamRealResponse } from "../../utils/streamResponse";
 import { authFetch } from "../../utils/safeFetch";
 import type { Attachment } from "../../types/chat";
 import { useSendQueue } from "./useSendQueue";
+import { shouldAutoRetryStream } from "./streamRetry";
 import { type SendStreamOptions } from "./useSendStreamTypes";
 import { createMessagePair } from "./sendStreamHelpers";
 
@@ -250,10 +251,10 @@ export function useSendStream({
           },
           onError: (err) => {
             streamer.stop();
-            const statusCode = (err as any).code || 500;
-            const isNetworkOr5xx = statusCode >= 500 || err.message === "Backend unreachable";
-
-            if (isNetworkOr5xx && retryCountRef.current < 2) {
+            // Never retry once content rendered (it would append a duplicate
+            // reply), and never retry explicit provider/model errors.
+            const rendered = Boolean(streamer.getDisplayedText());
+            if (shouldAutoRetryStream(err, rendered, retryCountRef.current)) {
               retryCountRef.current += 1;
               callUpdate(
                 streamerRef.current?.getDisplayedText() || "",
