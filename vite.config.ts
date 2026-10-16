@@ -15,6 +15,10 @@ export default defineConfig({
     port: 3000,
     host: true,
     hmr: false,
+    // Vite rejects unknown Host headers (DNS-rebinding protection). Allow the
+    // sandbox preview proxy (https://3000-<sandbox-id>.e2b.app); localhost and
+    // IP addresses are always allowed.
+    allowedHosts: [".e2b.app"],
   },
   resolve: {
     alias: {
