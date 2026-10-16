@@ -2,12 +2,16 @@
  * Provider fetchers for the catalog sync.
  *
  * - OpenRouter: public endpoint, no key required.
- * - Gemini: the app key GEMINI_API_KEY when present (source "app-key").
- * - Groq: optional env GROQ_API_KEY as the catalog key; skipped when missing.
+ * - Gemini / Groq / every other registered provider: any ACTIVE key a user
+ *   saved in Settings > Providers (source "user-key"). The server never reads
+ *   GEMINI_API_KEY / GROQ_API_KEY from the deploy environment — with no
+ *   connected key the provider's sync is simply skipped.
  */
 import { openRouterProvider } from "../providers/openrouter";
 import { geminiProvider } from "../providers/gemini";
 import { groqProvider } from "../providers/groq";
+import { getProvider, providerIds } from "../providers";
+import { findActiveCredentialKey } from "../providers/activeKey";
 import type { SyncedModel } from "./types";
 
 export interface ProviderFetchResult {
@@ -47,18 +51,25 @@ export async function fetchOpenRouterCatalog(): Promise<ProviderFetchResult> {
   return { provider: "openrouter", source: "public", models: models.map(fromModelInfo) };
 }
 
-/** Gemini's model list via the app key; null when GEMINI_API_KEY is absent. */
-export async function fetchGeminiCatalog(): Promise<ProviderFetchResult | null> {
-  if (!process.env.GEMINI_API_KEY) return null;
-  const models = await geminiProvider.listModels(process.env.GEMINI_API_KEY);
-  return { provider: "gemini", source: "app-key", models: models.map(fromModelInfo) };
+/** Sync one provider through any active user key; null when nobody connected it. */
+export async function fetchViaUserKey(
+  providerId: string,
+  adapter: { listModels: (key: string) => Promise<any[]> }
+): Promise<ProviderFetchResult | null> {
+  const key = await findActiveCredentialKey(providerId);
+  if (!key) return null;
+  const models = await adapter.listModels(key);
+  return { provider: providerId, source: "user-key", models: models.map(fromModelInfo) };
 }
 
-/** Groq's model list via GROQ_API_KEY; null when the env key is missing. */
+/** Gemini's model list via any user's connected Gemini key. */
+export async function fetchGeminiCatalog(): Promise<ProviderFetchResult | null> {
+  return fetchViaUserKey("gemini", geminiProvider);
+}
+
+/** Groq's model list via any user's connected Groq key. */
 export async function fetchGroqCatalog(): Promise<ProviderFetchResult | null> {
-  if (!process.env.GROQ_API_KEY) return null;
-  const models = await groqProvider.listModels(process.env.GROQ_API_KEY);
-  return { provider: "groq", source: "groq-key", models: models.map(fromModelInfo) };
+  return fetchViaUserKey("groq", groqProvider);
 }
 
 export interface CatalogFetcher {
@@ -71,3 +82,32 @@ export const CATALOG_FETCHERS: CatalogFetcher[] = [
   { provider: "gemini", fetch: fetchGeminiCatalog },
   { provider: "groq", fetch: fetchGroqCatalog },
 ];
+
+/**
+ * Dynamic fetchers for every other registered provider (OpenAI, xAI, Mistral,
+ * ...) — active only while at least one user has connected a key for it. This
+ * is how "add a key -> all of its models appear" keeps itself fresh.
+ */
+export function connectedFetchers(): CatalogFetcher[] {
+  const builtin = new Set(CATALOG_FETCHERS.map((f) => f.provider));
+  return providerIds
+    .filter((id) => !builtin.has(id))
+    .map((id) => ({
+      provider: id,
+      fetch: async () => {
+        const adapter = getProvider(id);
+        if (!adapter) return null;
+        return fetchViaUserKey(id, adapter);
+      },
+    }));
+}
+
+/** Builtin + dynamic fetchers, deduped by provider. */
+export function allCatalogFetchers(): CatalogFetcher[] {
+  const seen = new Set<string>();
+  return [...CATALOG_FETCHERS, ...connectedFetchers()].filter((f) => {
+    if (seen.has(f.provider)) return false;
+    seen.add(f.provider);
+    return true;
+  });
+}

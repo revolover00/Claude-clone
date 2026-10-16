@@ -2,11 +2,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getThinkingPlanAndConfig } from "../server/lib/thinkingRouter";
 import * as geminiModule from "../server/lib/gemini";
 import * as modelsStore from "../server/lib/modelsStore";
+import { saveCredential } from "../server/lib/providers/credentialsStore";
 import chatRouter from "../server/routes/chat";
 
+const TEST_USER = "user-chat-thinking";
+
 describe("Chat Route Thinking Regression Tests", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks();
+    // The chat route runs on the user's own key (the server ships none).
+    await saveCredential(TEST_USER, "gemini", "default", "test-gemini-key-123456");
   });
 
   it("for provider 'gemini' + a Gemini 3 model + the toggle OFF and ON, config.includeThoughts is true", () => {
@@ -54,7 +59,7 @@ describe("Chat Route Thinking Regression Tests", () => {
       },
     ]);
 
-    vi.spyOn(geminiModule, "startGeminiStream").mockImplementation(async (modelId, _messages, config) => {
+    vi.spyOn(geminiModule, "startGeminiStream").mockImplementation(async (_apiKey, modelId, _messages, config) => {
       capturedModelId = modelId;
       capturedConfig = config;
       async function* emptyStream() {
@@ -73,6 +78,7 @@ describe("Chat Route Thinking Regression Tests", () => {
         extendedThinking: true,
         effort: "High",
       },
+      user: { id: TEST_USER },
       on: vi.fn(),
     };
 
@@ -110,7 +116,7 @@ describe("Chat Route Thinking Regression Tests", () => {
     // Simulate database failure returning FALLBACK_MODELS (where Gemini 3.x have supports_thinking: true)
     vi.spyOn(modelsStore, "getModelsFromDB").mockResolvedValue(modelsStore.FALLBACK_MODELS);
 
-    vi.spyOn(geminiModule, "startGeminiStream").mockImplementation(async (_modelId, _messages, config) => {
+    vi.spyOn(geminiModule, "startGeminiStream").mockImplementation(async (_apiKey, _modelId, _messages, config) => {
       capturedConfig = config;
       async function* emptyStream() {
         yield { text: () => "fallback stream response" };
@@ -128,6 +134,7 @@ describe("Chat Route Thinking Regression Tests", () => {
         extendedThinking: true,
         effort: "High",
       },
+      user: { id: TEST_USER },
       on: vi.fn(),
     };
 

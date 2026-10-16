@@ -3,17 +3,20 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-export const apiKey = process.env.GEMINI_API_KEY;
-
-// API key may be undefined during testing or in environments without it
-export const ai = apiKey ? new GoogleGenAI({
-  apiKey: apiKey,
-  httpOptions: {
-    headers: {
-      "User-Agent": "aistudio-build",
+/**
+ * The server NEVER ships its own AI key: every request uses the key the
+ * current user saved in Settings > Providers (see userAiKey.ts).
+ */
+export function createGeminiClient(key: string): GoogleGenAI {
+  return new GoogleGenAI({
+    apiKey: key,
+    httpOptions: {
+      headers: {
+        "User-Agent": "aistudio-build",
+      },
     },
-  },
-}) : null;
+  });
+}
 
 // Map Gemini errors to HTTP status codes & friendly messages
 export function mapGeminiError(err: any, requestedModelId?: string): { status: number; error: string; technical: string; code?: string; details?: any } {
@@ -143,11 +146,13 @@ Memory: use remembered facts about the user only when they clearly improve the a
 export type { ThinkingConfigResult } from "./thinkingRouter";
 
 export async function startGeminiStream(
+  apiKey: string,
   modelId: string,
   formattedMessages: any[],
   config: any
 ): Promise<{ stream: any; fallbackApplied: boolean }> {
-  if (!ai) throw new Error("Gemini AI client not initialized");
+  if (!apiKey) throw new Error("Missing Gemini API key for this user");
+  const ai = createGeminiClient(apiKey);
 
   // Pass thinkingConfig if present, handle potential API errors by falling back loudly
   try {

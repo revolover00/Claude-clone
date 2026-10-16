@@ -1,30 +1,24 @@
 /**
  * The app's own Gemini model list, derived from provider_catalog.
  *
- * Chain (per spec): catalog rows (chat kind, active/preview, usable with the
- * app) -> live Gemini list via the app key -> the shared fallback list, which
- * is the only hard-coded list and is used only when both fail.
+ * Chain: catalog rows (chat kind, active/preview) -> the shared fallback list,
+ * which is the only hard-coded list and is used only when the catalog is empty.
+ * The server never ships an AI key, so there is no env-based live fetch.
  *
  * Default resolution: app_settings "default_model" (admin) > catalog_overrides
  * marked is_default > the best recommended Gemini Flash model.
  */
-import { ai, apiKey } from "../gemini";
 import { FALLBACK_MODELS, type FallbackModel } from "../../../src/shared/fallbackModels";
 import { normalizeSlug } from "../../../src/shared/normalizeSlug";
 import { getCatalogStore } from "./store";
 import type { CatalogRecord } from "./types";
 import type { AppModelRow } from "../../../src/shared/catalog/appModels";
 
-const LIVE_TTL_MS = 10 * 60 * 1000;
 const STATUS_OK = new Set(["active", "preview"]);
 
-let liveRows: AppModelRow[] | null = null;
-let liveFetchedAt = 0;
 let chainCache: { rows: AppModelRow[]; at: number } | null = null;
 
 export function invalidateAppModelCache(): void {
-  liveRows = null;
-  liveFetchedAt = 0;
   chainCache = null;
 }
 
@@ -78,46 +72,6 @@ export async function catalogAppRows(): Promise<AppModelRow[]> {
   }
 }
 
-/** Live Gemini models via the app key (used only when the catalog is empty). */
-async function liveAppRows(): Promise<AppModelRow[]> {
-  if (!ai || !apiKey) return [];
-  if (liveRows && Date.now() - liveFetchedAt < LIVE_TTL_MS) return liveRows;
-  try {
-    const list = await ai.models.list();
-    const rows: AppModelRow[] = [];
-    for (const model of list.models as any[]) {
-      const id = String(model.name || "").replace(/^models\//, "");
-      if (!id) continue;
-      const actions: string[] = model.supportedActions || model.supportedGenerationMethods || [];
-      if (actions.length > 0 && !actions.includes("generateContent")) continue;
-      rows.push({
-        id: `gemini:${id}`,
-        slug: id,
-        display_name: model.displayName || id,
-        description: model.description || "Live Gemini model from Google AI Studio.",
-        provider: "google",
-        api_model_id: id,
-        kind: "chat",
-        supports_thinking: /gemini-3|gemini-2\.5|thinking/.test(id),
-        supports_tools: /gemini/i.test(id),
-        supports_search: /gemini/i.test(id),
-        supports_vision: /gemini/i.test(id),
-        max_output_tokens: model.outputTokenLimit ?? null,
-        enabled: true,
-        is_default: false,
-        sort_order: rows.length + 1,
-        vendor: "Google",
-        catalog_source: "live",
-      });
-    }
-    liveRows = rows;
-    liveFetchedAt = Date.now();
-    return rows;
-  } catch {
-    return liveRows || [];
-  }
-}
-
 /** Marks the admin default (app_settings or catalog_overrides), else best Flash. */
 async function applyDefault(rows: AppModelRow[]): Promise<AppModelRow[]> {
   if (rows.length === 0) return rows;
@@ -162,8 +116,9 @@ async function applyDefault(rows: AppModelRow[]): Promise<AppModelRow[]> {
 /** Full derivation chain with a short-lived cache. */
 export async function getAppModelRows(): Promise<AppModelRow[]> {
   if (chainCache && Date.now() - chainCache.at < 30_000) return chainCache.rows;
+  // Catalog rows first; the shared fallback list only when the catalog is empty
+  // (there is no server-side live fetch anymore — the server ships no AI key).
   let rows = await catalogAppRows();
-  if (rows.length === 0) rows = await liveAppRows();
   if (rows.length === 0) {
     rows = (FALLBACK_MODELS as FallbackModel[]).map((m, index) => ({
       ...m,

@@ -4,7 +4,7 @@ import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
 import { Badge } from "@/components/shared/Badge";
 import { authFetch } from "../../utils/safeFetch";
-import { Package } from "lucide-react";
+import { Package, CheckCircle2, Sparkles } from "lucide-react";
 
 export interface ProviderCardProps {
   id: string;
@@ -42,6 +42,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
   const [showKey, setShowKey] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [connectedMsg, setConnectedMsg] = useState<string | null>(null);
 
   const getBadgeVariant = (s: string) => {
     switch (s) {
@@ -73,6 +74,19 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
         setErrorMsg(data.error || "Failed to connect provider");
       } else {
         setKey("");
+        setErrorMsg(null);
+        const unlocked = typeof data.modelCount === "number" && data.modelCount > 0 ? data.modelCount : modelCount;
+        setConnectedMsg(
+          unlocked
+            ? `Connected \u2014 ${unlocked} ${name} models unlocked`
+            : `Connected \u2014 ${name} models are ready`
+        );
+        // Refresh every open catalog/picker and preselect the best new model.
+        window.dispatchEvent(
+          new CustomEvent("claude:provider-connected", {
+            detail: { provider: id, modelCount: unlocked ?? 0 },
+          })
+        );
         onRefresh?.();
       }
     } catch {
@@ -111,6 +125,8 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
         method: "DELETE",
       });
       if (res.ok) {
+        setConnectedMsg(null);
+        window.dispatchEvent(new CustomEvent("claude:provider-connected", { detail: { provider: id } }));
         onRefresh?.();
       } else {
         const data = await res.json();
@@ -141,6 +157,17 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
           {vendor && <span className="rounded border border-line bg-elev-2 px-1.5 py-0.5">{vendor}</span>}
           {keyEnv && <span className="font-mono rounded border border-line bg-elev-2 px-1.5 py-0.5">{keyEnv}</span>}
         </div>
+
+        {connectedMsg && status !== "disconnected" && (
+          <div
+            role="status"
+            className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-[12px] font-medium text-emerald-300"
+          >
+            <CheckCircle2 size={13} className="shrink-0" />
+            <span>{connectedMsg}</span>
+            <Sparkles size={12} className="shrink-0 text-emerald-400" />
+          </div>
+        )}
 
         {status === "disconnected" ? (
           <div className="space-y-2.5">

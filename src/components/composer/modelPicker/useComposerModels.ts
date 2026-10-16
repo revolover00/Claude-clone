@@ -173,6 +173,17 @@ export function useComposerModels(selectedModelId: string) {
     fetchAllProviderModels();
   }, [fetchAllProviderModels]);
 
+  // A provider key was saved: refetch catalogs so its models unlock live.
+  useEffect(() => {
+    const onProvidersChanged = () => void fetchAllProviderModels();
+    window.addEventListener("claude:provider-connected", onProvidersChanged);
+    window.addEventListener("claude:providers-changed", onProvidersChanged);
+    return () => {
+      window.removeEventListener("claude:provider-connected", onProvidersChanged);
+      window.removeEventListener("claude:providers-changed", onProvidersChanged);
+    };
+  }, [fetchAllProviderModels]);
+
   const allModels = useMemo<UnifiedModel[]>(() => {
     const list: UnifiedModel[] = [];
     const seen = new Set<string>();

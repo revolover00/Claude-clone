@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { apiKey } from "../lib/gemini";
 import { getModelsFromDB } from "../lib/modelsStore";
 
 const router = Router();
@@ -10,7 +9,7 @@ router.get("/health", async (_req, res) => {
     const hasSupabase = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_ANON_KEY;
     res.json({
       ok: true,
-      hasGeminiKey: Boolean(apiKey),
+      hasGeminiKey: false, // the server never ships an AI key — users add their own
       hasSupabase,
       db: "reachable",
       enabledModels: enabledModels.map(m => m.id),
@@ -19,7 +18,7 @@ router.get("/health", async (_req, res) => {
   } catch {
     res.json({
       ok: false,
-      hasGeminiKey: Boolean(apiKey),
+      hasGeminiKey: false, // the server never ships an AI key — users add their own
       db: "error",
     });
   }
