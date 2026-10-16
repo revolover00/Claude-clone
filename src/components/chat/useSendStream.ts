@@ -163,13 +163,13 @@ export function useSendStream({
         onFlushComplete: () => {
           unregisterActiveStream(convId);
           triggerQueuedMessage();
-          callUpdate(
-            streamerRef.current?.getDisplayedText() || "",
-            false,
-            sOpts.extendedThinking && !firstTokenTimestamp,
-            accumulatedThoughts || undefined,
-            receivedSources
-          );
+          const finalText = streamerRef.current?.getDisplayedText() || "";
+          // A completion with zero tokens is not a real reply — name the
+          // problem instead of falling back to the generic empty-state card.
+          const emptyErr = finalText.trim()
+            ? undefined
+            : { isError: true, errorText: abortCtrl.signal.aborted ? "Stopped before the model produced a response." : "The stream ended before the model sent any response. Try again." };
+          callUpdate(finalText, false, sOpts.extendedThinking && !firstTokenTimestamp, accumulatedThoughts || undefined, receivedSources, emptyErr);
         },
       });
       (streamerRef as any).current = streamer;
