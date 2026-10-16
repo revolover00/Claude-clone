@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import type { UserPreferences } from "../../types/chat";
 
-import { normalizeSlug } from "../../hooks/useModels";
+import { toCanonicalModelId } from "../../shared/normalizeSlug";
 
 const STORAGE_KEY_PREFS = "claude_clone_preferences_v3";
 
@@ -29,10 +29,10 @@ export function usePreferencesStore() {
           parsed.settings = { ...(parsed.settings || {}), show_thinking: fallbackShowThinking };
         }
         if (parsed.settings?.model) {
-          parsed.settings.model = normalizeSlug(parsed.settings.model);
+          parsed.settings.model = toCanonicalModelId(parsed.settings.model);
         }
         if (parsed.settings?.model_id) {
-          parsed.settings.model_id = normalizeSlug(parsed.settings.model_id);
+          parsed.settings.model_id = toCanonicalModelId(parsed.settings.model_id);
         }
         return parsed;
       }

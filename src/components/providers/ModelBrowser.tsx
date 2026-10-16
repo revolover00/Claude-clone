@@ -1,114 +1,93 @@
-import React, { useMemo, useRef, useState } from "react";
-import { RefreshCw, Package, KeyRound, ExternalLink } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { RefreshCw, Package, Sparkles } from "lucide-react";
 import { ModelRow, formatContext } from "./ModelRow";
 import { ModelBrowserFilters } from "./ModelBrowserFilters";
-import { useProviderCatalog } from "./useProviderCatalog";
-import { kindLabel, type ProviderModelItem } from "./types";
+import { useCatalogBrowser } from "./useCatalogBrowser";
+import { GroupedCatalogList } from "../shared/GroupedCatalogList";
 import { SettingsErrorCard } from "../shared/SettingsErrorCard";
+import { sortBrowserModels, type CatalogBrowserModel, type CatalogSort } from "./types";
 
-const ROW_HEIGHT = 104;
-const VIEWPORT_HEIGHT = 440;
+const KIND_ORDER = ["chat", "embedding", "image", "audio", "video", "moderation", "rerank", "other"];
 
-const KIND_ORDER = ["chat", "embedding", "image", "audio", "video", "rerank", "moderation", "other"];
+const CHIPS = [
+  { id: "recommended", label: "Recommended" },
+  { id: "reasoning", label: "Reasoning" },
+  { id: "vision", label: "Vision" },
+  { id: "tools", label: "Tools" },
+  { id: "free", label: "Free" },
+  { id: "longContext", label: "Long context 200k+" },
+  { id: "preview", label: "Preview" },
+] as const;
 
 interface Props {
   onModelsChanged?: () => void;
 }
 
 /**
- * Settings model browser.
- *
- * Shows the complete bundled catalog — every provider with every model it offers
- * and its details (context window, pricing, modalities, capabilities, dates) —
- * and overlays live provider data plus per-user preferences (enabled/pinned/alias).
+ * Settings > Providers > Models: the full catalog grouped Provider -> Vendor ->
+ * Family with collapsible groups, filter chips, search and sort. Models of
+ * providers the user has not connected are dimmed with a "Connect <provider>
+ * to use" hint; connected models stay selectable and keep per-user prefs
+ * (enabled / pinned / alias).
  */
 export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
-  const {
-    providers,
-    allModels,
-    stats,
-    loading,
-    refreshing,
-    error,
-    reload,
-    toggleEnabled,
-    togglePinned,
-    updateAlias,
-    bulkEnable,
-  } = useProviderCatalog();
+  const { models, providers, source, loading, refreshing, error, reload, toggleEnabled, togglePinned, updateAlias } =
+    useCatalogBrowser();
 
   const [search, setSearch] = useState("");
   const [selectedProvider, setSelectedProvider] = useState("all");
   const [selectedKind, setSelectedKind] = useState("all");
-  const [filterReasoning, setFilterReasoning] = useState(false);
-  const [filterTools, setFilterTools] = useState(false);
-  const [filterVision, setFilterVision] = useState(false);
-  const [filterEnabledOnly, setFilterEnabledOnly] = useState(false);
-  const [filterPinnedOnly, setFilterPinnedOnly] = useState(false);
-  const [scrollTop, setScrollTop] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [sort, setSort] = useState<CatalogSort>("recommended");
+  const [activeChips, setActiveChips] = useState<string[]>([]);
 
-  const providerTabs = useMemo(
-    () => [
-      { id: "all", label: "All providers", count: allModels.length },
-      ...providers.map((p) => ({ id: p.id, label: p.label, count: p.models.length })),
-    ],
-    [providers, allModels.length]
-  );
+  const providerLabel = useMemo(() => {
+    const map = new Map(providers.map((p) => [p.id, p.label]));
+    return (id: string) => map.get(id) || id;
+  }, [providers]);
 
-  const kindTabs = useMemo(() => {
+  const providerCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    allModels.forEach((m) => counts.set(m.kind || "chat", (counts.get(m.kind || "chat") || 0) + 1));
-    const entries = KIND_ORDER.filter((k) => counts.has(k)).map((k) => ({
-      id: k,
-      label: kindLabel(k),
-      count: counts.get(k) || 0,
-    }));
-    return [{ id: "all", label: "All kinds", count: allModels.length }, ...entries];
-  }, [allModels]);
+    models.forEach((m) => counts.set(m.provider, (counts.get(m.provider) || 0) + 1));
+    return counts;
+  }, [models]);
 
-  const filteredModels = useMemo(() => {
+  const kindCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    models.forEach((m) => counts.set(m.kind || "chat", (counts.get(m.kind || "chat") || 0) + 1));
+    return counts;
+  }, [models]);
+
+  const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return allModels.filter((m) => {
+    let list = models.filter((m: CatalogBrowserModel) => {
       if (selectedProvider !== "all" && m.provider !== selectedProvider) return false;
       if (selectedKind !== "all" && (m.kind || "chat") !== selectedKind) return false;
-      if (filterReasoning && !m.supportsReasoning) return false;
-      if (filterTools && !m.supportsTools) return false;
-      if (filterVision && !m.supportsVision) return false;
-      if (filterEnabledOnly && !m.isEnabled) return false;
-      if (filterPinnedOnly && !m.isPinned) return false;
+      if (activeChips.includes("recommended") && !m.recommended) return false;
+      if (activeChips.includes("reasoning") && !m.supports_reasoning) return false;
+      if (activeChips.includes("vision") && !m.supports_vision) return false;
+      if (activeChips.includes("tools") && !m.supports_tools) return false;
+      if (activeChips.includes("free") && !m.is_free) return false;
+      if (activeChips.includes("longContext") && (m.context_length || 0) < 200_000) return false;
+      if (activeChips.includes("preview") && m.status !== "preview") return false;
       if (!q) return true;
-      return (
-        m.displayName?.toLowerCase().includes(q) ||
-        m.id.toLowerCase().includes(q) ||
-        (m.alias || "").toLowerCase().includes(q) ||
-        (m.family || "").toLowerCase().includes(q) ||
-        (m.description || "").toLowerCase().includes(q) ||
-        (m.provider || "").toLowerCase().includes(q)
-      );
+      return `${m.name} ${m.model_id} ${m.alias || ""} ${m.vendor} ${m.family}`.toLowerCase().includes(q);
     });
-  }, [allModels, search, selectedProvider, selectedKind, filterReasoning, filterTools, filterVision, filterEnabledOnly, filterPinnedOnly]);
+    list = sortBrowserModels(list, sort);
+    return list;
+  }, [models, search, selectedProvider, selectedKind, activeChips, sort]);
 
-  const selectedProviderView = providers.find((p) => p.id === selectedProvider);
-  const largestContext = filteredModels.reduce((max, m) => Math.max(max, m.contextLength || 0), 0);
+  const largestContext = filtered.reduce((max, m) => Math.max(max, m.context_length || 0), 0);
+  const connectedCount = providers.filter((p) => p.connected).length;
 
-  const handleRefresh = async () => {
-    await reload({ refresh: true });
+  const toggleChip = (id: string) => {
+    setActiveChips((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
     onModelsChanged?.();
   };
 
-  const handleBulk = (enable: boolean) => {
-    bulkEnable(filteredModels, enable);
+  const handleRefresh = () => {
+    void reload({ refresh: true });
     onModelsChanged?.();
   };
-
-  // Virtualization windowing
-  const totalCount = filteredModels.length;
-  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 2);
-  const endIndex = Math.min(totalCount, startIndex + Math.ceil(VIEWPORT_HEIGHT / ROW_HEIGHT) + 4);
-  const visibleItems = filteredModels.slice(startIndex, endIndex);
-  const topPadding = startIndex * ROW_HEIGHT;
-  const bottomPadding = (totalCount - endIndex) * ROW_HEIGHT;
 
   return (
     <div className="space-y-4 pt-4 border-t border-line">
@@ -116,24 +95,20 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
         <div>
           <h4 className="text-[14.5px] font-semibold text-ink">Model Catalog</h4>
           <p className="text-[12px] text-ink-muted">
-            Every model of every supported provider, installed with the app — no manual entry needed. Live
-            catalogs are merged on top whenever a provider key is connected.
+            Every model of every provider, grouped Provider → Vendor → Family. Connected models are selectable; others are dimmed
+            until you connect their provider.
           </p>
           <div className="flex flex-wrap items-center gap-1.5 mt-2 text-[11px] text-ink-muted">
             <span className="inline-flex items-center gap-1 rounded border border-line bg-elev-1 px-1.5 py-0.5">
-              <Package size={11} /> {stats.providerCount} providers
+              <Package size={11} /> {providers.length} providers
             </span>
-            <span className="rounded border border-line bg-elev-1 px-1.5 py-0.5 font-mono">{stats.modelCount} models</span>
-            <span className="rounded border border-line bg-elev-1 px-1.5 py-0.5">
-              {stats.connectedCount} connected
+            <span className="rounded border border-line bg-elev-1 px-1.5 py-0.5 font-mono">{models.length} models</span>
+            <span className="rounded border border-line bg-elev-1 px-1.5 py-0.5">{connectedCount} connected</span>
+            <span className="inline-flex items-center gap-1 rounded border border-line bg-elev-1 px-1.5 py-0.5">
+              <Sparkles size={11} /> {source === "bundled" ? "bundled snapshot" : "synced catalog"}
             </span>
-            {stats.snapshotDate && (
-              <span className="rounded border border-line bg-elev-1 px-1.5 py-0.5">catalog snapshot {stats.snapshotDate}</span>
-            )}
             {largestContext > 0 && (
-              <span className="rounded border border-line bg-elev-1 px-1.5 py-0.5">
-                largest context {formatContext(largestContext)}
-              </span>
+              <span className="rounded border border-line bg-elev-1 px-1.5 py-0.5">largest context {formatContext(largestContext)}</span>
             )}
           </div>
         </div>
@@ -141,66 +116,33 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
           type="button"
           onClick={handleRefresh}
           disabled={refreshing}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-line bg-elev-1 text-[12px] text-ink-soft hover:text-ink hover:bg-elev-2 transition-colors cursor-pointer shrink-0"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-line bg-elev-1 text-[12px] text-ink-soft hover:text-ink hover:bg-elev-2 transition-colors cursor-pointer shrink-0 disabled:opacity-60"
         >
           <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />
-          <span>Sync live</span>
+          <span>Refresh</span>
         </button>
       </div>
 
       <ModelBrowserFilters
-        providers={providerTabs}
+        providers={[
+          { id: "all", label: "All providers", count: models.length },
+          ...providers.map((p) => ({ id: p.id, label: p.label, count: providerCounts.get(p.id) || 0 })),
+        ]}
         selectedProvider={selectedProvider}
         onSelectProvider={setSelectedProvider}
-        search={search}
-        onSearchChange={setSearch}
-        kinds={kindTabs}
+        kinds={[
+          { id: "all", label: "All kinds", count: models.length },
+          ...KIND_ORDER.filter((k) => kindCounts.has(k)).map((k) => ({ id: k, label: `${k[0].toUpperCase()}${k.slice(1)}`, count: kindCounts.get(k) || 0 })),
+        ]}
         selectedKind={selectedKind}
         onSelectKind={setSelectedKind}
-        filterReasoning={filterReasoning}
-        onToggleReasoning={() => setFilterReasoning(!filterReasoning)}
-        filterTools={filterTools}
-        onToggleTools={() => setFilterTools(!filterTools)}
-        filterVision={filterVision}
-        onToggleVision={() => setFilterVision(!filterVision)}
-        filterPinnedOnly={filterPinnedOnly}
-        onTogglePinnedOnly={() => setFilterPinnedOnly(!filterPinnedOnly)}
-        filterEnabledOnly={filterEnabledOnly}
-        onToggleEnabledOnly={() => setFilterEnabledOnly(!filterEnabledOnly)}
-        onBulkEnable={handleBulk}
+        chips={CHIPS.map((c) => ({ ...c, active: activeChips.includes(c.id) }))}
+        onToggleChip={toggleChip}
+        search={search}
+        onSearchChange={setSearch}
+        sort={sort}
+        onSortChange={(value) => setSort(value as CatalogSort)}
       />
-
-      {selectedProviderView && (
-        <div className="flex flex-wrap items-center gap-2 text-[11.5px] text-ink-muted rounded-lg border border-line bg-elev-1 px-2.5 py-1.5">
-          <span className="font-medium text-ink">{selectedProviderView.label}</span>
-          <span>· {selectedProviderView.vendor}</span>
-          <span>· {selectedProviderView.models.length} models</span>
-          <span>· {selectedProviderView.source === "live" ? "live catalog merged" : "bundled catalog"}</span>
-          {selectedProviderView.connected ? (
-            <span className="text-emerald-400">key connected</span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-amber-400">
-              <KeyRound size={11} /> add a key to run these models
-            </span>
-          )}
-          {selectedProviderView.liveError && <span className="text-danger">live sync failed: {selectedProviderView.liveError}</span>}
-          {selectedProviderView.keyHelpUrl && (
-            <a
-              href={selectedProviderView.keyHelpUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="ml-auto inline-flex items-center gap-1 text-accent hover:underline"
-            >
-              Get key <ExternalLink size={11} />
-            </a>
-          )}
-          {selectedProviderView.docsUrl && (
-            <a href={selectedProviderView.docsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-ink">
-              Docs <ExternalLink size={11} />
-            </a>
-          )}
-        </div>
-      )}
 
       {error && (
         <div className="my-2">
@@ -208,41 +150,25 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
         </div>
       )}
 
-      <div
-        ref={containerRef}
-        onScroll={(e) => setScrollTop((e.target as HTMLElement).scrollTop)}
-        style={{ height: VIEWPORT_HEIGHT }}
-        className="overflow-y-auto rounded-xl border border-line bg-panel p-2 scroll-slim"
-      >
-        {loading ? (
-          <div className="flex h-full items-center justify-center text-xs text-ink-muted animate-pulse">
-            Loading the bundled model catalog...
-          </div>
-        ) : filteredModels.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-xs text-ink-muted">
-            No models match the selected filters.
-          </div>
-        ) : (
-          <div>
-            <div style={{ height: topPadding }} />
-            <div className="space-y-2">
-              {visibleItems.map((m: ProviderModelItem) => (
-                <ModelRow
-                  key={`${m.provider}:${m.id}`}
-                  model={m}
-                  onToggleEnabled={toggleEnabled}
-                  onTogglePinned={togglePinned}
-                  onUpdateAlias={updateAlias}
-                />
-              ))}
-            </div>
-            <div style={{ height: bottomPadding }} />
-          </div>
+      <GroupedCatalogList
+        models={filtered}
+        loading={loading}
+        emptyMessage="No models match the selected filters."
+        viewportHeight={440}
+        rowHeight={112}
+        renderRow={(model) => (
+          <ModelRow
+            model={model as CatalogBrowserModel}
+            providerLabel={providerLabel((model as CatalogBrowserModel).provider)}
+            onToggleEnabled={toggleEnabled}
+            onTogglePinned={togglePinned}
+            onUpdateAlias={updateAlias}
+          />
         )}
-      </div>
+      />
 
       <p className="text-[11px] text-ink-muted text-right">
-        Showing {filteredModels.length} of {allModels.length} models
+        Showing {filtered.length} of {models.length} models
       </p>
     </div>
   );

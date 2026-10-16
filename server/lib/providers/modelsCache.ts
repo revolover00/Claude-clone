@@ -34,11 +34,13 @@ export async function getCachedModels(
 
 export async function saveModelPrefs(
   userId: string,
-  prefs: Array<{ provider: string; modelId: string; enabled?: boolean; pinned?: boolean; alias?: string }>
+  prefs: Array<{ provider: string; modelId?: string; model_id?: string; enabled?: boolean; pinned?: boolean; alias?: string }>
 ): Promise<number> {
+  // Callers historically sent either camelCase or snake_case model ids.
+  const normalized = prefs.map((p) => ({ ...p, modelId: p.modelId ?? p.model_id ?? "" })).filter((p) => p.modelId);
   const supabase = getSupabaseClient();
   if (supabase) {
-    const rows = prefs.map((p) => ({
+    const rows = normalized.map((p) => ({
       user_id: userId,
       provider: p.provider,
       model_id: p.modelId,
@@ -54,7 +56,7 @@ export async function saveModelPrefs(
 
   // Memory fallback
   const userPrefs = memoryModelPrefs.get(userId) || [];
-  for (const p of prefs) {
+  for (const p of normalized) {
     const idx = userPrefs.findIndex((up) => up.provider === p.provider && up.model_id === p.modelId);
     const item = {
       user_id: userId,
@@ -68,23 +70,40 @@ export async function saveModelPrefs(
     else userPrefs.push(item);
   }
   memoryModelPrefs.set(userId, userPrefs);
-  return prefs.length;
+  return normalized.length;
 }
 
 export async function getUserModelPrefs(userId: string, providerId: string): Promise<Record<string, any>> {
+  const rows = await getUserModelPrefsAll(userId);
+  return Object.fromEntries(rows.filter((p) => p.provider === providerId).map((p) => [p.model_id, p]));
+}
+
+/** Every preference row of one user across all providers (catalog merging). */
+export async function getUserModelPrefsAll(
+  userId: string
+): Promise<Array<{ provider: string; model_id: string; enabled: boolean; pinned: boolean; alias: string | null }>> {
   const supabase = getSupabaseClient();
   if (supabase) {
     const { data } = await supabase
       .from("user_model_prefs")
-      .select("model_id, enabled, pinned, alias")
-      .eq("user_id", userId)
-      .eq("provider", providerId);
+      .select("provider, model_id, enabled, pinned, alias")
+      .eq("user_id", userId);
     if (data) {
-      return Object.fromEntries(data.map((p: any) => [p.model_id, p]));
+      return data.map((p: any) => ({
+        provider: p.provider,
+        model_id: p.model_id,
+        enabled: p.enabled ?? true,
+        pinned: p.pinned ?? false,
+        alias: p.alias || null,
+      }));
     }
   }
 
-  const userPrefs = memoryModelPrefs.get(userId) || [];
-  const filtered = userPrefs.filter((p) => p.provider === providerId);
-  return Object.fromEntries(filtered.map((p) => [p.model_id, p]));
+  return (memoryModelPrefs.get(userId) || []).map((p: any) => ({
+    provider: p.provider,
+    model_id: p.model_id,
+    enabled: p.enabled ?? true,
+    pinned: p.pinned ?? false,
+    alias: p.alias || null,
+  }));
 }

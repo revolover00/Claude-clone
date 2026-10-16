@@ -10,7 +10,15 @@ export interface ModelInfo {
   supportsTools: boolean;
   supportsReasoning: boolean;
   supportsVision: boolean;
+  /** Structured JSON output (response_format / structured_outputs). */
+  supportsJson?: boolean;
   pricing: { inputPerMTok: number; outputPerMTok: number; currency: string } | null;
+  /** Release date (ISO date) when the provider reports one. */
+  releasedAt?: string | null;
+  /** API-reported expiration date, when present. */
+  expiresAt?: string | null;
+  /** Owning organization (Groq owned_by, OpenRouter vendor …). */
+  ownedBy?: string | null;
   isActive: boolean;
   /** Catalog classification: chat, embedding, image, audio, video, rerank, moderation, other. */
   kind?: string;
