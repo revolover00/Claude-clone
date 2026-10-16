@@ -15,6 +15,7 @@ import { computeVirtualWindow } from "../../utils/virtualWindow";
 import { closestRecommendedModel } from "../../shared/catalog/grouping";
 import { requestSettingsTab } from "../../utils/settingsTab";
 import { useProviderConnectAutoSelect } from "./modelPicker/useProviderConnectAutoSelect";
+import { VendorFilterChips } from "./modelPicker/VendorFilterChips";
 
 export const EFFORTS = ["Low", "Medium", "High"] as const;
 export type Effort = (typeof EFFORTS)[number];
@@ -36,8 +37,10 @@ export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort
   const listRef = useRef<HTMLDivElement>(null);
   const { setSettingsModalOpen } = useChat();
 
-  const { allModels, sections, activeModelObj, pillLabel, searchQuery, setSearchQuery, loading, refresh } =
-    useComposerModels(model);
+  const {
+    allModels, sections, activeModelObj, pillLabel, searchQuery, setSearchQuery,
+    vendorFilter, setVendorFilter, availableVendors, loading, refresh,
+  } = useComposerModels(model);
 
 
   useProviderConnectAutoSelect({
@@ -197,6 +200,10 @@ export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort
               />
             </div>
             <p className="pt-1 text-[9.5px] text-ink-faint">↑↓ to navigate · Enter to select</p>
+          </div>
+
+          <div className="px-2 pt-2">
+            <VendorFilterChips vendors={availableVendors} active={vendorFilter} onChange={setVendorFilter} />
           </div>
 
           <div

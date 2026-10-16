@@ -143,10 +143,13 @@ describe("Composer Model Picker Component Tests", () => {
     const trigger = screen.getByRole("button", { name: /model options/i });
     fireEvent.click(trigger);
 
-    // Expect provider headers with labels
+    // Expect provider headers with labels. Vendor filter chips reuse the same
+    // labels, so assert on the header elements (<p>), not the chip buttons.
     await waitFor(() => {
-      expect(screen.getByText("Google AI Studio")).toBeDefined();
-      expect(screen.getByText("Groq")).toBeDefined();
+      const google = screen.getAllByText("Google AI Studio");
+      expect(google.some((el) => el.tagName === "P")).toBe(true);
+      const groq = screen.getAllByText("Groq");
+      expect(groq.some((el) => el.tagName === "P")).toBe(true);
     });
 
     // Pinned model (Gemini 3.1 Pro) should appear
