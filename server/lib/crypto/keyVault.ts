@@ -6,7 +6,7 @@ const TAG_LENGTH = 16;
 const KEY_LENGTH = 32;
 export const CURRENT_KEY_VERSION = 1;
 
-function parseSecret(secretStr: string | undefined): Buffer | null {
+export function parseSecret(secretStr: string | undefined): Buffer | null {
   if (!secretStr) return null;
   try {
     const bufFromB64 = Buffer.from(secretStr, "base64");
@@ -16,7 +16,13 @@ function parseSecret(secretStr: string | undefined): Buffer | null {
   }
   const bufFromUtf8 = Buffer.from(secretStr, "utf8");
   if (bufFromUtf8.length === KEY_LENGTH) return bufFromUtf8;
-  return null;
+  // Any other non-empty value (hex strings, passphrases, ...) derives a stable
+  // 32-byte key via SHA-256 instead of being rejected: the previous strict
+  // 32-byte check made production boots — and therefore deploys — fail even
+  // when the variable WAS set (e.g. `openssl rand -hex 32`), which was the
+  // deploy-failure bug. Non-32-byte values were never accepted before, so no
+  // legacy ciphertext exists for them and this cannot reinterpret old keys.
+  return crypto.createHash("sha256").update(bufFromUtf8).digest();
 }
 
 export function validateSecretAtStartup(): void {
@@ -25,10 +31,11 @@ export function validateSecretAtStartup(): void {
     if (!primary) {
       console.error(
         [
-          "CRITICAL ERROR: PROVIDER_KEY_ENCRYPTION_SECRET is missing or not 32 bytes in production.",
-          "  Saved provider API keys are encrypted with this secret, so the server refuses to boot without it.",
+          "CRITICAL ERROR: PROVIDER_KEY_ENCRYPTION_SECRET is missing or empty in production.",
+          "  Saved provider API keys are encrypted with this secret, so the server refuses to boot without a secret.",
           "  Fix: add PROVIDER_KEY_ENCRYPTION_SECRET to your hosting platform's environment variables",
-          "  with a random 32-byte value — generate one with:  openssl rand -base64 32",
+          "  with any strong non-empty value (it is normalized to a 32-byte key), e.g.:",
+          "    openssl rand -base64 32     or     openssl rand -hex 32",
           "  (set it wherever you configure env vars: Vercel/Render/Railway/Cloud Run dashboard, .env, ...)",
         ].join("\n")
       );
@@ -45,7 +52,7 @@ export function getMasterSecret(): Buffer {
   if (!secret) {
     if (process.env.NODE_ENV === "production") {
       throw new Error(
-        "PROVIDER_KEY_ENCRYPTION_SECRET is missing or not 32 bytes. Generate one with `openssl rand -base64 32` and set it in your hosting platform's environment variables."
+        "PROVIDER_KEY_ENCRYPTION_SECRET is missing or empty. Set any strong non-empty value (normalized to a 32-byte key), e.g. `openssl rand -base64 32`, in your hosting platform's environment variables."
       );
     }
     // Fallback deterministic key for dev/test environments
