@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import crypto from "crypto";
-import { encrypt, decrypt, buildAAD } from "../server/lib/crypto/keyVault";
+import { encrypt, decrypt, buildAAD, parseSecret } from "../server/lib/crypto/keyVault";
 
 describe("Key Vault Hardening", () => {
   const originalSecret = process.env.PROVIDER_KEY_ENCRYPTION_SECRET;
@@ -89,5 +89,42 @@ describe("Key Vault Hardening", () => {
     const res = decrypt(encrypted.ciphertext, encrypted.iv, encrypted.tag, aad);
     expect(res.plaintext).toBe("rotated-groq-key");
     expect(res.needsReencrypt).toBe(true);
+  });
+
+  describe("any non-empty secret format is accepted (deploy regression)", () => {
+    it("derives a deterministic 32-byte key for hex and passphrase secrets; empty stays refused", () => {
+      const hex = crypto.randomBytes(32).toString("hex");
+      const h1 = parseSecret(hex);
+      const h2 = parseSecret(hex);
+      expect(h1).not.toBeNull();
+      expect(h1!.length).toBe(32);
+      expect(h1!.equals(h2!)).toBe(true);
+
+      const pass = parseSecret("my deploy passphrase - not 32 bytes!");
+      expect(pass).not.toBeNull();
+      expect(pass!.length).toBe(32);
+      expect(pass!.equals(h1!)).toBe(false);
+
+      expect(parseSecret("")).toBeNull();
+      expect(parseSecret(undefined)).toBeNull();
+    });
+
+    it("round-trips encryption with a 64-char hex secret (openssl rand -hex 32)", () => {
+      process.env.PROVIDER_KEY_ENCRYPTION_SECRET = crypto.randomBytes(32).toString("hex");
+      const aad = buildAAD("u-hex", "groq", "default");
+      const enc = encrypt("gsk_hex_value", aad);
+      const dec = decrypt(enc.ciphertext, enc.iv, enc.tag, aad, enc.keyVersion);
+      expect(dec.plaintext).toBe("gsk_hex_value");
+      expect(dec.needsReencrypt).toBe(false);
+    });
+
+    it("round-trips encryption with an arbitrary passphrase secret", () => {
+      process.env.PROVIDER_KEY_ENCRYPTION_SECRET = "correct-horse-battery-staple";
+      const aad = buildAAD("u-pass", "openai", "default");
+      const enc = encrypt("sk_pass_value", aad);
+      const dec = decrypt(enc.ciphertext, enc.iv, enc.tag, aad, enc.keyVersion);
+      expect(dec.plaintext).toBe("sk_pass_value");
+      expect(dec.needsReencrypt).toBe(false);
+    });
   });
 });
