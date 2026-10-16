@@ -4,6 +4,9 @@ interface Props {
   vendors: string[];
   active: string;
   onChange: (vendor: string) => void;
+  /** Keep only models that cost nothing: price-zero rows + free-tier providers. */
+  freeOnly?: boolean;
+  onFreeOnlyChange?: (freeOnly: boolean) => void;
 }
 
 /**
@@ -11,7 +14,7 @@ interface Props {
  * All + every vendor present in the catalog — mirrors the Model Catalog
  * filter chips so the two lists stay familiar.
  */
-export function VendorFilterChips({ vendors, active, onChange }: Props) {
+export function VendorFilterChips({ vendors, active, onChange, freeOnly, onFreeOnlyChange }: Props) {
   if (vendors.length <= 1) return null;
   return (
     <div
@@ -35,6 +38,22 @@ export function VendorFilterChips({ vendors, active, onChange }: Props) {
           {label}
         </button>
       ))}
+      {onFreeOnlyChange && (
+        <button
+          type="button"
+          aria-pressed={Boolean(freeOnly)}
+          onClick={() => onFreeOnlyChange(!freeOnly)}
+          title="Show only models you can use at no cost"
+          className={cn(
+            "shrink-0 ml-auto rounded-full border px-2.5 py-1 text-[11.5px] font-semibold transition-colors cursor-pointer whitespace-nowrap",
+            freeOnly
+              ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-400"
+              : "border-line bg-elev-1 text-ink-muted hover:text-ink hover:bg-elev-2"
+          )}
+        >
+          Free
+        </button>
+      )}
     </div>
   );
 }

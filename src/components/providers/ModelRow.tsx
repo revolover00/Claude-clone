@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Pin, Brain, Wrench, Eye, Check, X, KeyRound } from "lucide-react";
 import { cn } from "../../utils/cn";
-import { formatPricing } from "../../shared/pricing";
+import { PricingBadge } from "../shared/PricingBadge";
+import { hasFreeTier } from "../../shared/catalog/freeTier";
 import { ModelBadges } from "../shared/ModelBadges";
 import { requestSettingsTab } from "../../utils/settingsTab";
 import { kindLabel, type CatalogBrowserModel } from "./types";
@@ -128,7 +129,7 @@ export const ModelRow: React.FC<ModelRowProps> = ({
         <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[11.5px] text-ink-muted">
           <span className="font-mono text-ink-soft">{formatContext(model.context_length)} ctx</span>
           <span>•</span>
-          <span className="font-mono text-ink-soft">{model.pricing ? formatPricing(model.pricing) : "Variable"}</span>
+          <PricingBadge pricing={model.pricing} isFree={model.is_free} freeTier={hasFreeTier(model.provider)} />
           {model.max_output_tokens ? (
             <>
               <span>•</span>

@@ -9,7 +9,8 @@ import { recommendedIds } from "./recommend";
 
 function mapStatus(status: string | null | undefined): CatalogStatus {
   if (status === "deprecated") return "deprecated";
-  if (status === "alpha") return "preview";
+  if (status === "removed") return "removed";
+  if (status === "preview" || status === "alpha") return "preview";
   return "active";
 }
 
