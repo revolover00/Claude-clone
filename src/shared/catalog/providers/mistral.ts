@@ -1,0 +1,34 @@
+// AUTO-GENERATED — do not edit by hand.
+// Provider: Mistral (mistral) · models.dev key: mistral
+// Source: models.dev (MIT) · snapshot 2026-10-16 · 26 models
+// Regenerate with: npm run catalog:sync
+import type { CatalogEntry } from "../types";
+
+export const ROWS: CatalogEntry[] = [
+  { id: "devstral-2512", name: "Devstral 2", family: "devstral-medium", kind: "chat", ctx: 262144, out: 262144, caps: "tTw", in: "text", outMod: "text", price: [0, 0, 0], release: "2025-12-09", updated: "2025-12-09", knowledge: "2025-12" },
+  { id: "labs-devstral-small-2512", name: "Devstral Small 2", family: "devstral-small", kind: "chat", ctx: 256000, out: 256000, caps: "tTw", in: "text,image", outMod: "text", price: [0, 0, 0], release: "2025-12-09", updated: "2025-12-09", knowledge: "2025-12" },
+  { id: "devstral-medium-latest", name: "Devstral 2", family: "devstral-medium", kind: "chat", ctx: 262144, out: 262144, caps: "tTw", in: "text", outMod: "text", price: [0.4, 2, 0], release: "2025-12-02", updated: "2025-12-02", knowledge: "2025-12" },
+  { id: "mistral-medium-2508", name: "Mistral Medium 3.1", family: "mistral-medium", kind: "chat", ctx: 262144, out: 262144, caps: "tT", in: "text,image", outMod: "text", price: [0.4, 2, 0], release: "2025-08-12", updated: "2025-08-12", knowledge: "2025-05" },
+  { id: "devstral-medium-2507", name: "Devstral Medium", family: "devstral-medium", kind: "chat", ctx: 128000, out: 128000, caps: "tTw", in: "text", outMod: "text", price: [0.4, 2, 0], release: "2025-07-10", updated: "2025-07-10", knowledge: "2025-05" },
+  { id: "devstral-small-2507", name: "Devstral Small", family: "devstral-small", kind: "chat", ctx: 128000, out: 128000, caps: "tTw", in: "text", outMod: "text", price: [0.1, 0.3, 0], release: "2025-07-10", updated: "2025-07-10", knowledge: "2025-05" },
+  { id: "mistral-small-2506", name: "Mistral Small 3.2", family: "mistral-small", kind: "chat", ctx: 128000, out: 16384, caps: "tTw", in: "text,image", outMod: "text", price: [0.1, 0.3, 0], release: "2025-06-20", updated: "2025-06-20", knowledge: "2025-03" },
+  { id: "devstral-small-2505", name: "Devstral Small 2505", family: "devstral-small", kind: "chat", ctx: 128000, out: 128000, caps: "tTw", in: "text", outMod: "text", price: [0.1, 0.3, 0], release: "2025-05-07", updated: "2025-05-07", knowledge: "2025-05" },
+  { id: "mistral-medium-2505", name: "Mistral Medium 3", family: "mistral-medium", kind: "chat", ctx: 131072, out: 131072, caps: "tT", in: "text,image", outMod: "text", price: [0.4, 2, 0], release: "2025-05-07", updated: "2025-05-07", knowledge: "2025-05" },
+  { id: "mistral-medium-latest", name: "Mistral Medium", family: "mistral-medium", kind: "chat", ctx: 128000, out: 16384, caps: "tTw", in: "text,image", outMod: "text", price: [0.4, 2, 0], release: "2025-05-07", updated: "2025-05-10", knowledge: "2025-05" },
+  { id: "magistral-medium-latest", name: "Magistral Medium", family: "magistral-medium", kind: "chat", ctx: 128000, out: 16384, caps: "trTw", in: "text", outMod: "text", price: [2, 5, 0], release: "2025-03-17", updated: "2025-03-20", knowledge: "2025-06" },
+  { id: "magistral-small", name: "Magistral Small", family: "magistral-small", kind: "chat", ctx: 128000, out: 128000, caps: "trTw", in: "text", outMod: "text", price: [0.5, 1.5, 0], release: "2025-03-17", updated: "2025-03-17", knowledge: "2025-06" },
+  { id: "mistral-large-2411", name: "Mistral Large 2.1", family: "mistral-large", kind: "chat", ctx: 131072, out: 16384, caps: "tTw", in: "text", outMod: "text", price: [2, 6, 0], release: "2024-11-01", updated: "2024-11-04", knowledge: "2024-11" },
+  { id: "mistral-large-2512", name: "Mistral Large 3", family: "mistral-large", kind: "chat", ctx: 262144, out: 262144, caps: "tTw", in: "text,image", outMod: "text", price: [0.5, 1.5, 0], release: "2024-11-01", updated: "2025-12-02", knowledge: "2024-11" },
+  { id: "mistral-large-latest", name: "Mistral Large", family: "mistral-large", kind: "chat", ctx: 262144, out: 262144, caps: "tTw", in: "text,image", outMod: "text", price: [0.5, 1.5, 0], release: "2024-11-01", updated: "2025-12-02", knowledge: "2024-11" },
+  { id: "pixtral-large-latest", name: "Pixtral Large", family: "pixtral-large", kind: "chat", ctx: 128000, out: 128000, caps: "tTw", in: "text,image", outMod: "text", price: [2, 6, 0], release: "2024-11-01", updated: "2024-11-04", knowledge: "2024-11" },
+  { id: "ministral-3b-latest", name: "Ministral 3B", family: "ministral-3b", kind: "chat", ctx: 128000, out: 128000, caps: "tTw", in: "text", outMod: "text", price: [0.04, 0.04, 0], release: "2024-10-01", updated: "2024-10-04", knowledge: "2024-10" },
+  { id: "ministral-8b-latest", name: "Ministral 8B", family: "ministral-8b", kind: "chat", ctx: 128000, out: 128000, caps: "tTw", in: "text", outMod: "text", price: [0.1, 0.1, 0], release: "2024-10-01", updated: "2024-10-04", knowledge: "2024-10" },
+  { id: "mistral-small-latest", name: "Mistral Small", family: "mistral-small", kind: "chat", ctx: 128000, out: 16384, caps: "tTw", in: "text,image", outMod: "text", price: [0.1, 0.3, 0], release: "2024-09-01", updated: "2024-09-04", knowledge: "2025-03" },
+  { id: "pixtral-12b", name: "Pixtral 12B", family: "pixtral", kind: "chat", ctx: 128000, out: 128000, caps: "tTw", in: "text,image", outMod: "text", price: [0.15, 0.15, 0], release: "2024-09-01", updated: "2024-09-01", knowledge: "2024-09" },
+  { id: "mistral-nemo", name: "Mistral Nemo", family: "mistral-nemo", kind: "chat", ctx: 128000, out: 128000, caps: "tTw", in: "text", outMod: "text", price: [0.15, 0.15, 0], release: "2024-07-01", updated: "2024-07-01", knowledge: "2024-07" },
+  { id: "codestral-latest", name: "Codestral", family: "codestral", kind: "chat", ctx: 256000, out: 4096, caps: "tTw", in: "text", outMod: "text", price: [0.3, 0.9, 0], release: "2024-05-29", updated: "2025-01-04", knowledge: "2024-10" },
+  { id: "open-mixtral-8x22b", name: "Mixtral 8x22B", family: "mixtral-8x22b", kind: "chat", ctx: 64000, out: 64000, caps: "tTw", in: "text", outMod: "text", price: [2, 6, 0], release: "2024-04-17", updated: "2024-04-17", knowledge: "2024-04" },
+  { id: "mistral-embed", name: "Mistral Embed", family: "mistral-embed", kind: "embedding", ctx: 8000, out: 3072, caps: "", in: "text", outMod: "text", price: [0.1, 0, 0], release: "2023-12-11", updated: "2023-12-11", knowledge: "" },
+  { id: "open-mixtral-8x7b", name: "Mixtral 8x7B", family: "mixtral-8x7b", kind: "chat", ctx: 32000, out: 32000, caps: "tTw", in: "text", outMod: "text", price: [0.7, 0.7, 0], release: "2023-12-11", updated: "2023-12-11", knowledge: "2024-01" },
+  { id: "open-mistral-7b", name: "Mistral 7B", family: "mistral-7b", kind: "chat", ctx: 8000, out: 8000, caps: "tTw", in: "text", outMod: "text", price: [0.25, 0.25, 0], release: "2023-09-27", updated: "2023-09-27", knowledge: "2023-12" },
+];

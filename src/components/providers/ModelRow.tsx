@@ -1,26 +1,10 @@
 import React, { useState } from "react";
-import { Pin, Brain, Wrench, Eye, Edit2, Check, X } from "lucide-react";
+import { Pin, Brain, Wrench, Eye, Edit2, Check, X, KeyRound, Package, Sparkles } from "lucide-react";
 import { cn } from "../../utils/cn";
 import { formatPricing } from "../../shared/pricing";
+import { kindLabel, type ProviderModelItem } from "./types";
 
-export interface ProviderModelItem {
-  provider: string;
-  id: string;
-  displayName: string;
-  description: string | null;
-  contextLength: number | null;
-  maxOutputTokens: number | null;
-  inputModalities: string[];
-  outputModalities: string[];
-  supportsTools: boolean;
-  supportsReasoning: boolean;
-  supportsVision: boolean;
-  pricing: { inputPerMTok: number; outputPerMTok: number; currency: string } | null;
-  isActive: boolean;
-  isEnabled: boolean;
-  isPinned: boolean;
-  alias?: string | null;
-}
+export type { ProviderModelItem } from "./types";
 
 interface ModelRowProps {
   model: ProviderModelItem;
@@ -29,7 +13,7 @@ interface ModelRowProps {
   onUpdateAlias: (model: ProviderModelItem, alias: string) => void;
 }
 
-function formatContext(tokens: number | null): string {
+export function formatContext(tokens: number | null | undefined): string {
   if (!tokens) return "N/A";
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(tokens % 1_000_000 === 0 ? 0 : 1)}M`;
   if (tokens >= 1_000) return `${Math.round(tokens / 1_000)}k`;
@@ -59,7 +43,6 @@ export const ModelRow: React.FC<ModelRowProps> = ({
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Pinned toggle button */}
           <button
             type="button"
             onClick={() => onTogglePinned(model)}
@@ -72,7 +55,6 @@ export const ModelRow: React.FC<ModelRowProps> = ({
             <Pin size={13} className={model.isPinned ? "fill-amber-400" : ""} />
           </button>
 
-          {/* Display Name or Alias */}
           {editingAlias ? (
             <div className="flex items-center gap-1.5">
               <input
@@ -87,10 +69,10 @@ export const ModelRow: React.FC<ModelRowProps> = ({
                   if (e.key === "Escape") setEditingAlias(false);
                 }}
               />
-              <button type="button" onClick={handleSaveAlias} className="text-accent hover:opacity-80 p-0.5">
+              <button type="button" onClick={handleSaveAlias} className="text-accent hover:opacity-80 p-0.5" aria-label="Save alias">
                 <Check size={14} />
               </button>
-              <button type="button" onClick={() => setEditingAlias(false)} className="text-ink-muted hover:text-ink p-0.5">
+              <button type="button" onClick={() => setEditingAlias(false)} className="text-ink-muted hover:text-ink p-0.5" aria-label="Cancel alias">
                 <X size={14} />
               </button>
             </div>
@@ -112,38 +94,72 @@ export const ModelRow: React.FC<ModelRowProps> = ({
                 }}
                 title="Edit custom alias"
                 className="opacity-0 group-hover:opacity-100 text-ink-muted hover:text-ink transition-opacity p-0.5"
+                aria-label="Edit custom alias"
               >
                 <Edit2 size={11} />
               </button>
             </div>
           )}
 
-          {/* Provider pill */}
+          <span className="text-[10.5px] font-mono text-ink-faint truncate max-w-[260px]">{model.id}</span>
+
           <span className="text-[10.5px] uppercase font-mono px-1.5 py-0.5 rounded bg-elev-2 text-ink-muted border border-line">
             {model.provider}
           </span>
+
+          {model.kind && model.kind !== "chat" && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded border border-line text-ink-muted">{kindLabel(model.kind)}</span>
+          )}
+
+          <span
+            title={model.source === "live" ? "Fetched live from the provider" : "From the bundled catalog snapshot"}
+            className={cn(
+              "inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded border",
+              model.source === "live"
+                ? "border-emerald-500/25 text-emerald-400 bg-emerald-500/10"
+                : "border-line text-ink-muted bg-elev-2"
+            )}
+          >
+            {model.source === "live" ? <Sparkles size={9} /> : <Package size={9} />}
+            {model.source === "live" ? "live" : "catalog"}
+          </span>
+
+          {model.requiresKey && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded border border-amber-500/25 text-amber-400 bg-amber-500/10">
+              <KeyRound size={9} /> key needed
+            </span>
+          )}
+
+          {(model.status === "deprecated" || model.status === "alpha") && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded border border-danger/25 text-danger bg-danger-bg">{model.status}</span>
+          )}
         </div>
 
-        {/* Technical specs & capabilities */}
         <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[11.5px] text-ink-muted">
-          {/* Context window */}
-          <span className="font-mono text-ink-soft">
-            {formatContext(model.contextLength)} ctx
-          </span>
+          <span className="font-mono text-ink-soft">{formatContext(model.contextLength)} ctx</span>
           <span>•</span>
-
-          {/* Price per 1M tokens */}
-          <span className="font-mono text-ink-soft">
-            {formatPricing(model.pricing)}
-          </span>
+          <span className="font-mono text-ink-soft">{formatPricing(model.pricing)}</span>
           <span>•</span>
+          <span>{model.inputModalities?.join(", ") || "text"}</span>
+          {model.maxOutputTokens ? (
+            <>
+              <span>•</span>
+              <span>max out {formatContext(model.maxOutputTokens)}</span>
+            </>
+          ) : null}
+          {model.knowledgeCutoff ? (
+            <>
+              <span>•</span>
+              <span>knowledge {model.knowledgeCutoff}</span>
+            </>
+          ) : null}
+          {model.releaseDate ? (
+            <>
+              <span>•</span>
+              <span>released {model.releaseDate}</span>
+            </>
+          ) : null}
 
-          {/* Modalities */}
-          <span>
-            {model.inputModalities?.join(", ") || "text"}
-          </span>
-
-          {/* Badges */}
           <div className="flex items-center gap-1 ml-auto md:ml-2">
             {model.supportsReasoning && (
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -164,7 +180,6 @@ export const ModelRow: React.FC<ModelRowProps> = ({
         </div>
       </div>
 
-      {/* Enable / Disable toggle button */}
       <div className="flex items-center gap-2 shrink-0">
         <button
           type="button"
@@ -175,6 +190,7 @@ export const ModelRow: React.FC<ModelRowProps> = ({
           )}
           role="switch"
           aria-checked={model.isEnabled}
+          aria-label={`${model.isEnabled ? "Disable" : "Enable"} ${model.displayName || model.id}`}
         >
           <span
             aria-hidden="true"

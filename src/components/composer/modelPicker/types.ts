@@ -15,6 +15,11 @@ export interface UnifiedModel {
   isEnabled: boolean;
   isPinned: boolean;
   isDefault?: boolean;
+  /** Catalog kind (chat, embedding, image, audio, video, ...). */
+  kind?: string;
+  vendor?: string;
+  /** The provider has no API key yet, so this model cannot run until one is connected. */
+  requiresKey?: boolean;
 }
 
 export interface ProviderGroup {

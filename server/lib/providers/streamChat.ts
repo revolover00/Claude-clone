@@ -1,5 +1,6 @@
 export interface StreamChatParams {
-  provider: "groq" | "openrouter";
+  /** Any provider id from the registry (all OpenAI-compatible providers share this transport). */
+  provider: string;
   endpoint: string;
   modelId: string;
   apiKey: string;
@@ -31,7 +32,7 @@ export function formatOpenAIMessages(messages: any[], systemInstruction?: string
   return formatted;
 }
 
-export function buildReasoningPayload(provider: "groq" | "openrouter", level: string): Record<string, any> {
+export function buildReasoningPayload(provider: string, level: string): Record<string, any> {
   const effort = level === "low" || level === "medium" || level === "high" ? level : "medium";
   if (provider === "groq") {
     return {
@@ -39,9 +40,16 @@ export function buildReasoningPayload(provider: "groq" | "openrouter", level: st
       reasoning_effort: effort,
     };
   }
-  return {
-    reasoning: { effort },
-  };
+  if (provider === "openrouter") {
+    return {
+      reasoning: { effort },
+    };
+  }
+  if (provider === "openai" || provider === "xai") {
+    return { reasoning_effort: effort };
+  }
+  // Other providers reject unknown body fields, so no reasoning hints are sent.
+  return {};
 }
 
 export async function streamOpenAICompatibleChat(params: StreamChatParams): Promise<void> {
@@ -54,10 +62,9 @@ export async function streamOpenAICompatibleChat(params: StreamChatParams): Prom
     stream: true,
   };
 
-  const hasReasoning = Boolean(thinkingPlan?.level);
-  let payload = hasReasoning
-    ? { ...basePayload, ...buildReasoningPayload(provider, thinkingPlan!.level) }
-    : { ...basePayload };
+  const reasoningPayload = thinkingPlan?.level ? buildReasoningPayload(provider, thinkingPlan.level) : {};
+  const hasReasoning = Object.keys(reasoningPayload).length > 0;
+  let payload = hasReasoning ? { ...basePayload, ...reasoningPayload } : { ...basePayload };
 
   let response: Response;
 
