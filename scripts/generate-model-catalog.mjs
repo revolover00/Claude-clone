@@ -114,7 +114,8 @@ function entryLine(model) {
     `release: ${str(model.release_date || "")}`,
     `updated: ${str(model.last_updated || "")}`,
     `knowledge: ${str(model.knowledge || "")}`,
-    model.status ? `status: ${str(model.status)}` : null,
+    // Upstream `beta` is the app's `preview` lifecycle (same badge, same UX).
+    model.status ? `status: ${str(model.status === "beta" ? "preview" : model.status)}` : null,
   ].filter(Boolean);
   return `  { ${parts.join(", ")} },`;
 }
@@ -161,11 +162,48 @@ async function main() {
 
     const models = Object.values(source.models)
       .filter((m) => m && m.id && !FORBIDDEN_NAME.test(`${m.id} ${m.name || ""}`))
+      // Bundle only models that actually work: upstream marks retired entries
+      // `deprecated`/`removed` (they fail with model_decommissioned upstream).
+      .filter((m) => !m.status || (m.status !== "deprecated" && m.status !== "removed"))
       .filter((m) => inferKind(m) !== "other" || !/ocr|parse/.test(String(m.id).toLowerCase()))
       .sort((a, b) => String(b.release_date || "").localeCompare(String(a.release_date || "")) || String(a.id).localeCompare(String(b.id)));
 
-    const body = models.map(entryLine).join("\n");
-    fs.writeFileSync(path.join(OUT_DIR, `${provider.file}.ts`), `${fileHeader(provider, models, generatedAt)}${body}\n];\n`, "utf8");
+    // Keep every file under the repo's 300-line rule: large providers are
+    // split into `<file>.partN.ts` files and re-exported from the main file.
+    const ROWS_PER_FILE = 260;
+    const staleParts = fs.readdirSync(OUT_DIR).filter((f) => f.startsWith(`${provider.file}.part`));
+    for (const f of staleParts) fs.unlinkSync(path.join(OUT_DIR, f));
+
+    const lines = models.map(entryLine);
+    if (lines.length <= ROWS_PER_FILE) {
+      fs.writeFileSync(path.join(OUT_DIR, `${provider.file}.ts`), `${fileHeader(provider, models, generatedAt)}${lines.join("\n")}\n];\n`, "utf8");
+    } else {
+      const partCount = Math.ceil(lines.length / ROWS_PER_FILE);
+      const slice = Math.ceil(lines.length / partCount);
+      const partNames = [];
+      for (let i = 0; i < partCount; i++) {
+        const partLines = lines.slice(i * slice, (i + 1) * slice);
+        const partModels = models.slice(i * slice, (i + 1) * slice);
+        const name = `${provider.file}.part${i + 1}`;
+        partNames.push(name);
+        fs.writeFileSync(path.join(OUT_DIR, `${name}.ts`), `${fileHeader(provider, partModels, generatedAt)}${partLines.join("\n")}\n];\n`, "utf8");
+      }
+      const imports = partNames.map((n) => `import { ROWS as ${n.replace(/[^a-z0-9]/gi, "_").toUpperCase()} } from "./${n}";`).join("\n");
+      const spreads = partNames.map((n) => `...${n.replace(/[^a-z0-9]/gi, "_").toUpperCase()}`).join(", ");
+      fs.writeFileSync(
+        path.join(OUT_DIR, `${provider.file}.ts`),
+        `// AUTO-GENERATED — do not edit by hand.
+// Provider: ${provider.label} (${provider.id}) · models.dev key: ${provider.source}
+// Source: models.dev (MIT) · snapshot ${generatedAt} · ${models.length} models (split across ${partNames.length} part files to respect the 300-line rule)
+// Regenerate with: npm run catalog:sync
+import type { CatalogEntry } from "../types";
+${imports}
+
+export const ROWS: CatalogEntry[] = [${spreads}];
+`,
+        "utf8"
+      );
+    }
     summary.push({ id: provider.id, file: provider.file, models: models.length });
   }
 

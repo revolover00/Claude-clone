@@ -16,7 +16,11 @@ export type CatalogKind =
   | "moderation"
   | "other";
 
-export type CatalogStatus = "alpha" | "deprecated";
+/**
+ * Model lifecycle, aligned with the server catalog:
+ * active | preview (upstream `beta`) | deprecated | removed, plus legacy `alpha`.
+ */
+export type CatalogStatus = "active" | "preview" | "deprecated" | "removed" | "alpha";
 
 /** Compact authored row shape used inside `src/shared/catalog/providers/*`. */
 export interface CatalogEntry {

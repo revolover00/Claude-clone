@@ -4,6 +4,7 @@ import { authFetch } from "../../../utils/safeFetch";
 import { composerSections, type PickerSection } from "../../../shared/catalog/grouping";
 import type { UnifiedModel } from "./types";
 
+import { hasFreeTier } from "../../../shared/catalog/freeTier";
 import {
   PROVIDER_LABELS,
   getProviderLabel,
@@ -25,6 +26,7 @@ export function useComposerModels(selectedModelId: string) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [vendorFilter, setVendorFilter] = useState<string>("all");
+  const [freeOnly, setFreeOnly] = useState(false);
 
   const fetchAllProviderModels = useCallback(async () => {
     setLoading(true);
@@ -161,6 +163,7 @@ export function useComposerModels(selectedModelId: string) {
     const q = searchQuery.trim().toLowerCase();
     let list = allModels;
     if (vendorFilter !== "all") list = list.filter((m) => vendorOf(m) === vendorFilter);
+    if (freeOnly) list = list.filter((m) => m.isFree || hasFreeTier(m.provider));
     if (!q) return list;
     return list.filter(
       (m) =>
@@ -171,7 +174,7 @@ export function useComposerModels(selectedModelId: string) {
         (m.family || "").toLowerCase().includes(q) ||
         (m.description && m.description.toLowerCase().includes(q))
     );
-  }, [allModels, searchQuery, vendorFilter]);
+  }, [allModels, searchQuery, vendorFilter, freeOnly]);
 
   const sections = useMemo<PickerSection[]>(
     () => composerSections(filteredModels, (p) => labelFor(labels, p), order),
@@ -213,6 +216,8 @@ export function useComposerModels(selectedModelId: string) {
     setSearchQuery,
     vendorFilter,
     setVendorFilter,
+    freeOnly,
+    setFreeOnly,
     availableVendors,
     loading,
     refresh: fetchAllProviderModels,
