@@ -51,7 +51,7 @@ function AppContent() {
   const dragCounterRef = useRef(0);
 
   useEffect(() => {
-    fetch("/api/health")
+    authFetch("/api/health")
       .then(async (res) => {
         const contentType = res.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {

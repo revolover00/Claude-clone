@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/supabaseClient";
 import { useToast } from "../../context/ToastContext";
-import { Sparkles, Mail, Lock, UserPlus, Eye, EyeOff, RefreshCw, Clock, X } from "lucide-react";
+import { Mail, Lock, UserPlus, Eye, EyeOff, RefreshCw, Clock, X } from "lucide-react";
+import BrandLogo from "../brand/BrandLogo";
 import IframeBanner from "../shared/IframeBanner";
 
 interface LoginViewProps {
@@ -169,9 +170,7 @@ export default function LoginView({ from = "/", notice = null, onDismissNotice }
             </div>
           )}
           <div className="flex flex-col items-center text-center mb-8">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/15 text-accent shadow-sm mb-4">
-              <Sparkles size={24} className="anim-thinking-spark text-accent" />
-            </div>
+            <BrandLogo size="md" className="mb-5" />
             <h1 className="font-serif text-[28px] font-semibold text-ink leading-tight tracking-wide">
               {mode === "login" ? "Welcome back" : mode === "signup" ? "Create your account" : "Reset your password"}
             </h1>

@@ -197,7 +197,7 @@ export default function Composer({
 
       <DragOverlay isDragging={isDragging} />
 
-      <div className="mx-auto flex min-h-[128px] w-full max-w-[690px] flex-col rounded-[14px] border border-composer-line bg-composer px-4 pb-2.5 pt-3 transition-all duration-200 focus-within:border-accent/40 focus-within:shadow-[0_0_0_3px_rgba(217,119,87,0.07)]">
+      <div className="composer-surface mx-auto flex min-h-[132px] w-full max-w-[690px] flex-col rounded-[22px] border px-5 pb-3 pt-4">
         <QuoteBanner activeQuote={activeQuote} onClear={() => setActiveQuote?.(null)} />
 
         <AttachmentChips attachments={attachments} onRemove={removeAttachment} />
