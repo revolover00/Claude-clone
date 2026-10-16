@@ -23,7 +23,15 @@ export function validateSecretAtStartup(): void {
   if (process.env.NODE_ENV === "production") {
     const primary = parseSecret(process.env.PROVIDER_KEY_ENCRYPTION_SECRET);
     if (!primary) {
-      console.error("CRITICAL ERROR: PROVIDER_KEY_ENCRYPTION_SECRET is missing or not 32 bytes in production.");
+      console.error(
+        [
+          "CRITICAL ERROR: PROVIDER_KEY_ENCRYPTION_SECRET is missing or not 32 bytes in production.",
+          "  Saved provider API keys are encrypted with this secret, so the server refuses to boot without it.",
+          "  Fix: add PROVIDER_KEY_ENCRYPTION_SECRET to your hosting platform's environment variables",
+          "  with a random 32-byte value — generate one with:  openssl rand -base64 32",
+          "  (set it wherever you configure env vars: Vercel/Render/Railway/Cloud Run dashboard, .env, ...)",
+        ].join("\n")
+      );
       process.exit(1);
     }
   }
@@ -36,7 +44,9 @@ export function getMasterSecret(): Buffer {
   const secret = parseSecret(process.env.PROVIDER_KEY_ENCRYPTION_SECRET);
   if (!secret) {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("PROVIDER_KEY_ENCRYPTION_SECRET is missing or not 32 bytes");
+      throw new Error(
+        "PROVIDER_KEY_ENCRYPTION_SECRET is missing or not 32 bytes. Generate one with `openssl rand -base64 32` and set it in your hosting platform's environment variables."
+      );
     }
     // Fallback deterministic key for dev/test environments
     return Buffer.alloc(KEY_LENGTH, "claude-clone-dev-secret-key-32b");

@@ -102,6 +102,8 @@ Create a `.env` file in the root directory (based on `.env.example`).
 | `VITE_ALLOW_LOCAL_MODE` | No | `false` | Development only: the client creates a local mock session so the app can be used without a Supabase project. |
 | `VITE_BRAND_LOGO_URL` | No | unset | Opt-in URL for externally hosted brand artwork; the app uses its local vector mark by default. |
 | `NODE_ENV` | No | `development` | Set to `production` when building for deployment. |
+| `PROVIDER_KEY_ENCRYPTION_SECRET` | **Yes (production)** | unset | 32-byte secret used to encrypt saved provider API keys at rest. Generate with `openssl rand -base64 32`. The server **exits on boot** in production when it is missing or not 32 bytes. |
+| `PROVIDER_KEY_ENCRYPTION_SECRET_PREV` | No | unset | Previous secret, only needed during key rotation (old ciphertexts decrypt with it and re-encrypt with the primary). |
 
 ---
 
@@ -285,4 +287,4 @@ This application uses a full-stack architecture where `server.ts` hosts the Expr
    npm run start
    # Executes: NODE_ENV=production tsx server.ts
    ```
-4. **Environment Variables**: No AI key is required on the platform — users connect their own provider keys in Settings > Providers (see the note above).
+4. **Environment Variables**: No AI key is required on the platform — users connect their own provider keys in Settings > Providers (see the note above). **One secret is mandatory in production**: `PROVIDER_KEY_ENCRYPTION_SECRET` (the server refuses to boot without it). Generate a 32-byte value with `openssl rand -base64 32` and set it in your host's environment/dashboard before the first deploy. For local production-mode runs put it in `.env` (see `.env.example`).
