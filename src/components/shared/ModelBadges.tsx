@@ -6,7 +6,7 @@ interface Props {
   hidden?: boolean;
 }
 
-/** Lifecycle badges: New (first seen in 14 days), Preview, Deprecated/Removed, Recommended, Free. */
+/** Lifecycle badges: New (first seen in 14 days), Preview, Deprecated/Removed, Recommended. Pricing lives in <PricingBadge>. */
 export function ModelBadges({ model, hidden }: Props) {
   const status = modelStatus(model);
   return (
@@ -35,9 +35,6 @@ export function ModelBadges({ model, hidden }: Props) {
         <span className="inline-flex items-center gap-0.5 rounded border border-accent/30 bg-accent/10 px-1.5 py-0.2 text-[9.5px] font-semibold text-accent">
           <ThumbsUp size={9} /> Recommended
         </span>
-      )}
-      {model.is_free && (
-        <span className="rounded border border-line bg-elev-2 px-1.5 py-0.2 text-[9.5px] font-semibold text-ink-muted">Free</span>
       )}
       {hidden && (
         <span className="inline-flex items-center gap-0.5 rounded border border-danger/25 bg-danger-bg px-1.5 py-0.2 text-[9.5px] font-semibold text-danger">

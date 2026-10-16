@@ -67,6 +67,60 @@ const CATALOG = {
       alias: null,
       description: null,
     },
+    {
+      provider: "xai",
+      model_id: "grok-4.1-mini",
+      name: "Grok 4.1 Mini",
+      display_name: "Grok 4.1 Mini",
+      vendor: "xAI",
+      family: "Grok 4",
+      kind: "chat",
+      status: "active",
+      context_length: 131072,
+      max_output_tokens: 16384,
+      supports_tools: true,
+      supports_reasoning: false,
+      supports_vision: false,
+      supports_json: false,
+      is_free: true,
+      recommended: false,
+      pricing: { inputPerMTok: 0, outputPerMTok: 0, currency: "USD" },
+      released_at: "2026-01-15",
+      first_seen_at: "2026-10-01T00:00:00.000Z",
+      connected: false,
+      requires_key: true,
+      enabled: true,
+      pinned: false,
+      alias: null,
+      description: "Free-variant pricing row",
+    },
+    {
+      provider: "gemini",
+      model_id: "gemini-3-8-flash",
+      name: "Gemini 3 Flash",
+      display_name: "Gemini 3 Flash",
+      vendor: "Google",
+      family: "Gemini 3",
+      kind: "chat",
+      status: "active",
+      context_length: 1000000,
+      max_output_tokens: 65536,
+      supports_tools: true,
+      supports_reasoning: false,
+      supports_vision: true,
+      supports_json: false,
+      is_free: false,
+      recommended: false,
+      pricing: { inputPerMTok: 0.3, outputPerMTok: 2.5, currency: "USD" },
+      released_at: "2025-11-01",
+      first_seen_at: "2026-10-01T00:00:00.000Z",
+      connected: false,
+      requires_key: true,
+      enabled: true,
+      pinned: false,
+      alias: null,
+      description: "Free-tier provider row",
+    },
   ],
 };
 
@@ -122,7 +176,7 @@ describe("Composer picker without connected keys", () => {
     await waitFor(() => expect(screen.getByText("GPT-5")).toBeTruthy());
     expect(screen.getByText("Grok 4")).toBeTruthy();
     expect(screen.getByText("Connect OpenAI to use")).toBeTruthy();
-    expect(screen.getByText("Connect xAI to use")).toBeTruthy();
+    expect(screen.getAllByText("Connect xAI to use").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/Dimmed models belong to providers/)).toBeTruthy();
     expect(screen.getByText("Flagship reasoning model")).toBeTruthy();
   });
@@ -174,5 +228,34 @@ describe("Composer picker without connected keys", () => {
     fireEvent.click(within(group).getByRole("button", { name: "All" }));
     await waitFor(() => expect(screen.getByText("GPT-5")).toBeTruthy());
     expect(screen.getByText("Grok 4")).toBeTruthy();
+  });
+
+  it("labels every model free/paid and filters with the Free chip", async () => {
+    render(
+      <ModelMenu
+        model="openai:gpt-5"
+        onSelectModel={mockOnSelectModel}
+        effort="Medium"
+        onSelectEffort={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByText("GPT-5 · OpenAI · key needed")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /model options/i }));
+
+    // Every row carries its free/paid label: Free pill, paid price, or free tier.
+    await waitFor(() => expect(screen.getAllByText("Free").length).toBeGreaterThanOrEqual(1));
+    expect(screen.getAllByText("Free tier").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Variable").length).toBeGreaterThanOrEqual(1);
+
+    // The Free chip keeps price-zero rows AND free-tier providers only.
+    const group = await screen.findByRole("group", { name: "Filter by vendor" });
+    fireEvent.click(within(group).getByRole("button", { name: "Free" }));
+    await waitFor(() => expect(screen.queryByText("GPT-5")).toBeNull());
+    expect(screen.getByText("Grok 4.1 Mini")).toBeTruthy();
+    expect(screen.getByText("Gemini 3 Flash")).toBeTruthy();
+
+    fireEvent.click(within(group).getByRole("button", { name: "Free" }));
+    await waitFor(() => expect(screen.getByText("GPT-5")).toBeTruthy());
   });
 });

@@ -1,7 +1,8 @@
 import React from "react";
 import { Check, Brain, Layers, Globe, Eye, Pin, KeyRound } from "lucide-react";
 import { cn } from "../../../utils/cn";
-import { formatPricing } from "../../../shared/pricing";
+import { PricingBadge } from "../../shared/PricingBadge";
+import { hasFreeTier } from "../../../shared/catalog/freeTier";
 import type { UnifiedModel } from "./types";
 
 interface Props {
@@ -33,10 +34,13 @@ export const ModelPickerItem: React.FC<Props> = ({ model, isSelected, onSelect }
           {model.alias && <span className="text-[11px] text-ink-muted truncate">({model.displayName})</span>}
         </div>
 
-        {(model.contextLength || model.pricing) && (
-          <div className="flex items-center gap-1.5 text-[10.5px] text-ink-muted mt-0.5 font-mono">
-            {model.contextLength && <span>{Math.round(model.contextLength / 1000)}k ctx</span>}
-            {model.pricing !== undefined && <span>• {model.pricing ? formatPricing(model.pricing) : "Variable"}</span>}
+        {(model.contextLength || model.pricing !== undefined) && (
+          <div className="flex items-center gap-1.5 text-[10.5px] text-ink-muted mt-0.5">
+            {model.contextLength && <span className="font-mono">{Math.round(model.contextLength / 1000)}k ctx</span>}
+            {model.contextLength && model.pricing !== undefined && <span>•</span>}
+            {model.pricing !== undefined && (
+              <PricingBadge pricing={model.pricing} isFree={model.isFree} freeTier={hasFreeTier(model.provider)} />
+            )}
           </div>
         )}
 

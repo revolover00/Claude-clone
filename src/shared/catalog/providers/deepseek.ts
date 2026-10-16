@@ -5,6 +5,6 @@
 import type { CatalogEntry } from "../types";
 
 export const ROWS: CatalogEntry[] = [
-  { id: "deepseek-reasoner", name: "DeepSeek Reasoner", family: "deepseek", kind: "chat", ctx: 128000, out: 128000, caps: "trT", in: "text", outMod: "text", price: [0.28, 0.42, 0.028], release: "2025-01-20", updated: "2025-09-29", knowledge: "2024-07" },
-  { id: "deepseek-chat", name: "DeepSeek Chat", family: "deepseek-chat", kind: "chat", ctx: 128000, out: 8192, caps: "tT", in: "text", outMod: "text", price: [0.28, 0.42, 0.028], release: "2024-12-26", updated: "2025-09-29", knowledge: "2024-07" },
+  { id: "deepseek-flash", name: "DeepSeek V4.1 Flash", family: "deepseek-flash", kind: "chat", ctx: 1000000, out: 393216, caps: "trsTw", in: "text,image", outMod: "text", price: [0.15, 0.6, 0.003], release: "2026-09-10", updated: "2026-09-10", knowledge: "2025-05" },
+  { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", family: "deepseek-thinking", kind: "chat", ctx: 1000000, out: 393216, caps: "trsTw", in: "text", outMod: "text", price: [0.66, 1.98, 0.022], release: "2026-08-12", updated: "2026-08-22", knowledge: "" },
 ];
