@@ -52,6 +52,50 @@ export function buildReasoningPayload(provider: string, level: string): Record<s
   return {};
 }
 
+/**
+ * Turns a raw provider error body into a friendly SSE error event.
+ * Groq/OpenAI-style bodies: {"error":{"message":"...","code":"model_decommissioned"}}.
+ * Decommissioned/unknown models map to MODEL_NOT_FOUND (404) so clients show
+ * "model retired" instead of raw JSON, and never treat a 400 as a 5xx.
+ */
+export function mapProviderError(
+  status: number,
+  body: string,
+  modelId: string
+): { error: string; code: string | number; status: number } {
+  let message = "";
+  let innerCode: any = null;
+  try {
+    const parsed = JSON.parse(body);
+    const e = parsed?.error ?? parsed;
+    if (typeof e?.message === "string") message = e.message;
+    if (e?.code !== undefined && e?.code !== null) innerCode = e.code;
+  } catch {
+    const m = body.match(/"message"\s*:\s*"([^"]{5,400})"/);
+    if (m) message = m[1];
+  }
+
+  const retired =
+    innerCode === "model_decommissioned" ||
+    innerCode === "model_not_found" ||
+    /decommissioned|no longer supported|has been retired|not found/i.test(message);
+  if (retired || status === 404) {
+    return {
+      error: message || `Model '${modelId}' is no longer available`,
+      code: "MODEL_NOT_FOUND",
+      status: 404,
+    };
+  }
+  if (status === 400) {
+    return { error: message || "Provider rejected the request", code: "INVALID_REQUEST", status: 400 };
+  }
+  return {
+    error: message ? `Provider error: ${message}` : `Provider error (${status})`,
+    code: status,
+    status,
+  };
+}
+
 export async function streamOpenAICompatibleChat(params: StreamChatParams): Promise<void> {
   const { provider, endpoint, modelId, apiKey, messages, config, res, abortSignal, thinkingPlan, onInvalidKey } = params;
 
@@ -97,12 +141,24 @@ export async function streamOpenAICompatibleChat(params: StreamChatParams): Prom
           signal: abortSignal,
         });
       } else {
-        // Re-wrap text into response-like error
-        throw new Error(errText);
+        // Non-reasoning 400 (e.g. decommissioned model): answer with a mapped
+        // event instead of throwing the raw provider JSON at the client.
+        const mapped = mapProviderError(400, errText, modelId);
+        res.write(`data: ${JSON.stringify({ error: mapped.error, code: mapped.code, status: mapped.status })}\n\n`);
+        res.write("data: [DONE]\n\n");
+        return;
       }
     }
   } catch (err: any) {
-    res.write(`data: ${JSON.stringify({ error: err.message || "Upstream connection error", code: 502 })}\n\n`);
+    // User-initiated abort (stop button): close quietly without an error event.
+    if (abortSignal?.aborted || err?.name === "AbortError") {
+      res.write("data: [DONE]\n\n");
+      return;
+    }
+    const raw = String(err?.message || "Upstream connection error");
+    const looksJson = raw.trim().startsWith("{");
+    const mapped = looksJson ? mapProviderError(502, raw, modelId) : null;
+    res.write(`data: ${JSON.stringify({ error: mapped?.error || raw, code: mapped?.code ?? 502 })}\n\n`);
     res.write("data: [DONE]\n\n");
     return;
   }
@@ -121,7 +177,8 @@ export async function streamOpenAICompatibleChat(params: StreamChatParams): Prom
       res.write(`data: ${JSON.stringify({ error: `Model '${modelId}' not found`, code: "MODEL_NOT_FOUND", status: 404 })}\n\n`);
     } else {
       const errBody = await response.text().catch(() => "");
-      res.write(`data: ${JSON.stringify({ error: `Provider error (${response.status})`, details: errBody, code: response.status })}\n\n`);
+      const mapped = mapProviderError(response.status, errBody, modelId);
+      res.write(`data: ${JSON.stringify({ error: mapped.error, code: mapped.code, status: mapped.status, details: mapped.status === 400 ? undefined : errBody })}\n\n`);
     }
     res.write("data: [DONE]\n\n");
     return;

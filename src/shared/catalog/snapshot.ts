@@ -5,5 +5,5 @@ import type { CatalogSnapshot } from "./types";
 export const CATALOG_SNAPSHOT: CatalogSnapshot = {
   generatedAt: "2026-10-16",
   source: "models.dev (https://models.dev/api.json)",
-  totalModels: 409,
+  totalModels: 401, // 409 raw - 8 retired Groq entries pruned from the bundle
 };
