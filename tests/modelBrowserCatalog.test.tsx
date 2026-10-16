@@ -20,59 +20,103 @@ function jsonResponse(body: unknown) {
   } as Response;
 }
 
-const REGISTRY = {
-  providers: [
-    { id: "gemini", label: "Google AI Studio", vendor: "Google", docsUrl: "https://ai.google.dev", keyHelpUrl: "https://aistudio.google.com/app/apikey", keyEnv: "GEMINI_API_KEY", bundledModelCount: 2, connected: false },
-    { id: "openai", label: "OpenAI", vendor: "OpenAI", docsUrl: "https://platform.openai.com/docs/models", keyHelpUrl: "https://platform.openai.com/api-keys", keyEnv: "OPENAI_API_KEY", bundledModelCount: 2, connected: true },
-  ],
-  credentials: [{ id: "c1", provider: "openai", status: "active", key_last4: "1234" }],
-  catalog: { providers: 2, models: 4, snapshot: { generatedAt: "2026-10-16" } },
-};
+function row(over: Record<string, unknown>) {
+  return {
+    display_name: undefined,
+    description: null,
+    max_output_tokens: null,
+    supports_json: false,
+    is_free: false,
+    recommended: false,
+    status: "active",
+    kind: "chat",
+    pricing: null,
+    released_at: "2025-06-01",
+    first_seen_at: "2026-10-01T00:00:00.000Z",
+    alias: null,
+    pinned: false,
+    enabled: true,
+    requires_key: false,
+    hidden: false,
+    ...over,
+  };
+}
 
-const GEMINI_MODELS = {
-  provider: "gemini",
+const CATALOG = {
   source: "bundled",
-  liveError: null,
-  bundledModelCount: 2,
-  models: [
-    {
-      provider: "gemini", id: "gemini-2.5-pro", displayName: "Gemini 2.5 Pro", description: null,
-      contextLength: 1048576, maxOutputTokens: 65536, inputModalities: ["text", "image"], outputModalities: ["text"],
-      supportsTools: true, supportsReasoning: true, supportsVision: true, pricing: { inputPerMTok: 1.25, outputPerMTok: 10, currency: "USD" },
-      isActive: true, isEnabled: true, isPinned: false, kind: "chat", source: "bundled", vendor: "Google",
-      releaseDate: "2025-03-20", knowledgeCutoff: "2025-01",
-    },
-    {
-      provider: "gemini", id: "gemini-embedding-001", displayName: "Gemini Embedding 001", description: null,
-      contextLength: 2048, maxOutputTokens: null, inputModalities: ["text"], outputModalities: ["text"],
-      supportsTools: false, supportsReasoning: false, supportsVision: false, pricing: { inputPerMTok: 0.15, outputPerMTok: 0, currency: "USD" },
-      isActive: true, isEnabled: true, isPinned: false, kind: "embedding", source: "bundled", vendor: "Google",
-    },
+  is_admin: false,
+  total: 4,
+  nextCursor: null,
+  limit: 50,
+  providers: [
+    { id: "gemini", label: "Google AI Studio", connected: false, modelCount: 2 },
+    { id: "openai", label: "OpenAI", connected: true, modelCount: 2 },
   ],
-};
-
-const OPENAI_MODELS = {
-  provider: "openai",
-  source: "live",
-  liveError: null,
-  bundledModelCount: 1,
+  syncable: ["openrouter", "gemini", "groq"],
+  sync: { newest: null, stale12h: true },
   models: [
-    {
-      provider: "openai", id: "gpt-5", displayName: "GPT-5", description: null,
-      contextLength: 400000, maxOutputTokens: 128000, inputModalities: ["text", "image"], outputModalities: ["text"],
-      supportsTools: true, supportsReasoning: true, supportsVision: true, pricing: { inputPerMTok: 1.25, outputPerMTok: 10, currency: "USD" },
-      isActive: true, isEnabled: true, isPinned: false, kind: "chat", source: "live", vendor: "OpenAI",
-    },
+    row({
+      provider: "gemini",
+      model_id: "gemini-3.8-flash",
+      name: "Gemini 3.8 Flash",
+      vendor: "Google",
+      family: "Gemini 3.8 Flash",
+      context_length: 1000000,
+      supports_tools: true,
+      supports_vision: true,
+      supports_reasoning: true,
+      recommended: true,
+      is_free: false,
+      pricing: { inputPerMTok: 1.25, outputPerMTok: 10, currency: "USD" },
+      connected: false,
+      requires_key: true,
+    }),
+    row({
+      provider: "gemini",
+      model_id: "gemini-embedding-004",
+      name: "Gemini Embedding 004",
+      vendor: "Google",
+      family: "Gemini",
+      kind: "embedding",
+      context_length: 2048,
+      connected: false,
+      requires_key: true,
+    }),
+    row({
+      provider: "openai",
+      model_id: "gpt-5",
+      name: "GPT-5",
+      vendor: "OpenAI",
+      family: "GPT-5",
+      context_length: 400000,
+      max_output_tokens: 128000,
+      supports_tools: true,
+      supports_vision: true,
+      supports_reasoning: true,
+      recommended: true,
+      pricing: { inputPerMTok: 1.25, outputPerMTok: 10, currency: "USD" },
+      connected: true,
+      released_at: "2025-08-01",
+    }),
+    row({
+      provider: "openai",
+      model_id: "gpt-5-mini",
+      name: "GPT-5 Mini",
+      vendor: "OpenAI",
+      family: "GPT-5",
+      context_length: 400000,
+      connected: true,
+      released_at: "2025-09-01",
+    }),
   ],
 };
 
 function mockFetch() {
   return vi.spyOn(global, "fetch").mockImplementation(async (input: any, init?: RequestInit) => {
     const url = String(input);
-    if (url === "/api/providers") return jsonResponse(REGISTRY);
-    if (url.startsWith("/api/providers/gemini/models")) return jsonResponse(GEMINI_MODELS);
-    if (url.startsWith("/api/providers/openai/models")) return jsonResponse(OPENAI_MODELS);
-    if (url === "/api/models/prefs") return jsonResponse({ success: true, method: init?.method });
+    if (url.includes("/api/catalog")) return jsonResponse(CATALOG);
+    if (url.includes("/api/models/prefs")) return jsonResponse({ success: true, method: init?.method });
+    if (url.includes("/api/models")) return jsonResponse([]);
     return jsonResponse({});
   });
 }
@@ -85,65 +129,93 @@ describe("Model catalog browser", () => {
     getSession.mockResolvedValue({ data: { session: { access_token: "session-jwt" } } });
   });
 
-  it("lists every provider with counts, bundled models, details and key flags", async () => {
+  it("lists providers with counts, grouped catalog rows, details and key hints", async () => {
     mockFetch();
     render(<ModelBrowser />);
 
     await waitFor(() => expect(screen.getByText("Model Catalog")).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText("Gemini 3.8 Flash").length).toBeGreaterThan(0));
 
-    // Provider tabs carry their model counts.
-    expect(screen.getByText("All providers")).toBeTruthy();
-    expect(screen.getByText("OpenAI")).toBeTruthy();
+    // Filter selectors carry per-provider and per-kind counts.
+    const providerSelect = screen.getByRole("combobox", { name: "Filter by provider" });
+    const optionTexts = Array.from(providerSelect.querySelectorAll("option")).map((o) => o.textContent);
+    expect(optionTexts).toEqual(["All providers (4)", "Google AI Studio (2)", "OpenAI (2)"]);
+    const kindSelect = screen.getByRole("combobox", { name: "Filter by kind" });
+    const kindTexts = Array.from(kindSelect.querySelectorAll("option")).map((o) => o.textContent);
+    expect(kindTexts).toEqual(["All kinds (4)", "Chat (3)", "Embedding (1)"]);
 
-    // Bundled models are shown even though the provider has no key yet.
-    await waitFor(() => expect(screen.getByText("Gemini 2.5 Pro")).toBeTruthy());
-    expect(screen.getByText("Gemini Embedding 001")).toBeTruthy();
-    expect(screen.getAllByText("key needed").length).toBe(2);
+    // Every model is listed, even for unconnected providers; only those rows
+    // are dimmed with a "Connect <provider> to use" hint.
+    expect(screen.getAllByText("GPT-5").length).toBeGreaterThan(0);
+    expect(screen.getByText("Gemini Embedding 004")).toBeTruthy();
+    expect(screen.getAllByText(/Connect Google AI Studio to use/)).toHaveLength(2);
+    expect(screen.queryByText(/Connect OpenAI to use/)).toBeNull();
+    expect(screen.getAllByText("Settings › Providers").length).toBeGreaterThanOrEqual(2);
 
-    // Details: context window, pricing, capability badges, kind label.
-    expect(screen.getByText(/M ctx/)).toBeTruthy();
+    // Grouped Provider -> Vendor -> Family hierarchy with counts.
+    expect(screen.getAllByText("gemini").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Google")).toBeTruthy();
+    expect(screen.getAllByText("Gemini 3.8 Flash").length).toBeGreaterThanOrEqual(2); // family header + row name
+
+    // Details: context window, pricing, kind label, capability chips.
+    expect(screen.getAllByText(/1M ctx/).length).toBeGreaterThan(0);
     expect(screen.getAllByText("$1.25 / $10 / 1M").length).toBeGreaterThan(0);
     expect(screen.getByText("Embedding")).toBeTruthy();
-    expect(screen.getByText("Showing 3 of 3 models")).toBeTruthy();
 
-    // Live catalogs are marked as live.
-    expect(screen.getAllByText("live").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("catalog").length).toBeGreaterThan(0);
+    // Filter chips + summary + source badge.
+    expect(screen.getByRole("button", { name: "Recommended" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: "Long context 200k+" })).toBeTruthy();
+    expect(screen.getByText("Showing 4 of 4 models")).toBeTruthy();
+    expect(screen.getByText("bundled snapshot")).toBeTruthy();
+    expect(screen.getAllByRole("switch")).toHaveLength(4);
   });
 
-  it("filters by provider tab, kind and search, and saves preferences", async () => {
+  it("filters by provider, kind, chips and search, and saves preferences", async () => {
     const fetchSpy = mockFetch();
     render(<ModelBrowser />);
-    await waitFor(() => expect(screen.getByText("Gemini 2.5 Pro")).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText("Gemini 3.8 Flash").length).toBeGreaterThan(0));
 
-    // Provider tab
-    fireEvent.click(screen.getByText("OpenAI"));
-    await waitFor(() => expect(screen.queryByText("Gemini 2.5 Pro")).toBeNull());
-    expect(screen.getByText("GPT-5")).toBeTruthy();
+    // Provider filter
+    fireEvent.change(screen.getByRole("combobox", { name: "Filter by provider" }), { target: { value: "openai" } });
+    await waitFor(() => expect(screen.queryAllByText("Gemini 3.8 Flash")).toHaveLength(0));
+    expect(screen.getAllByText("GPT-5").length).toBeGreaterThan(0);
+    expect(screen.getByText("Showing 2 of 4 models")).toBeTruthy();
 
-    // Back to all providers, filter by kind
-    fireEvent.click(screen.getByText("All providers"));
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "embedding" } });
-    await waitFor(() => expect(screen.queryByText("GPT-5")).toBeNull());
-    expect(screen.getByText("Gemini Embedding 001")).toBeTruthy();
+    // Kind filter
+    fireEvent.change(screen.getByRole("combobox", { name: "Filter by provider" }), { target: { value: "all" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Filter by kind" }), { target: { value: "embedding" } });
+    await waitFor(() => expect(screen.queryAllByText("GPT-5")).toHaveLength(0));
+    expect(screen.getByText("Gemini Embedding 004")).toBeTruthy();
+    fireEvent.change(screen.getByRole("combobox", { name: "Filter by kind" }), { target: { value: "all" } });
 
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "all" } });
+    // Capability chip toggles (aria-pressed reflects state)
+    const visionChip = screen.getByRole("button", { name: "Vision" });
+    fireEvent.click(visionChip);
+    expect(visionChip.getAttribute("aria-pressed")).toBe("true");
+    await waitFor(() => expect(screen.queryByText("Gemini Embedding 004")).toBeNull());
+    expect(screen.getAllByText("GPT-5").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Vision" }));
+    await waitFor(() => expect(screen.getByText("Gemini Embedding 004")).toBeTruthy());
 
     // Search
-    fireEvent.change(screen.getByPlaceholderText(/Search by name/), { target: { value: "gpt-5" } });
-    await waitFor(() => expect(screen.getByText("GPT-5")).toBeTruthy());
-    expect(screen.queryByText("Gemini 2.5 Pro")).toBeNull();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search models" }), { target: { value: "gpt-5 mini" } });
+    await waitFor(() => expect(screen.getByText("GPT-5 Mini")).toBeTruthy());
+    expect(screen.queryAllByText("Gemini 3.8 Flash")).toHaveLength(0);
+    fireEvent.change(screen.getByRole("textbox", { name: "Search models" }), { target: { value: "" } });
+    await waitFor(() => expect(screen.getAllByText("Gemini 3.8 Flash").length).toBeGreaterThan(0));
 
-    // Toggle a model on/off and persist the preference
-    fireEvent.change(screen.getByPlaceholderText(/Search by name/), { target: { value: "" } });
-    await waitFor(() => expect(screen.getByText("Gemini 2.5 Pro")).toBeTruthy());
-    fireEvent.click(screen.getAllByRole("switch")[0]);
+    // Sort selector accepts the client-side sorts
+    fireEvent.change(screen.getByRole("combobox", { name: "Sort models" }), { target: { value: "context" } });
+    await waitFor(() => expect(screen.getByText("Showing 4 of 4 models")).toBeTruthy());
 
+    // Toggling a model persists the per-user preference
+    fireEvent.click(screen.getByRole("switch", { name: "Disable Gemini 3.8 Flash" }));
     await waitFor(() => {
-      const call = fetchSpy.mock.calls.find(([u]) => String(u) === "/api/models/prefs");
+      const call = fetchSpy.mock.calls.find(([u]) => String(u).includes("/api/models/prefs"));
       expect(call).toBeTruthy();
       const body = JSON.parse(String((call as any)[1].body));
-      expect(body.items[0]).toMatchObject({ provider: "gemini", model_id: "gemini-2.5-pro", enabled: false });
+      expect(body.items[0]).toMatchObject({ provider: "gemini", model_id: "gemini-3.8-flash", enabled: false });
     });
+    expect(screen.getByRole("switch", { name: "Enable Gemini 3.8 Flash" })).toBeTruthy();
   });
 });

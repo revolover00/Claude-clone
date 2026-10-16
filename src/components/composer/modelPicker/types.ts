@@ -17,9 +17,19 @@ export interface UnifiedModel {
   isDefault?: boolean;
   /** Catalog kind (chat, embedding, image, audio, video, ...). */
   kind?: string;
-  vendor?: string;
+  vendor?: string | null;
+  /** Catalog family grouping (e.g. "Gemini 3.8 Flash", "Llama 4"). */
+  family?: string | null;
+  /** Lifecycle status: active, preview, deprecated, removed. */
+  status?: string;
+  /** Deterministic per-(provider, family) recommendation flag. */
+  recommended?: boolean;
+  releasedAt?: string | null;
+  firstSeenAt?: string | null;
+  isFree?: boolean;
   /** The provider has no API key yet, so this model cannot run until one is connected. */
   requiresKey?: boolean;
+  [key: string]: any;
 }
 
 export interface ProviderGroup {

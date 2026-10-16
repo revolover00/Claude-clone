@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../utils/supabaseClient";
 import { importLocalChatsToSupabase } from "../utils/supabaseImport";
-import { normalizeSlug } from "../hooks/useModels";
+import { toCanonicalModelId } from "../shared/normalizeSlug";
 import { SESSION_EXPIRED_EVENT, type SessionExpiredDetail } from "../utils/authErrors";
 import {
   clearLegacyTokenCopy,
@@ -31,8 +31,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 function normalizePreferences(prefs: any) {
-  if (prefs?.settings?.model) prefs.settings.model = normalizeSlug(prefs.settings.model);
-  if (prefs?.settings?.model_id) prefs.settings.model_id = normalizeSlug(prefs.settings.model_id);
+  if (prefs?.settings?.model) prefs.settings.model = toCanonicalModelId(prefs.settings.model);
+  if (prefs?.settings?.model_id) prefs.settings.model_id = toCanonicalModelId(prefs.settings.model_id);
   return prefs;
 }
 

@@ -49,6 +49,12 @@ router.post("/", async (req, res) => {
       const normSlug = normalizeSlug(m.slug);
       return normSlug === requestedSlug || m.slug === model || m.id === model;
     });
+    if (!resolvedModel && targetModelId) {
+      // Canonical "provider:modelId" references resolve through the API id.
+      resolvedModel = enabledModels.find(
+        (m) => m.api_model_id === targetModelId || m.slug === targetModelId
+      );
+    }
     if (!resolvedModel && provider === "gemini") {
       resolvedModel = enabledModels.find((m) => m.is_default) || enabledModels[0];
     }
