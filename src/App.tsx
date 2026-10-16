@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
-import { BrowserRouter, useLocation } from "react-router-dom";
-import { UploadCloud, AlertTriangle, X } from "lucide-react";
+import { BrowserRouter } from "react-router-dom";
+import { UploadCloud, AlertTriangle } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import MainChat from "./components/MainChat";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
+import AppStatusBanners from "./components/shared/AppStatusBanners";
+import AuthGate from "./components/views/AuthGate";
 import { ChatProvider, useChat } from "./context/ChatContext";
 import { ToastProvider } from "./context/ToastContext";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AuthProvider } from "./context/AuthContext";
 import { isRealSupabaseConfigured } from "./utils/supabaseClient";
 import { authFetch } from "./utils/safeFetch";
 
@@ -14,7 +16,6 @@ const ArtifactPanel = lazy(() => import("./components/artifacts/ArtifactPanel"))
 const SearchModal = lazy(() => import("./components/modals/SearchModal"));
 const SettingsModal = lazy(() => import("./components/modals/SettingsModal"));
 const KeyboardShortcutsModal = lazy(() => import("./components/modals/KeyboardShortcutsModal"));
-const LoginView = lazy(() => import("./components/views/LoginView"));
 const MotionReview = lazy(() => import("./components/views/MotionReview"));
 const ResetPasswordView = lazy(() => import("./components/views/ResetPasswordView"));
 
@@ -29,8 +30,6 @@ function BackendNotConfiguredPage() {
 }
 
 function AppContent() {
-  const location = useLocation();
-  const { loading, user } = useAuth();
   const {
     activeArtifact, artifactPanelOpen, closeArtifact, setArtifactVersion,
     searchModalOpen, setSearchModalOpen, settingsModalOpen, setSettingsModalOpen, setActiveView,
@@ -167,91 +166,48 @@ function AppContent() {
     return <BackendNotConfiguredPage />;
   }
 
-  if (loading) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-shell">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-accent/20 border-t-accent" />
-      </div>
-    );
-  }
-
-  if (!user) return <Suspense fallback={null}><LoginView from={location.pathname} /></Suspense>;
-
   return (
-    <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-shell text-ink font-sans">
-      {backendNotConfigured && (
-        <div className="relative z-50 flex shrink-0 items-center justify-between border-b border-amber-500/30 bg-amber-500/15 px-4 py-2 text-[13px] text-amber-200">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={15} className="shrink-0 text-amber-400" />
-            <span>AI backend is not configured</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setBackendNotConfigured(false)}
-            className="rounded p-1 text-amber-300 transition-colors hover:bg-amber-500/20 cursor-pointer"
-            aria-label="Dismiss banner"
-          >
-            <X size={14} />
-          </button>
+    <AuthGate>
+      <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-shell text-ink font-sans">
+        <AppStatusBanners
+          backendNotConfigured={backendNotConfigured}
+          onDismissBackendNotConfigured={() => setBackendNotConfigured(false)}
+          backendUnreachable={backendUnreachable}
+          onDismissBackendUnreachable={() => setBackendUnreachable(false)}
+          showZeroEnabledModels={zeroEnabledModels && isAdmin}
+        />
+
+        <div className="flex flex-1 min-h-0 w-full overflow-hidden">
+          {sidebarOpen && (
+            <div className="fixed inset-0 z-30 bg-black/55 backdrop-blur-[2px] lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
+          )}
+
+          <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen((v: boolean) => !v)} />
+          <MainChat sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen((v: boolean) => !v)} />
+
+          <Suspense fallback={null}>
+            <ErrorBoundary fallbackType="artifact">
+              <ArtifactPanel
+                artifact={activeArtifact} isOpen={artifactPanelOpen} onClose={closeArtifact}
+                onSelectVersion={(v) => { if (activeArtifact) setArtifactVersion(activeArtifact.id, v); }}
+              />
+            </ErrorBoundary>
+          </Suspense>
         </div>
-      )}
 
-      {backendUnreachable && (
-        <div className="relative z-50 flex shrink-0 items-center justify-between border-b border-rose-500/30 bg-rose-500/15 px-4 py-2 text-[13px] text-rose-200">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={15} className="shrink-0 text-rose-400" />
-            <span>Backend not reachable</span>
+        <Suspense fallback={null}><SearchModal /></Suspense>
+        <Suspense fallback={null}><SettingsModal /></Suspense>
+        <Suspense fallback={null}><KeyboardShortcutsModal /></Suspense>
+
+        <div className={`fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/65 backdrop-blur-[2px] pointer-events-none transition-opacity duration-150 ${windowDragActive ? "opacity-100" : "opacity-0"}`} aria-hidden={!windowDragActive}>
+          <div className="flex h-72 w-full max-w-xl flex-col items-center justify-center rounded-2xl border-2 border-dashed border-accent bg-elev-1/95 p-6 shadow-2xl">
+            <UploadCloud size={46} className="text-accent animate-bounce mb-3" />
+            <p className="text-[20px] font-medium text-ink">Drop files here</p>
+            <p className="mt-1 text-[13.5px] text-ink-muted">Add photos, code files, and documents to your chat</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setBackendUnreachable(false)}
-            className="rounded p-1 text-rose-300 transition-colors hover:bg-rose-500/20 cursor-pointer"
-            aria-label="Dismiss banner"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
-      {zeroEnabledModels && isAdmin && (
-        <div className="relative z-50 flex shrink-0 items-center justify-between border-b border-rose-500/30 bg-rose-500/15 px-4 py-2 text-[13px] text-rose-200">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={15} className="shrink-0 text-rose-400 animate-pulse" />
-            <span>No models enabled on the server. Go to <strong>Settings &gt; Models</strong> to configure and enable at least one chat model.</span>
-          </div>
-        </div>
-      )}
-
-      <div className="flex flex-1 min-h-0 w-full overflow-hidden">
-        {sidebarOpen && (
-          <div className="fixed inset-0 z-30 bg-black/55 backdrop-blur-[2px] lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
-        )}
-
-        <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen((v: boolean) => !v)} />
-        <MainChat sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen((v: boolean) => !v)} />
-
-        <Suspense fallback={null}>
-          <ErrorBoundary fallbackType="artifact">
-            <ArtifactPanel
-              artifact={activeArtifact} isOpen={artifactPanelOpen} onClose={closeArtifact}
-              onSelectVersion={(v) => { if (activeArtifact) setArtifactVersion(activeArtifact.id, v); }}
-            />
-          </ErrorBoundary>
-        </Suspense>
-      </div>
-
-      <Suspense fallback={null}><SearchModal /></Suspense>
-      <Suspense fallback={null}><SettingsModal /></Suspense>
-      <Suspense fallback={null}><KeyboardShortcutsModal /></Suspense>
-
-      <div className={`fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/65 backdrop-blur-[2px] pointer-events-none transition-opacity duration-150 ${windowDragActive ? "opacity-100" : "opacity-0"}`} aria-hidden={!windowDragActive}>
-        <div className="flex h-72 w-full max-w-xl flex-col items-center justify-center rounded-2xl border-2 border-dashed border-accent bg-elev-1/95 p-6 shadow-2xl">
-          <UploadCloud size={46} className="text-accent animate-bounce mb-3" />
-          <p className="text-[20px] font-medium text-ink">Drop files here</p>
-          <p className="mt-1 text-[13.5px] text-ink-muted">Add photos, code files, and documents to your chat</p>
         </div>
       </div>
-    </div>
+    </AuthGate>
   );
 }
 

@@ -5,7 +5,11 @@ import { useFocusTrap } from "../../utils/useFocusTrap";
 import ModelsTab from "./ModelsTab";
 import MemoryTab from "./MemoryTab";
 import SkillsTab from "./SkillsTab";
+import AboutTab from "./AboutTab";
 import { authFetch } from "../../utils/safeFetch";
+
+const SETTINGS_TABS = ["general", "appearance", "data", "models", "memory", "skills", "providers", "about"] as const;
+type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 const ProvidersSettingsView = lazy(() =>
   import("../views/ProvidersSettingsView").then((m) => ({ default: m.ProvidersSettingsView }))
@@ -16,7 +20,7 @@ export default function SettingsModal() {
     settingsModalOpen, setSettingsModalOpen, preferences, updatePreferences, conversations, clearAllData,
   } = useChat();
 
-  const [activeTab, setActiveTab] = useState<"general" | "appearance" | "data" | "models" | "memory" | "skills" | "providers">("general");
+  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [confirmClear, setConfirmClear] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -27,8 +31,8 @@ export default function SettingsModal() {
     if (settingsModalOpen) {
       setConfirmClear(false);
       const targetTab = localStorage.getItem("claude_clone_settings_tab");
-      if (targetTab === "memory" || targetTab === "models" || targetTab === "general" || targetTab === "appearance" || targetTab === "data") {
-        setActiveTab(targetTab as any);
+      if (targetTab && (SETTINGS_TABS as readonly string[]).includes(targetTab)) {
+        setActiveTab(targetTab as SettingsTab);
         localStorage.removeItem("claude_clone_settings_tab");
       } else {
         setActiveTab("general");
@@ -86,6 +90,7 @@ export default function SettingsModal() {
             <TabBtn id="skills" label="Skills" />
             <TabBtn id="providers" label="Providers" />
             {isAdmin && <TabBtn id="models" label="Models" />}
+            <TabBtn id="about" label="About" />
           </nav>
         </div>
 
@@ -106,8 +111,6 @@ export default function SettingsModal() {
               </div>
             </div>
           )}
-
-          {activeTab === "skills" && <SkillsTab />}
 
           {activeTab === "appearance" && (
             <div className="space-y-6">
@@ -214,6 +217,7 @@ export default function SettingsModal() {
               <ProvidersSettingsView />
             </Suspense>
           )}
+          {activeTab === "about" && <AboutTab />}
         </div>
       </div>
     </div>

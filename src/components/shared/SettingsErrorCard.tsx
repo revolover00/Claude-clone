@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { AlertCircle, ChevronDown, ChevronRight, RotateCw } from "lucide-react";
+import SessionInvalidCard from "./SessionInvalidCard";
+import { isSessionError } from "../../utils/authErrors";
 
 interface Props {
   title?: string;
@@ -7,7 +9,7 @@ interface Props {
   error?: any;
 }
 
-export const SettingsErrorCard: React.FC<Props> = ({
+const GenericErrorCard: React.FC<Props> = ({
   title = "Couldn't load this section",
   onRetry,
   error,
@@ -62,5 +64,16 @@ export const SettingsErrorCard: React.FC<Props> = ({
     </div>
   );
 };
+
+/**
+ * Error card for Settings sections. Session failures (401 / AUTH_* codes) get the
+ * dedicated "Your session is not valid" card instead of raw HTTP text.
+ */
+export const SettingsErrorCard: React.FC<Props> = (props) =>
+  isSessionError(props.error) ? (
+    <SessionInvalidCard error={props.error} onRetry={props.onRetry} />
+  ) : (
+    <GenericErrorCard {...props} />
+  );
 
 export default SettingsErrorCard;

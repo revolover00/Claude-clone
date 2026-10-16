@@ -5,6 +5,7 @@ import { ModelBrowserFilters } from "./ModelBrowserFilters";
 import { useToast } from "../../context/ToastContext";
 import { SettingsErrorCard } from "../shared/SettingsErrorCard";
 import { authFetch } from "../../utils/safeFetch";
+import { ApiError, readAuthErrorCode } from "../../utils/authErrors";
 
 interface Props {
   onModelsChanged?: () => void;
@@ -46,6 +47,7 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
       const providersToFetch = ["gemini", "groq", "openrouter"];
       const allResults: ProviderModelItem[] = [];
       const fetchErrors: string[] = [];
+      let sessionError = null as ApiError | null; // assigned inside the callbacks below
 
       await Promise.all(
         providersToFetch.map(async (pId) => {
@@ -58,6 +60,9 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
               if (Array.isArray(data.models)) {
                 allResults.push(...data.models);
               }
+            } else if (res.status === 401) {
+              const code = (await readAuthErrorCode(res)) ?? undefined;
+              sessionError = new ApiError("Your session is not valid.", 401, code);
             } else if (res.status !== 404) {
               fetchErrors.push(`${pId}: HTTP ${res.status}`);
             }
@@ -68,7 +73,9 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
       );
 
       setModels(allResults);
-      if (allResults.length === 0 && fetchErrors.length > 0) {
+      if (allResults.length === 0 && sessionError) {
+        setLoadError(sessionError);
+      } else if (allResults.length === 0 && fetchErrors.length > 0) {
         setLoadError(new Error(`Failed to load provider catalogs:\n${fetchErrors.join("\n")}`));
       }
       if (refresh) {
