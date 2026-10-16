@@ -1,171 +1,105 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { RefreshCw } from "lucide-react";
-import { ModelRow, type ProviderModelItem } from "./ModelRow";
+import React, { useMemo, useRef, useState } from "react";
+import { RefreshCw, Package, KeyRound, ExternalLink } from "lucide-react";
+import { ModelRow, formatContext } from "./ModelRow";
 import { ModelBrowserFilters } from "./ModelBrowserFilters";
-import { useToast } from "../../context/ToastContext";
+import { useProviderCatalog } from "./useProviderCatalog";
+import { kindLabel, type ProviderModelItem } from "./types";
 import { SettingsErrorCard } from "../shared/SettingsErrorCard";
-import { authFetch } from "../../utils/safeFetch";
-import { ApiError, readAuthErrorCode } from "../../utils/authErrors";
+
+const ROW_HEIGHT = 104;
+const VIEWPORT_HEIGHT = 440;
+
+const KIND_ORDER = ["chat", "embedding", "image", "audio", "video", "rerank", "moderation", "other"];
 
 interface Props {
   onModelsChanged?: () => void;
 }
 
-const PROVIDERS = [
-  { id: "all", label: "All Providers" },
-  { id: "gemini", label: "Google" },
-  { id: "groq", label: "Groq" },
-  { id: "openrouter", label: "OpenRouter" },
-];
-
-const ROW_HEIGHT = 80;
-const VIEWPORT_HEIGHT = 440;
-
+/**
+ * Settings model browser.
+ *
+ * Shows the complete bundled catalog — every provider with every model it offers
+ * and its details (context window, pricing, modalities, capabilities, dates) —
+ * and overlays live provider data plus per-user preferences (enabled/pinned/alias).
+ */
 export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
-  const [models, setModels] = useState<ProviderModelItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<any>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const {
+    providers,
+    allModels,
+    stats,
+    loading,
+    refreshing,
+    error,
+    reload,
+    toggleEnabled,
+    togglePinned,
+    updateAlias,
+    bulkEnable,
+  } = useProviderCatalog();
+
   const [search, setSearch] = useState("");
   const [selectedProvider, setSelectedProvider] = useState("all");
+  const [selectedKind, setSelectedKind] = useState("all");
   const [filterReasoning, setFilterReasoning] = useState(false);
   const [filterTools, setFilterTools] = useState(false);
   const [filterVision, setFilterVision] = useState(false);
   const [filterEnabledOnly, setFilterEnabledOnly] = useState(false);
   const [filterPinnedOnly, setFilterPinnedOnly] = useState(false);
-
   const [scrollTop, setScrollTop] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { showToast } = useToast();
 
-  const fetchProviderModels = useCallback(async (refresh = false) => {
-    if (refresh) setRefreshing(true);
-    else setLoading(true);
-    setLoadError(null);
+  const providerTabs = useMemo(
+    () => [
+      { id: "all", label: "All providers", count: allModels.length },
+      ...providers.map((p) => ({ id: p.id, label: p.label, count: p.models.length })),
+    ],
+    [providers, allModels.length]
+  );
 
-    try {
-      const providersToFetch = ["gemini", "groq", "openrouter"];
-      const allResults: ProviderModelItem[] = [];
-      const fetchErrors: string[] = [];
-      let sessionError = null as ApiError | null; // assigned inside the callbacks below
-
-      await Promise.all(
-        providersToFetch.map(async (pId) => {
-          try {
-            const url = `/api/providers/${pId}/models${refresh ? "?refresh=1" : ""}`;
-            const res = await authFetch(url);
-            if (res.ok) {
-              const text = await res.text();
-              const data = JSON.parse(text);
-              if (Array.isArray(data.models)) {
-                allResults.push(...data.models);
-              }
-            } else if (res.status === 401) {
-              const code = (await readAuthErrorCode(res)) ?? undefined;
-              sessionError = new ApiError("Your session is not valid.", 401, code);
-            } else if (res.status !== 404) {
-              fetchErrors.push(`${pId}: HTTP ${res.status}`);
-            }
-          } catch (e: any) {
-            fetchErrors.push(`${pId}: ${e.message}`);
-          }
-        })
-      );
-
-      setModels(allResults);
-      if (allResults.length === 0 && sessionError) {
-        setLoadError(sessionError);
-      } else if (allResults.length === 0 && fetchErrors.length > 0) {
-        setLoadError(new Error(`Failed to load provider catalogs:\n${fetchErrors.join("\n")}`));
-      }
-      if (refresh) {
-        showToast("Model catalogs refreshed successfully", "success");
-      }
-    } catch (err: any) {
-      setLoadError(err);
-      showToast(`Failed to load models: ${err.message}`, "error");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [showToast]);
-
-  useEffect(() => {
-    fetchProviderModels(false);
-  }, [fetchProviderModels]);
-
-  const savePrefs = async (items: Array<{ provider: string; model_id: string; enabled?: boolean; pinned?: boolean; alias?: string }>) => {
-    try {
-      const res = await authFetch("/api/models/prefs", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ items }),
-      });
-      if (!res.ok) throw new Error("Failed to save preferences");
-      onModelsChanged?.();
-    } catch (err: any) {
-      showToast(`Error saving preferences: ${err.message}`, "error");
-    }
-  };
-
-  const handleToggleEnabled = (item: ProviderModelItem) => {
-    const nextState = !item.isEnabled;
-    setModels((prev) =>
-      prev.map((m) => (m.provider === item.provider && m.id === item.id ? { ...m, isEnabled: nextState } : m))
-    );
-    savePrefs([{ provider: item.provider, model_id: item.id, enabled: nextState, pinned: item.isPinned, alias: item.alias || undefined }]);
-  };
-
-  const handleTogglePinned = (item: ProviderModelItem) => {
-    const nextState = !item.isPinned;
-    setModels((prev) =>
-      prev.map((m) => (m.provider === item.provider && m.id === item.id ? { ...m, isPinned: nextState } : m))
-    );
-    savePrefs([{ provider: item.provider, model_id: item.id, enabled: item.isEnabled, pinned: nextState, alias: item.alias || undefined }]);
-  };
-
-  const handleUpdateAlias = (item: ProviderModelItem, alias: string) => {
-    setModels((prev) =>
-      prev.map((m) => (m.provider === item.provider && m.id === item.id ? { ...m, alias: alias || null } : m))
-    );
-    savePrefs([{ provider: item.provider, model_id: item.id, enabled: item.isEnabled, pinned: item.isPinned, alias }]);
-  };
+  const kindTabs = useMemo(() => {
+    const counts = new Map<string, number>();
+    allModels.forEach((m) => counts.set(m.kind || "chat", (counts.get(m.kind || "chat") || 0) + 1));
+    const entries = KIND_ORDER.filter((k) => counts.has(k)).map((k) => ({
+      id: k,
+      label: kindLabel(k),
+      count: counts.get(k) || 0,
+    }));
+    return [{ id: "all", label: "All kinds", count: allModels.length }, ...entries];
+  }, [allModels]);
 
   const filteredModels = useMemo(() => {
-    return models.filter((m) => {
+    const q = search.trim().toLowerCase();
+    return allModels.filter((m) => {
       if (selectedProvider !== "all" && m.provider !== selectedProvider) return false;
+      if (selectedKind !== "all" && (m.kind || "chat") !== selectedKind) return false;
       if (filterReasoning && !m.supportsReasoning) return false;
       if (filterTools && !m.supportsTools) return false;
       if (filterVision && !m.supportsVision) return false;
       if (filterEnabledOnly && !m.isEnabled) return false;
       if (filterPinnedOnly && !m.isPinned) return false;
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        const matchesName = m.displayName?.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
-        const matchesAlias = m.alias?.toLowerCase().includes(q);
-        const matchesDesc = m.description?.toLowerCase().includes(q);
-        if (!matchesName && !matchesAlias && !matchesDesc) return false;
-      }
-      return true;
+      if (!q) return true;
+      return (
+        m.displayName?.toLowerCase().includes(q) ||
+        m.id.toLowerCase().includes(q) ||
+        (m.alias || "").toLowerCase().includes(q) ||
+        (m.family || "").toLowerCase().includes(q) ||
+        (m.description || "").toLowerCase().includes(q) ||
+        (m.provider || "").toLowerCase().includes(q)
+      );
     });
-  }, [models, selectedProvider, filterReasoning, filterTools, filterVision, filterEnabledOnly, filterPinnedOnly, search]);
+  }, [allModels, search, selectedProvider, selectedKind, filterReasoning, filterTools, filterVision, filterEnabledOnly, filterPinnedOnly]);
 
-  const handleBulkEnable = (enable: boolean) => {
-    const targetItems = filteredModels.map((m) => ({
-      provider: m.provider,
-      model_id: m.id,
-      enabled: enable,
-      pinned: m.isPinned,
-      alias: m.alias || undefined,
-    }));
-    setModels((prev) => {
-      const ids = new Set(targetItems.map((t) => `${t.provider}:${t.model_id}`));
-      return prev.map((m) => (ids.has(`${m.provider}:${m.id}`) ? { ...m, isEnabled: enable } : m));
-    });
-    savePrefs(targetItems);
-    showToast(`${enable ? "Enabled" : "Disabled"} ${targetItems.length} models`, "info");
+  const selectedProviderView = providers.find((p) => p.id === selectedProvider);
+  const largestContext = filteredModels.reduce((max, m) => Math.max(max, m.contextLength || 0), 0);
+
+  const handleRefresh = async () => {
+    await reload({ refresh: true });
+    onModelsChanged?.();
+  };
+
+  const handleBulk = (enable: boolean) => {
+    bulkEnable(filteredModels, enable);
+    onModelsChanged?.();
   };
 
   // Virtualization windowing
@@ -178,32 +112,51 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
 
   return (
     <div className="space-y-4 pt-4 border-t border-line">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
         <div>
-          <h4 className="text-[14.5px] font-semibold text-ink">Model Browser</h4>
+          <h4 className="text-[14.5px] font-semibold text-ink">Model Catalog</h4>
           <p className="text-[12px] text-ink-muted">
-            Search, filter, customize aliases, and pin models to your composer picker.
+            Every model of every supported provider, installed with the app — no manual entry needed. Live
+            catalogs are merged on top whenever a provider key is connected.
           </p>
+          <div className="flex flex-wrap items-center gap-1.5 mt-2 text-[11px] text-ink-muted">
+            <span className="inline-flex items-center gap-1 rounded border border-line bg-elev-1 px-1.5 py-0.5">
+              <Package size={11} /> {stats.providerCount} providers
+            </span>
+            <span className="rounded border border-line bg-elev-1 px-1.5 py-0.5 font-mono">{stats.modelCount} models</span>
+            <span className="rounded border border-line bg-elev-1 px-1.5 py-0.5">
+              {stats.connectedCount} connected
+            </span>
+            {stats.snapshotDate && (
+              <span className="rounded border border-line bg-elev-1 px-1.5 py-0.5">catalog snapshot {stats.snapshotDate}</span>
+            )}
+            {largestContext > 0 && (
+              <span className="rounded border border-line bg-elev-1 px-1.5 py-0.5">
+                largest context {formatContext(largestContext)}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fetchProviderModels(true)}
-            disabled={refreshing}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-line bg-elev-1 text-[12px] text-ink-soft hover:text-ink hover:bg-elev-2 transition-colors cursor-pointer"
-          >
-            <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />
-            <span>Refresh</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-line bg-elev-1 text-[12px] text-ink-soft hover:text-ink hover:bg-elev-2 transition-colors cursor-pointer shrink-0"
+        >
+          <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />
+          <span>Sync live</span>
+        </button>
       </div>
 
       <ModelBrowserFilters
-        providers={PROVIDERS}
+        providers={providerTabs}
         selectedProvider={selectedProvider}
         onSelectProvider={setSelectedProvider}
         search={search}
         onSearchChange={setSearch}
+        kinds={kindTabs}
+        selectedKind={selectedKind}
+        onSelectKind={setSelectedKind}
         filterReasoning={filterReasoning}
         onToggleReasoning={() => setFilterReasoning(!filterReasoning)}
         filterTools={filterTools}
@@ -214,16 +167,47 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
         onTogglePinnedOnly={() => setFilterPinnedOnly(!filterPinnedOnly)}
         filterEnabledOnly={filterEnabledOnly}
         onToggleEnabledOnly={() => setFilterEnabledOnly(!filterEnabledOnly)}
-        onBulkEnable={handleBulkEnable}
+        onBulkEnable={handleBulk}
       />
 
-      {loadError && (
-        <div className="my-2">
-          <SettingsErrorCard onRetry={() => fetchProviderModels(true)} error={loadError} />
+      {selectedProviderView && (
+        <div className="flex flex-wrap items-center gap-2 text-[11.5px] text-ink-muted rounded-lg border border-line bg-elev-1 px-2.5 py-1.5">
+          <span className="font-medium text-ink">{selectedProviderView.label}</span>
+          <span>· {selectedProviderView.vendor}</span>
+          <span>· {selectedProviderView.models.length} models</span>
+          <span>· {selectedProviderView.source === "live" ? "live catalog merged" : "bundled catalog"}</span>
+          {selectedProviderView.connected ? (
+            <span className="text-emerald-400">key connected</span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-amber-400">
+              <KeyRound size={11} /> add a key to run these models
+            </span>
+          )}
+          {selectedProviderView.liveError && <span className="text-danger">live sync failed: {selectedProviderView.liveError}</span>}
+          {selectedProviderView.keyHelpUrl && (
+            <a
+              href={selectedProviderView.keyHelpUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-auto inline-flex items-center gap-1 text-accent hover:underline"
+            >
+              Get key <ExternalLink size={11} />
+            </a>
+          )}
+          {selectedProviderView.docsUrl && (
+            <a href={selectedProviderView.docsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-ink">
+              Docs <ExternalLink size={11} />
+            </a>
+          )}
         </div>
       )}
 
-      {/* Model Virtualized List */}
+      {error && (
+        <div className="my-2">
+          <SettingsErrorCard onRetry={() => reload()} error={error} />
+        </div>
+      )}
+
       <div
         ref={containerRef}
         onScroll={(e) => setScrollTop((e.target as HTMLElement).scrollTop)}
@@ -232,7 +216,7 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
       >
         {loading ? (
           <div className="flex h-full items-center justify-center text-xs text-ink-muted animate-pulse">
-            Loading model catalogs...
+            Loading the bundled model catalog...
           </div>
         ) : filteredModels.length === 0 ? (
           <div className="flex h-full items-center justify-center text-xs text-ink-muted">
@@ -242,13 +226,13 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
           <div>
             <div style={{ height: topPadding }} />
             <div className="space-y-2">
-              {visibleItems.map((m) => (
+              {visibleItems.map((m: ProviderModelItem) => (
                 <ModelRow
                   key={`${m.provider}:${m.id}`}
                   model={m}
-                  onToggleEnabled={handleToggleEnabled}
-                  onTogglePinned={handleTogglePinned}
-                  onUpdateAlias={handleUpdateAlias}
+                  onToggleEnabled={toggleEnabled}
+                  onTogglePinned={togglePinned}
+                  onUpdateAlias={updateAlias}
                 />
               ))}
             </div>
@@ -256,8 +240,9 @@ export const ModelBrowser: React.FC<Props> = ({ onModelsChanged }) => {
           </div>
         )}
       </div>
+
       <p className="text-[11px] text-ink-muted text-right">
-        Showing {filteredModels.length} of {models.length} models
+        Showing {filteredModels.length} of {allModels.length} models
       </p>
     </div>
   );

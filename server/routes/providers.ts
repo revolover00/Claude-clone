@@ -11,6 +11,9 @@ import {
   redact,
 } from "../lib/providers/credentialsStore";
 import { getCachedModels, getUserModelPrefs } from "../lib/providers/modelsCache";
+import { mergeCatalogAndLive, providerCatalogInfo, catalogTotalsFromBundle } from "../lib/providers/catalogBridge";
+import { CATALOG_SNAPSHOT } from "../../src/shared/catalog";
+import type { ModelInfo } from "../lib/providers/types";
 
 const router = Router();
 
@@ -23,14 +26,21 @@ router.get("/", async (req: AuthenticatedRequest, res: Response) => {
   }
 
   const credentials = await listUserCredentials(userId);
+  const connected = new Set(
+    credentials.filter((c) => !c.status || c.status === "active").map((c) => c.provider)
+  );
+  // Every bundled provider is listed, connected or not, with its catalog size.
   const registry = Object.values(providers).map((p) => ({
-    id: p.id,
-    label: p.label,
-    docsUrl: p.docsUrl,
-    keyHelpUrl: p.keyHelpUrl,
+    ...providerCatalogInfo(p),
+    connected: connected.has(p.id),
+    credentialCount: credentials.filter((c) => c.provider === p.id).length,
   }));
 
-  res.json({ providers: registry, credentials });
+  res.json({
+    providers: registry,
+    credentials,
+    catalog: { ...catalogTotalsFromBundle(), snapshot: CATALOG_SNAPSHOT },
+  });
 });
 
 // POST /api/providers/:provider/credentials - Connect credential
@@ -157,26 +167,41 @@ router.get("/:provider/models", async (req: AuthenticatedRequest, res: Response)
   }
 
   const forceRefresh = req.query.refresh === "1";
+
   try {
     const userKey = (await getUserDecryptedKey(userId, providerId)) || "";
-    const catalog = await getCachedModels(
-      userId,
-      providerId,
-      () => provider.listModels(userKey),
-      forceRefresh
-    );
+    let live: ModelInfo[] | null = null;
+    let liveError: string | null = null;
 
+    // Live catalogs need a key; the bundled catalog fills in everything else.
+    if (userKey) {
+      try {
+        live = await getCachedModels(userId, providerId, () => provider.listModels(userKey), forceRefresh);
+      } catch (err: any) {
+        liveError = redact(err.message);
+      }
+    }
+
+    const merged = mergeCatalogAndLive(providerId, live);
     const prefs = await getUserModelPrefs(userId, providerId);
-    const merged = catalog.map((m) => ({
+    const models = merged.map((m) => ({
       ...m,
       isEnabled: prefs[m.id]?.enabled ?? true,
       isPinned: prefs[m.id]?.pinned ?? false,
       alias: prefs[m.id]?.alias || null,
     }));
 
-    res.json({ models: merged });
+    res.json({
+      provider: providerId,
+      source: live ? "live" : "bundled",
+      liveError,
+      liveModelCount: live?.length ?? 0,
+      bundledModelCount: merged.filter((m) => m.source !== "live").length,
+      catalogSnapshot: CATALOG_SNAPSHOT,
+      models,
+    });
   } catch (err: any) {
-    res.status(502).json({ error: `Failed to fetch models from ${providerId}: ${redact(err.message)}` });
+    res.status(502).json({ error: `Failed to build the catalog for ${providerId}: ${redact(err.message)}` });
   }
 });
 

@@ -1,3 +1,5 @@
+import { CATALOG_PROVIDER_IDS, getCatalogModel } from "../../src/shared/catalog";
+
 export type ThinkingLevel = "low" | "medium" | "high";
 
 export interface ThinkingPlan {
@@ -11,8 +13,14 @@ export interface ThinkingConfigResult {
   thinkingBudget?: number;
 }
 
-export type RegisteredProviderId = "gemini" | "groq" | "openrouter";
-export const REGISTERED_PROVIDERS: readonly RegisteredProviderId[] = ["gemini", "groq", "openrouter"] as const;
+export type RegisteredProviderId = string;
+
+/**
+ * Every provider bundled with the app (see `src/shared/catalog`). The thinking
+ * router keeps working for providers added later because the id list is derived
+ * from the shipped model catalog instead of being hard-coded.
+ */
+export const REGISTERED_PROVIDERS: readonly RegisteredProviderId[] = CATALOG_PROVIDER_IDS;
 
 export interface ThinkingAttachment {
   name?: string;
@@ -236,15 +244,12 @@ export function buildThinkingConfigFromLevel(
       : { includeThoughts: true, thinkingBudget: level === "high" ? 16384 : level === "medium" ? 4096 : 1024 };
   }
 
-  if (provider === "groq") {
-    return { includeThoughts: true, thinkingLevel: level };
+  if (!REGISTERED_PROVIDERS.includes(provider)) {
+    throw new Error(`Unknown provider: "${provider}". Expected one of: ${REGISTERED_PROVIDERS.join(", ")}`);
   }
 
-  if (provider === "openrouter") {
-    return { includeThoughts: true, thinkingLevel: level };
-  }
-
-  throw new Error(`Unknown provider: "${provider}". Expected one of: ${REGISTERED_PROVIDERS.join(", ")}`);
+  // OpenAI-compatible providers take the reasoning level per request.
+  return { includeThoughts: true, thinkingLevel: level };
 }
 
 export function modelSupportsReasoning(
@@ -253,7 +258,10 @@ export function modelSupportsReasoning(
   catalogEntry?: { supportsReasoning?: boolean; supports_thinking?: boolean }
 ): boolean {
   if (catalogEntry?.supportsReasoning !== undefined) return Boolean(catalogEntry.supportsReasoning);
+  if (catalogEntry?.supportsThinking !== undefined) return Boolean(catalogEntry.supportsThinking);
   if (catalogEntry?.supports_thinking !== undefined) return Boolean(catalogEntry.supports_thinking);
+  const bundled = getCatalogModel(provider, modelId);
+  if (bundled) return bundled.supportsReasoning;
   if (provider === "gemini") return /gemini-3/i.test(modelId);
   if (provider === "groq") return /deepseek-r1|qwen-2\.5-32b|gpt-oss/i.test(modelId);
   return false;

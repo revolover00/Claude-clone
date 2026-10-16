@@ -12,6 +12,8 @@ export interface ModelInfo {
   supportsVision: boolean;
   pricing: { inputPerMTok: number; outputPerMTok: number; currency: string } | null;
   isActive: boolean;
+  /** Catalog classification: chat, embedding, image, audio, video, rerank, moderation, other. */
+  kind?: string;
   raw: any;
 }
 

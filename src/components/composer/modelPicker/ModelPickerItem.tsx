@@ -1,5 +1,5 @@
 import React from "react";
-import { Check, Brain, Layers, Globe, Eye, Pin } from "lucide-react";
+import { Check, Brain, Layers, Globe, Eye, Pin, KeyRound } from "lucide-react";
 import { cn } from "../../../utils/cn";
 import { formatPricing } from "../../../shared/pricing";
 import type { UnifiedModel } from "./types";
@@ -91,6 +91,20 @@ export const ModelPickerItem: React.FC<Props> = ({
             >
               <Eye size={9} />
               Vision
+            </span>
+          )}
+          {model.kind && model.kind !== "chat" && (
+            <span className="rounded px-1 py-0.2 text-[9.5px] font-medium bg-elev-3 text-ink-muted border border-line capitalize">
+              {model.kind}
+            </span>
+          )}
+          {model.requiresKey && (
+            <span
+              title={`Add a ${model.providerLabel} API key to run this model`}
+              className="inline-flex items-center gap-0.5 rounded px-1 py-0.2 text-[9.5px] font-medium bg-rose-500/15 text-rose-300 border border-rose-500/20"
+            >
+              <KeyRound size={9} />
+              Key required
             </span>
           )}
         </div>

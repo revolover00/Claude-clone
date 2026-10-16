@@ -35,17 +35,20 @@ export default function ModelMenu({
     pillLabel,
     searchQuery,
     setSearchQuery,
+    loading,
   } = useComposerModels(model);
 
-  // Sync initial selection if needed
+  // Sync the initial selection once every source (bundled catalog, live catalogs,
+  // app models) has loaded, so the default never overrides a still-loading pick.
   useEffect(() => {
+    if (loading) return;
     if (activeModelObj && model !== activeModelObj.uniqueKey && model !== activeModelObj.id) {
       const saved = localStorage.getItem("claude_clone_last_model");
       if (!saved) {
         onSelectModel(activeModelObj.uniqueKey);
       }
     }
-  }, [activeModelObj, model, onSelectModel]);
+  }, [activeModelObj, model, onSelectModel, loading]);
 
   const toggleOpen = () => {
     setIsOpen((prev) => {
@@ -72,7 +75,20 @@ export default function ModelMenu({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen, closeMenu]);
 
+  const openProviderSettings = () => {
+    closeMenu();
+    localStorage.setItem("claude_clone_settings_tab", "providers");
+    setSettingsModalOpen(true);
+  };
+
   const handleSelectModelLocal = (selectedKey: string) => {
+    const target = allModels.find((m) => m.uniqueKey === selectedKey);
+    // Bundled catalog models stay visible before a key is connected: selecting one
+    // takes the user straight to the provider setup instead of failing in chat.
+    if (target?.requiresKey) {
+      openProviderSettings();
+      return;
+    }
     localStorage.setItem("claude_clone_last_model", selectedKey);
     onSelectModel(selectedKey);
     closeMenu();
@@ -133,11 +149,7 @@ export default function ModelMenu({
                 <p className="text-xs text-ink-muted mb-2.5">No connected models available.</p>
                 <button
                   type="button"
-                  onClick={() => {
-                    closeMenu();
-                    localStorage.setItem("claude_clone_settings_tab", "providers");
-                    setSettingsModalOpen(true);
-                  }}
+                  onClick={openProviderSettings}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer"
                 >
                   <Key size={13} />
@@ -164,6 +176,13 @@ export default function ModelMenu({
                   ))}
                 </div>
               ))
+            )}
+
+            {allModels.some((m) => m.requiresKey) && (
+              <p className="px-2 py-1 text-[10.5px] text-ink-faint leading-tight">
+                Models marked “Key required” come from the bundled catalog. Connect the provider key in
+                Settings → Providers to run them.
+              </p>
             )}
           </div>
 

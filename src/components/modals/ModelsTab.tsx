@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Trash2, Play, Plus, ArrowUp, ArrowDown, Brain } from "lucide-react";
 import AddModelForm from "./AddModelForm";
+import ModelCatalogSummary from "./ModelCatalogSummary";
 import ThinkingDiagnosticModal from "./ThinkingDiagnosticModal";
 import type { Model } from "../../types/chat";
 import { SettingsErrorCard } from "../shared/SettingsErrorCard";
@@ -168,12 +169,16 @@ export default function ModelsTab() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-[16px] font-medium text-ink">Models Setup</h3>
-          <p className="text-[11.5px] text-ink-muted">Manage system AI models and capability configurations</p>
+          <p className="text-[11.5px] text-ink-muted">
+            The bundled catalog installs every provider model automatically — manual entries are optional overrides.
+          </p>
         </div>
         <button onClick={() => setShowAdd(!showAdd)} className="flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1 text-[12px] text-white hover:bg-accent/90 font-medium cursor-pointer">
           <Plus size={13} /> Add Model
         </button>
       </div>
+
+      <ModelCatalogSummary onImported={loadModels} />
 
       {loadError && (
         <SettingsErrorCard onRetry={loadModels} error={loadError} />

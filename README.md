@@ -38,6 +38,19 @@ A high-fidelity web application clone of Claude.ai powered by Google's Gemini mo
   | [Abort Signal on Client Disconnect: req.on("close") -> abortCtrl.abort()]
   v
 +--------------------------------------------------------------------------+
+  |            /api/providers/:id/models  (live catalog + bundled fallback)
+  |            /api/catalog               (full bundled catalog, no key needed)
+  v
++--------------------------------------------------------------------------+
+|                       BUNDLED MODEL CATALOG (committed)                  |
+|  15 providers · 400+ models with context, pricing, modalities, dates     |
+|  gemini · openai · xai · mistral · deepseek · groq · cerebras ·          |
+|  togetherai · fireworks · nvidia · qwen · moonshotai · zai ·             |
+|  perplexity · openrouter                                                 |
++--------------------------------------------------------------------------+
+  |
+  v
++--------------------------------------------------------------------------+
 |                         GOOGLE GEMINI API (SDK)                          |
 |             gemini-3.8-flash / gemini-3.1-pro-preview                    |
 |         Google Search Grounding Tool + Extended Thinking Budget          |
@@ -59,6 +72,13 @@ A high-fidelity web application clone of Claude.ai powered by Google's Gemini mo
 - **Google Search Grounding**:
   - Live web search enabled with real-time SSE source streaming.
   - Displays "Searched the web" indicator during generation and an interactive "Sources" row with site favicons and external domain links.
+- **Bundled Model Catalog (zero manual setup)**:
+  - Every supported provider ships with its complete model list in the repository (`src/shared/catalog`), with full details: context window, max output, input/output modalities, tools, reasoning, structured output, vision, open weights, pricing per 1M tokens, knowledge cutoff, release date and lifecycle status.
+  - Nothing has to be added by hand: on boot the server installs the catalog into the data-driven `models` table, and `/api/models` serves the bundled Google chat models whenever the database is empty or unreachable.
+  - **Settings → Providers** lists all providers (connected or not) with their bundled model counts, and the **Model Catalog** browser shows every model of every provider, searchable and filterable by kind and capability, with live provider data merged on top when a key is connected.
+  - The composer model picker shows the same catalog grouped per provider; models whose provider has no key yet are flagged **Key required** and selecting one opens the provider setup.
+  - Providers without a bespoke adapter are wired through a single OpenAI-compatible factory (`server/lib/providers/openaiCompatible.ts`), so adding a provider is a data change.
+  - Refresh the snapshot from the public models.dev dataset (MIT) with `npm run catalog:sync` (optionally `-- --from ./api.json` or `-- --only openai,groq`); the generator rewrites `src/shared/catalog/providers/*.ts` and `snapshot.ts`. Model names excluded by the repository naming policy are filtered out during generation.
 - **Interactive Artifacts**:
   - Detects React components, HTML/Tailwind, SVGs, and documents with a live right-hand preview panel, version history, copy, and export options.
 - **Harden & Secure Server Gateway**:
@@ -128,11 +148,56 @@ Each failure writes one log line with only metadata: method, path (no query stri
 
 ---
 
+## Bundled Model Catalog
+
+The app never starts with an empty model list. `src/shared/catalog` holds a committed
+snapshot of every model of every supported provider:
+
+| Provider | Models | Provider | Models |
+| :--- | ---: | :--- | ---: |
+| Google AI Studio (`gemini`) | 26 | NVIDIA NIM | 65 |
+| OpenAI | 39 | Qwen (Model Studio) | 38 |
+| xAI | 22 | Moonshot AI (Kimi) | 5 |
+| Mistral | 26 | Z.AI (GLM) | 7 |
+| DeepSeek | 2 | Perplexity | 3 |
+| Groq | 17 | OpenRouter | 129 |
+| Cerebras | 4 | Together AI | 10 |
+| Fireworks AI | 16 | | |
+
+Each entry carries its details: context window, max output tokens, input/output
+modalities, tools, reasoning, structured output, vision, open weights, USD pricing
+per 1M tokens (input/output/cache read), knowledge cutoff, release date, and
+`alpha`/`deprecated` status.
+
+How it is kept in sync, automatically:
+
+- **Server boot** installs the catalog into `public.models` when the table is empty
+  (`server/lib/modelsSeed.ts`), so the data-driven model list is populated with the
+  bundled Google chat models plus the curated offline defaults.
+- **`GET /api/models`** falls back to the catalog rows whenever Supabase is empty or
+  unreachable — no admin action required.
+- **`GET /api/catalog`** returns the whole bundled catalog (all providers, all
+  models, filterable by `provider`, `q`, `kind`, `capability`, `minContext`).
+- **`GET /api/providers/:provider/models`** merges the live provider catalog over the
+  bundled one. Missing keys are not an error: the bundled list is returned with
+  `source: "bundled"` and a `liveError` when a live refresh was attempted.
+- **`POST /api/models/catalog/import`** (admin) reinstalls the bundled catalog into
+  the data-driven table, e.g. after a `catalog:sync`.
+- **`npm run catalog:sync`** regenerates the snapshot from the public models.dev
+  dataset (MIT). The generator filters out names excluded by the repository naming
+  policy before writing, and `tests/modelCatalog.test.ts` keeps the data, the
+  runtime kind inference and the generator in sync.
+
+---
+
 ## Available Scripts
 
 ```bash
 # Start development server (serves frontend + backend via tsx)
 npm run dev
+
+# Refresh the bundled provider/model catalog from models.dev (models.dev/api.json)
+npm run catalog:sync
 
 # Run full Vitest test suite
 npm run test
@@ -179,7 +244,7 @@ To manually test and verify the Claude.ai message version switcher in the UI:
 
 Extended thinking produces reasoning and thought summaries during response streaming. By default, `Gemini 3.1 Pro (Preview)` (`gemini-3.1-pro-preview`) is configured with `supports_thinking: true`.
 
-> **Note for Administrators**: An admin can enable extended thinking (`supports_thinking`) per model in **Settings > Models** after testing and verifying that the target model supports thinking capabilities.
+> **Note for Administrators**: reasoning capability is derived from the bundled model catalog (`supportsReasoning` per model) and can be overridden per App model with `supports_thinking` in **Settings > Models**. The thinking router also reads the catalog directly for provider models, so non-Gemini providers get the right reasoning level without configuration.
 
 ---
 
