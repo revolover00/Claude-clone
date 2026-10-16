@@ -8,7 +8,7 @@ import { normalizeSlug } from "../../src/shared/normalizeSlug";
 import { retrieveUserMemoryPrompt } from "../lib/chatMemory";
 import { createClient } from "@supabase/supabase-js";
 import { validateChatMessages, DEFAULT_CHAT_TOOLS, pumpGeminiStream } from "../lib/chatStreamHelpers";
-import { getProvider } from "../lib/providers";
+import { getProvider, isKnownProvider } from "../lib/providers";
 import { getUserDecryptedKey, markCredentialInvalid } from "../lib/providers/credentialsStore";
 
 const router = Router();
@@ -36,8 +36,9 @@ router.post("/", async (req, res) => {
     if (model && model.includes(":")) {
       const parts = model.split(":");
       const p = parts[0].toLowerCase();
-      if (p === "gemini" || p === "groq" || p === "openrouter") {
-        provider = p as RegisteredProviderId;
+      // Every provider in the registry is addressable as "<provider>:<model id>".
+      if (isKnownProvider(p)) {
+        provider = p;
         targetModelId = parts.slice(1).join(":");
       }
     }
@@ -58,8 +59,9 @@ router.post("/", async (req, res) => {
         return;
       }
       targetModelId = resolvedModel.api_model_id;
-      if ((resolvedModel as any).provider === "groq" || (resolvedModel as any).provider === "openrouter") {
-        provider = (resolvedModel as any).provider;
+      const rowProvider = String((resolvedModel as any).provider || "").toLowerCase();
+      if (rowProvider && isKnownProvider(rowProvider)) {
+        provider = rowProvider;
       }
     }
     modelId = targetModelId;
@@ -126,8 +128,8 @@ router.post("/", async (req, res) => {
       }
     }
 
-    // Stream through provider adapter if Groq or OpenRouter
-    if (provider === "groq" || provider === "openrouter") {
+    // Stream through the provider adapter for every non-Gemini provider
+    if (provider !== "gemini") {
       const userId = (req as any).user?.id;
       const userKey = await getUserDecryptedKey(userId, provider);
       if (!userKey) {

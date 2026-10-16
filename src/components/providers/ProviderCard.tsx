@@ -4,16 +4,21 @@ import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
 import { Badge } from "@/components/shared/Badge";
 import { authFetch } from "../../utils/safeFetch";
+import { Package } from "lucide-react";
 
 export interface ProviderCardProps {
   id: string;
   name: string;
+  vendor?: string;
   status: "disconnected" | "active" | "invalid" | "rate_limited";
   last4?: string;
   lastVerified?: string;
   lastError?: string;
   docsUrl: string;
   keyHelpUrl?: string;
+  keyEnv?: string | null;
+  /** Number of models shipped for this provider by the bundled catalog. */
+  modelCount?: number;
   credentialId?: string;
   onRefresh?: () => void;
 }
@@ -21,11 +26,15 @@ export interface ProviderCardProps {
 export const ProviderCard: React.FC<ProviderCardProps> = ({
   id,
   name,
+  vendor,
   status,
   last4,
   lastVerified,
   lastError,
   docsUrl,
+  keyHelpUrl,
+  keyEnv,
+  modelCount,
   credentialId,
   onRefresh,
 }) => {
@@ -125,6 +134,14 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
         </Badge>
       </CardHeader>
       <CardContent className="space-y-3.5 p-4">
+        <div className="flex flex-wrap items-center gap-2 text-[11.5px] text-ink-muted">
+          <span className="inline-flex items-center gap-1 rounded border border-line bg-elev-2 px-1.5 py-0.5">
+            <Package size={11} /> {modelCount ?? 0} models bundled
+          </span>
+          {vendor && <span className="rounded border border-line bg-elev-2 px-1.5 py-0.5">{vendor}</span>}
+          {keyEnv && <span className="font-mono rounded border border-line bg-elev-2 px-1.5 py-0.5">{keyEnv}</span>}
+        </div>
+
         {status === "disconnected" ? (
           <div className="space-y-2.5">
             <div className="relative w-full">
@@ -173,15 +190,20 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
 
         {errorMsg && <p className="text-xs text-danger font-medium break-words">{errorMsg}</p>}
 
-        <div className="pt-1">
+        <div className="pt-1 flex flex-wrap items-center gap-3">
           <a
-            href={docsUrl}
+            href={keyHelpUrl || docsUrl}
             target="_blank"
             rel="noreferrer"
             className="text-xs text-accent hover:underline inline-block"
           >
             Get a {name} API key &rarr;
           </a>
+          {docsUrl && (
+            <a href={docsUrl} target="_blank" rel="noreferrer" className="text-xs text-ink-muted hover:text-ink inline-block">
+              Provider docs
+            </a>
+          )}
         </div>
       </CardContent>
     </Card>

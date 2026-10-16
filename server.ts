@@ -32,8 +32,11 @@ import memoryRouter from "./server/routes/memory";
 import skillsRouter from "./server/routes/skills";
 import documentsRouter from "./server/routes/documents";
 import providersRouter from "./server/routes/providers";
+import catalogRouter from "./server/routes/catalog";
 import authDebugRouter from "./server/routes/authDebug";
 import { requireAuth } from "./server/middleware/auth";
+import { seedAppModelsFromCatalog } from "./server/lib/modelsSeed";
+import { supabaseServer, isRealSupabaseConfigured } from "./server/lib/modelsStore";
 
 if (process.env.NODE_ENV === "production") {
   const missing = [];
@@ -81,6 +84,7 @@ app.use("/api/suggest", requireAuth, apiLimiter, suggestRouter);
 app.use("/api/models/prefs", requireAuth, apiLimiter, modelsPrefsRouter);
 app.use("/api/models", modelsRouter);
 app.use("/api/providers", requireAuth, apiLimiter, providersRouter);
+app.use("/api/catalog", requireAuth, apiLimiter, catalogRouter);
 app.use("/api/memory", memoryRouter);
 app.use("/api/skills", skillsRouter);
 app.use("/api/documents", documentsRouter);
@@ -122,6 +126,11 @@ if (!isVercel && !process.env.VITEST) {
   const port = cliPort || (!isProd ? 3000 : (Number(process.env.PORT) || 3000));
   httpServer.listen(port, "0.0.0.0", () => {
     console.log(`Server is running at http://0.0.0.0:${port}`);
+    // Populate the data-driven models table from the bundled catalog on first boot,
+    // so the app ships with every model already configured (no manual entry).
+    void seedAppModelsFromCatalog(isRealSupabaseConfigured ? supabaseServer : null).then((result) => {
+      if (result.status === "seeded") console.log(`[ModelCatalog] ${result.inserted} models installed`);
+    });
   });
 }
 export default app;

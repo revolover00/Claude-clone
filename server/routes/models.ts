@@ -11,6 +11,8 @@ import {
   supabaseServer,
   FALLBACK_MODELS,
 } from "../lib/modelsStore";
+import { seedAppModelsFromCatalog, buildSeedRows } from "../lib/modelsSeed";
+import { CATALOG_SNAPSHOT, catalogProviderCounts, catalogTotals } from "../../src/shared/catalog";
 
 export { 
   checkIsAdmin, 
@@ -34,6 +36,62 @@ router.get("/", requireAuth, async (req: AuthenticatedRequest, res: Response) =>
     res.json(list);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/models/catalog - Bundled catalog summary for the Models settings tab
+router.get("/catalog", requireAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const appModels = await getModelsFromDB(true);
+    const importedSlugs = new Set(appModels.map((m: any) => m.slug));
+    const appRows = buildSeedRows();
+    const providers = catalogProviderCounts().map((p) => {
+      const providerRows = appRows.filter((row) => row.provider === p.id || row.provider === "google" && p.id === "gemini");
+      return {
+        ...p,
+        imported: providerRows.filter((row) => importedSlugs.has(row.slug)).length,
+      };
+    });
+
+    res.json({
+      snapshot: CATALOG_SNAPSHOT,
+      totals: catalogTotals(),
+      appModelCount: appModels.length,
+      catalogModelCount: appModels.filter((m: any) => m.catalog_source === "bundled").length,
+      providers,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/models/catalog/import (Admin only) - Populate App models from the bundled catalog
+router.post("/catalog/import", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const isAdmin = await checkIsAdmin(req.user?.id || "");
+    if (!isAdmin) {
+      res.status(403).json({ error: "Forbidden: Admin access required" });
+      return;
+    }
+
+    if (isRealSupabaseConfigured && supabaseServer) {
+      const result = await seedAppModelsFromCatalog(supabaseServer, { force: true });
+      if (result.status === "failed") {
+        res.status(400).json({ error: result.reason || "Failed to import the bundled catalog" });
+        return;
+      }
+      invalidateModelCache();
+      res.json({ success: true, imported: result.inserted, snapshot: CATALOG_SNAPSHOT });
+      return;
+    }
+
+    // Local/dev mode: replace the in-process model list with the bundled catalog.
+    const rows = buildSeedRows();
+    localStorage.setItem("claude_clone_mock_models", JSON.stringify(rows));
+    invalidateModelCache();
+    res.json({ success: true, imported: rows.length, snapshot: CATALOG_SNAPSHOT });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
   }
 });
 
