@@ -121,6 +121,11 @@ export function streamRealResponse(
       let accumulatedContent = "";
       let accumulatedThinking = "";
       let midStreamError: (Error & { details?: string; code?: number }) | null = null;
+      // `data: [DONE]` is the protocol-level end of the stream. Some responses
+      // (and misbehaving proxies) keep the socket open afterwards, so waiting
+      // for reader `done` would hang forever and leave the send button stuck
+      // on "stop": complete as soon as [DONE] is parsed.
+      let sawDone = false;
 
       callbacks.onThinkingUpdate?.(""); // Initialize thinking process state
 
@@ -157,7 +162,9 @@ export function streamRealResponse(
         onError: (err) => {
           midStreamError = err;
         },
-        onDone: () => {},
+        onDone: () => {
+          sawDone = true;
+        },
       });
 
       while (!isCancelled) {
@@ -167,8 +174,12 @@ export function streamRealResponse(
         const chunk = decoder.decode(value, { stream: true });
         parser.feed(chunk);
 
+        // Error wins over [DONE] (an error event may be followed by [DONE]).
         if (midStreamError) {
           throw midStreamError;
+        }
+        if (sawDone) {
+          break;
         }
       }
       parser.flush();

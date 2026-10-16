@@ -174,6 +174,9 @@ router.post("/", async (req, res) => {
           await markCredentialInvalid(userId, provider);
         },
       });
+      // Close the SSE stream: without this the client waits for a socket close
+      // that never comes and the send button stays stuck after a finished reply.
+      if (!res.writableEnded) res.end();
       return;
     }
 
@@ -222,6 +225,8 @@ router.post("/", async (req, res) => {
       runSkillToolStream: (mId: string, msgs: any[], cfg: any, call: any, result: string) =>
         runSkillToolStream(memoryKey || userKey, mId, msgs, cfg, call, result),
     });
+    // Close the SSE stream on the success path (see the adapter branch above).
+    if (!res.writableEnded) res.end();
   } catch (err: any) {
     if (abortCtrl.signal.aborted) {
       res.end();
