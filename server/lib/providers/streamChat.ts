@@ -194,6 +194,11 @@ export async function streamOpenAICompatibleChat(params: StreamChatParams): Prom
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  // A real completion carries upstream [DONE] or a finish_reason. If the
+  // socket closes with neither, the provider cut the stream mid-generation
+  // (common on very long responses) and must surface as an error — otherwise
+  // the client treats the interruption as a successful, empty reply.
+  let sawTerminator = false;
 
   try {
     while (true) {
@@ -210,6 +215,7 @@ export async function streamOpenAICompatibleChat(params: StreamChatParams): Prom
 
         const dataStr = trimmed.slice(5).trim();
         if (dataStr === "[DONE]") {
+          sawTerminator = true;
           res.write("data: [DONE]\n\n");
           return;
         }
@@ -230,12 +236,21 @@ export async function streamOpenAICompatibleChat(params: StreamChatParams): Prom
           }
 
           if (choice?.finish_reason) {
+            sawTerminator = true;
             res.write(`data: ${JSON.stringify({ finish: choice.finish_reason })}\n\n`);
           }
         } catch {
           // Ignore incomplete chunk parse error
         }
       }
+    }
+    if (!sawTerminator) {
+      res.write(
+        `data: ${JSON.stringify({
+          error: "The provider closed the stream before the response finished. Very long responses can be cut off — try again or split the task into smaller parts.",
+          code: "STREAM_INTERRUPTED",
+        })}\n\n`
+      );
     }
     res.write("data: [DONE]\n\n");
   } catch (streamErr: any) {

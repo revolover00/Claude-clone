@@ -175,7 +175,11 @@ export default function AssistantMessageView({
   }, []);
 
   const isErrorState = Boolean(message.isError || (!message.content && !message.isStreaming && !message.isThinking));
-  const displayErrorMessage = message.errorText || "Unable to generate complete response";
+  const displayErrorMessage =
+    message.errorText ||
+    (message.finishReason === "length"
+      ? "The response reached the output length limit before finishing"
+      : "Unable to generate complete response");
   const messageDate = new Date(message.createdAt || Date.now());
   const timeStr = messageDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const fullDateStr = messageDate.toLocaleString([], { dateStyle: "full", timeStyle: "medium" });
