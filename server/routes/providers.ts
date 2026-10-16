@@ -12,7 +12,8 @@ import {
 } from "../lib/providers/credentialsStore";
 import { getCachedModels, getUserModelPrefs } from "../lib/providers/modelsCache";
 import { mergeCatalogAndLive, providerCatalogInfo, catalogTotalsFromBundle } from "../lib/providers/catalogBridge";
-import { CATALOG_SNAPSHOT } from "../../src/shared/catalog";
+import { CATALOG_SNAPSHOT, CATALOG_PROVIDERS } from "../../src/shared/catalog";
+import { runProviderSync, catalogSyncEnabled } from "../lib/catalog/scheduler";
 import type { ModelInfo } from "../lib/providers/types";
 
 const router = Router();
@@ -111,7 +112,15 @@ router.post("/:provider/credentials", async (req: AuthenticatedRequest, res: Res
   // 4. Encrypt and save
   try {
     const saved = await saveCredential(userId, providerId, finalLabel, trimmedKey);
-    res.status(200).json(saved);
+    const bundled = CATALOG_PROVIDERS.find((p) => p.id === providerId)?.models.length || 0;
+    // Fresh models: kick a catalog sync for this provider in the background so
+    // its newest models land in the catalog right after the key is saved.
+    if (catalogSyncEnabled()) {
+      void runProviderSync(providerId, "credential").catch((err: any) =>
+        console.warn(`[Providers] background sync for ${providerId} failed:`, err?.message || err)
+      );
+    }
+    res.status(200).json({ ...saved, modelCount: bundled });
   } catch (err: any) {
     res.status(500).json({ error: `Failed to save credential: ${redact(err.message)}`, code: 500 });
   }

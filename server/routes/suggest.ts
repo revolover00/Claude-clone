@@ -1,15 +1,22 @@
 import { Router } from "express";
-import { ai, apiKey } from "../lib/gemini";
+import { createGeminiClient } from "../lib/gemini";
+import { geminiKeyFor } from "../lib/userAiKey";
 import { getModelsFromDB } from "../lib/modelsStore";
 
 const router = Router();
 
+/** Canned follow-ups used when the user has no key yet or the model fails. */
+function fallbackSuggestions(language: string): string[] {
+  return [
+    language === "ar" ? "هل يمكنك توضيح المزيد؟" : "Can you explain further?",
+    language === "ar" ? "ما هي أمثلة ذلك؟" : "What are some examples?",
+    language === "ar" ? "كيف يمكنني تطبيق هذا؟" : "How can I apply this?",
+  ];
+}
+
 router.post("/", async (req, res) => {
-  if (!apiKey) {
-    res.status(403).json({ error: "API key invalid or missing on the server", code: 403 });
-    return;
-  }
-  
+  const userKey = await geminiKeyFor((req as any).user?.id);
+
   const { content, language = "en" } = req.body;
   if (!content) {
     res.status(400).json({ error: "Missing content for suggestion generation", code: 400 });
@@ -24,13 +31,18 @@ router.post("/", async (req, res) => {
       return;
     }
 
+    if (!userKey) {
+      res.json({ suggestions: fallbackSuggestions(language) });
+      return;
+    }
+
     const prompt = `Based on the following AI response, generate exactly 3 short, relevant, engaging follow-up questions that the user might want to ask next. Keep each question short (max 12 words).
 The conversation language is ${language === "ar" ? "Arabic" : "English"}. Respond ONLY with a valid JSON array of 3 strings, e.g. ["Question 1", "Question 2", "Question 3"]. No markdown formatting, no code block backticks.
 
 AI Response:
 ${content}`;
 
-    const response = await ai.models.generateContent({
+    const response = await createGeminiClient(userKey).models.generateContent({
       model: lightModel.api_model_id,
       contents: prompt,
       config: {
@@ -48,20 +60,12 @@ ${content}`;
         const parsed = matches.slice(0, 3).map(m => m.replace(/^"|"$/g, ""));
         res.json({ suggestions: parsed });
       } else {
-        res.json({ suggestions: [
-          language === "ar" ? "هل يمكنك توضيح المزيد؟" : "Can you explain further?",
-          language === "ar" ? "ما هي أمثلة ذلك؟" : "What are some examples?",
-          language === "ar" ? "كيف يمكنني تطبيق هذا؟" : "How can I apply this?"
-        ]});
+        res.json({ suggestions: fallbackSuggestions(language)});
       }
     }
   } catch {
     res.json({
-      suggestions: [
-        language === "ar" ? "هل يمكنك توضيح المزيد؟" : "Can you explain further?",
-        language === "ar" ? "ما هي أمثلة ذلك؟" : "What are some examples?",
-        language === "ar" ? "كيف يمكنني تطبيق هذا؟" : "How can I apply this?"
-      ]
+      suggestions: fallbackSuggestions(language)
     });
   }
 });

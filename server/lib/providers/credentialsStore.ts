@@ -259,6 +259,17 @@ export async function getUserDecryptedKey(userId: string, providerId: string): P
   }
 }
 
+/**
+ * Read-only peek at the in-memory credential rows for one provider.
+ * Used by the catalog sync's cross-user key lookup (see activeKey.ts).
+ */
+export function findMemoryActiveRow(providerId: string): any | null {
+  for (const c of memoryCredentials.values()) {
+    if (c.provider === providerId && c.status === "active") return c;
+  }
+  return null;
+}
+
 export async function markCredentialInvalid(userId: string, providerId: string): Promise<void> {
   const supabase = getSupabaseClient();
   if (supabase) {

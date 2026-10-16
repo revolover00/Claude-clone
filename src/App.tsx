@@ -59,8 +59,9 @@ function AppContent() {
         }
         return res.json();
       })
-      .then((data) => { 
-        if (data && data.hasGeminiKey === false) setBackendNotConfigured(true); 
+      .then((data) => {
+        // A missing server key is no longer fatal: every AI call uses the key
+        // each user saves in Settings > Providers.
         if (data && Array.isArray(data.enabledModels) && data.enabledModels.length === 0) setZeroEnabledModels(true);
       })
       .catch((err) => {

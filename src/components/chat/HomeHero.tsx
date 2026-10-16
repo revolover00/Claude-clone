@@ -73,7 +73,7 @@ export const HomeHero: React.FC<Props> = ({
 
       {/* Composer centered on Home View */}
       {!inChatView && (
-        <div className="mt-9 w-full max-w-[690px]">
+        <div className="mt-9 w-full max-w-[720px]">
           <Composer
             onSend={onSend}
             onStop={onStop}
@@ -85,7 +85,7 @@ export const HomeHero: React.FC<Props> = ({
 
       {/* First-run Memory Card */}
       {!inChatView && showFirstRunCard && (
-        <div className="mt-8 w-full max-w-[690px] rounded-xl border border-line bg-elev-1 p-4 shadow-sm animate-fade-in font-sans">
+        <div className="mt-8 w-full max-w-[720px] rounded-xl border border-line bg-elev-1 p-4 shadow-sm animate-fade-in font-sans">
           <div className="flex items-start gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
               <ClaudeSpark size={18} />

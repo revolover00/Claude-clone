@@ -26,6 +26,10 @@ export interface AppModelRow {
   release_date?: string | null;
   knowledge_cutoff?: string | null;
   catalog_source?: string;
+  /** Derived from provider_catalog: deterministic per-family recommendation. */
+  recommended?: boolean;
+  /** Lifecycle status from the catalog: active, preview, deprecated, removed. */
+  status?: string;
 }
 
 function describe(model: CatalogModel): string {

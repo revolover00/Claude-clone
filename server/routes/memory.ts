@@ -1,5 +1,6 @@
 import { Router, Response } from "express";
-import { ai, apiKey } from "../lib/gemini";
+import { createGeminiClient } from "../lib/gemini";
+import { geminiKeyFor } from "../lib/userAiKey";
 import { createClient } from "@supabase/supabase-js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
 import { Type } from "@google/genai";
@@ -182,8 +183,10 @@ router.post("/extract", requireAuth, async (req: AuthenticatedRequest, res: Resp
       return;
     }
 
-    if (!apiKey) {
-      res.json({ success: true, reason: "API key is not configured" });
+    // Extraction runs on the user's own Gemini key — none shipped by the server.
+    const userKey = await geminiKeyFor(userId);
+    if (!userKey) {
+      res.json({ success: true, reason: "Connect a Gemini API key to enable memory extraction" });
       return;
     }
 
@@ -208,7 +211,7 @@ ${lastMessages.map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.conten
 
 Respond strictly according to the specified JSON schema.`;
 
-    const response = await ai.models.generateContent({
+    const response = await createGeminiClient(userKey).models.generateContent({
       model: "gemini-3.1-flash-lite",
       contents: prompt,
       config: {
@@ -246,11 +249,11 @@ Respond strictly according to the specified JSON schema.`;
         if (isSensitiveCategory && !prefs.sensitive_memory) continue;
 
         // Deduplicate via cosine similarity
-        const embedding = await generateEmbedding(item.content);
+        const embedding = await generateEmbedding(item.content, userKey);
         let matchId = null;
 
         for (const existing of currentMemories) {
-          if (existing.embedding && Array.isArray(existing.embedding)) {
+          if (embedding && existing.embedding && Array.isArray(existing.embedding)) {
             const sim = cosineSimilarity(embedding, existing.embedding);
             if (sim > 0.85) {
               matchId = existing.id;
