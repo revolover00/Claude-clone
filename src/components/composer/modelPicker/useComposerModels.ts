@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useModels } from "../../../hooks/useModels";
 import { authFetch } from "../../../utils/safeFetch";
-import type { UnifiedModel, ProviderGroup } from "./types";
+import { composerSections, type PickerSection } from "../../../shared/catalog/grouping";
+import type { UnifiedModel } from "./types";
 
 export const PROVIDER_LABELS: Record<string, string> = {
   gemini: "Google AI Studio",
@@ -17,14 +18,49 @@ export function getProviderLabel(providerId?: string): string {
   return PROVIDER_LABELS[lower] || providerId;
 }
 
-interface ProviderBootstrap {
-  labels: Record<string, string>;
-  connected: Set<string>;
-  /** Registry order, so provider groups stay in a stable, meaningful order. */
-  order: string[];
+function labelFor(labels: Record<string, string>, providerId: string): string {
+  return labels[providerId] || getProviderLabel(providerId);
 }
 
-function toUnified(providerId: string, label: string, m: any, requiresKey: boolean): UnifiedModel {
+function pushUnique(list: UnifiedModel[], seen: Set<string>, model: UnifiedModel) {
+  if (seen.has(model.uniqueKey)) return;
+  seen.add(model.uniqueKey);
+  list.push(model);
+}
+
+/** Flat GET /api/catalog row -> UnifiedModel (connected flag drives requiresKey). */
+function fromCatalogRow(m: any, labels: Record<string, string>): UnifiedModel {
+  const provider = String(m.provider || "unknown");
+  return {
+    id: m.model_id,
+    uniqueKey: `${provider}:${m.model_id}`,
+    provider,
+    providerLabel: labelFor(labels, provider),
+    displayName: m.alias || m.display_name || m.name || m.model_id,
+    alias: m.alias || null,
+    description: m.description || null,
+    contextLength: m.context_length ?? null,
+    family: m.family ?? null,
+    vendor: m.vendor ?? null,
+    status: m.status || "active",
+    recommended: Boolean(m.recommended),
+    releasedAt: m.released_at ?? null,
+    firstSeenAt: m.first_seen_at ?? null,
+    isFree: Boolean(m.is_free),
+    supportsThinking: Boolean(m.supports_reasoning),
+    supportsTools: Boolean(m.supports_tools),
+    supportsVision: Boolean(m.supports_vision),
+    supportsSearch: provider === "gemini" || provider === "google",
+    pricing: m.pricing || null,
+    isEnabled: m.enabled !== false,
+    isPinned: Boolean(m.pinned),
+    kind: m.kind || "chat",
+    requiresKey: m.connected === false,
+  };
+}
+
+/** Legacy grouped /api/catalog payload row -> UnifiedModel. */
+function fromLegacyRow(providerId: string, label: string, m: any, requiresKey: boolean): UnifiedModel {
   return {
     id: m.id,
     uniqueKey: `${providerId}:${m.id}`,
@@ -34,36 +70,34 @@ function toUnified(providerId: string, label: string, m: any, requiresKey: boole
     alias: m.alias || null,
     description: m.description || null,
     contextLength: m.contextLength ?? null,
+    family: m.family ?? null,
+    vendor: m.vendor ?? null,
+    status: m.status || "active",
+    recommended: Boolean(m.recommended),
     supportsThinking: Boolean(m.supportsReasoning || m.supports_thinking),
     supportsTools: Boolean(m.supportsTools || m.supports_tools),
     supportsVision: Boolean(m.supportsVision || m.supports_vision),
     supportsSearch: Boolean(m.supportsSearch || m.supports_search),
     pricing: m.pricing || null,
-    isEnabled: true,
+    isEnabled: m.isEnabled !== false,
     isPinned: Boolean(m.isPinned),
-    isDefault: Boolean(m.is_default),
-    kind: m.kind,
-    vendor: m.vendor,
+    kind: m.kind || "chat",
     requiresKey,
   };
 }
 
 /**
- * Builds the composer model picker list.
- *
- * Sources, in priority order:
- *  1. live provider catalogs (connected providers),
- *  2. the bundled catalog shipped with the app (every provider, every model),
- *  3. the app's own enabled chat models (Google, served with the server key).
- * Models whose provider has no key yet are still listed and flagged as needing one.
+ * Composer model picker data: live catalogs for connected providers, the full
+ * catalog (every provider, connected or not) and the app's own Gemini list.
+ * Sections are ordered Recommended -> pinned -> provider/vendor groups.
  */
 export function useComposerModels(selectedModelId: string) {
   const { models: appModels, defaultModel, normalizeSlug } = useModels();
-  const [providerModels, setProviderModels] = useState<UnifiedModel[]>([]);
+  const [liveModels, setLiveModels] = useState<UnifiedModel[]>([]);
   const [catalogModels, setCatalogModels] = useState<UnifiedModel[]>([]);
-  const [bootstrap, setBootstrap] = useState<ProviderBootstrap>({ labels: {}, connected: new Set(), order: [] });
-  // Starts as loading: the picker must not resolve a default model before every
-  // catalog source has been fetched, otherwise a saved pick would be overwritten.
+  const [labels, setLabels] = useState<Record<string, string>>({});
+  const labelsRef = useRef<Record<string, string>>({});
+  const [order, setOrder] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -71,72 +105,65 @@ export function useComposerModels(selectedModelId: string) {
     setLoading(true);
     try {
       const res = await authFetch("/api/providers");
-      if (!res.ok) {
-        setProviderModels([]);
-        return;
+      if (res.ok) {
+        const data = await res.json();
+        const credentials: any[] = Array.isArray(data.credentials) ? data.credentials : [];
+        const registry: any[] = Array.isArray(data.providers) ? data.providers : [];
+        const nextLabels: Record<string, string> = {};
+        registry.forEach((p) => {
+          nextLabels[p.id] = p.label || getProviderLabel(p.id);
+        });
+        setLabels(nextLabels);
+        labelsRef.current = nextLabels;
+        setOrder(registry.map((p) => p.id));
+        const connectedIds = credentials.filter((c) => !c.status || c.status === "active").map((c) => c.provider);
+
+        // Live catalogs for connected providers (keys may expose extra models).
+        const live: UnifiedModel[] = [];
+        await Promise.all(
+          registry
+            .map((p) => p.id)
+            .filter((id: string) => connectedIds.includes(id))
+            .map(async (providerId: string) => {
+              try {
+                const mRes = await authFetch(`/api/providers/${providerId}/models`);
+                if (!mRes.ok) return;
+                const mData = await mRes.json();
+                const list: any[] = Array.isArray(mData.models) ? mData.models : [];
+                list.forEach((m) => {
+                  if (m.isEnabled === false) return;
+                  live.push(fromLegacyRow(providerId, nextLabels[providerId] || getProviderLabel(providerId), m, false));
+                });
+              } catch {
+                // individual provider failures must not empty the picker
+              }
+            })
+        );
+        setLiveModels(live);
       }
 
-      const data = await res.json();
-      const credentials: any[] = Array.isArray(data.credentials) ? data.credentials : [];
-      const registry: any[] = Array.isArray(data.providers) ? data.providers : [];
-
-      const labels: Record<string, string> = {};
-      registry.forEach((p) => {
-        labels[p.id] = p.label || getProviderLabel(p.id);
-      });
-
-      const connectedIds = Array.from(
-        new Set(
-          credentials
-            .filter((c) => !c.status || c.status === "active")
-            .map((c) => c.provider)
-        )
-      );
-      const connected = new Set<string>(connectedIds);
-      setBootstrap({ labels, connected, order: registry.map((p) => p.id) });
-
-      // 1. Live catalogs for connected providers.
-      const liveResults: UnifiedModel[] = [];
-      await Promise.all(
-        registry
-          .map((p) => p.id)
-          .filter((id: string) => connected.has(id))
-          .map(async (providerId: string) => {
-            try {
-              const mRes = await authFetch(`/api/providers/${providerId}/models`);
-              if (!mRes.ok) return;
-              const mData = await mRes.json();
-              const list: any[] = Array.isArray(mData.models) ? mData.models : [];
-              list.forEach((m) => {
-                if (m.isEnabled === false) return;
-                liveResults.push(toUnified(providerId, labels[providerId] || getProviderLabel(providerId), m, false));
-              });
-            } catch {
-              // ignore individual provider error
-            }
-          })
-      );
-      setProviderModels(liveResults);
-
-      // 2. Bundled catalog for every provider (fills the gaps, flags key needs).
+      // Full catalog: flat rows (new shape) or the legacy grouped payload.
       try {
-        const cRes = await authFetch("/api/catalog");
+        const cRes = await authFetch("/api/catalog?all=1");
         if (cRes.ok) {
           const cData = await cRes.json();
-          const bundled: UnifiedModel[] = [];
-          (cData?.providers || []).forEach((provider: any) => {
-            const label = labels[provider.id] || getProviderLabel(provider.id);
-            (provider.models || []).forEach((m: any) => {
-              bundled.push(toUnified(provider.id, label, { ...m, vendor: provider.vendor }, !connected.has(provider.id)));
+          const rows: UnifiedModel[] = [];
+          if (Array.isArray(cData.models)) {
+            cData.models.forEach((m: any) => rows.push(fromCatalogRow(m, labelsRef.current)));
+          } else if (Array.isArray(cData.providers)) {
+            cData.providers.forEach((p: any) => {
+              const label = p.label || getProviderLabel(p.id);
+              const requiresKey = p.connected === false;
+              (p.models || []).forEach((m: any) => rows.push(fromLegacyRow(p.id, label, m, requiresKey)));
             });
-          });
-          setCatalogModels(bundled);
+          }
+          setCatalogModels(rows);
         }
       } catch {
         setCatalogModels([]);
       }
     } catch {
-      setProviderModels([]);
+      setLiveModels([]);
     } finally {
       setLoading(false);
     }
@@ -146,97 +173,80 @@ export function useComposerModels(selectedModelId: string) {
     fetchAllProviderModels();
   }, [fetchAllProviderModels]);
 
-  // Combine live provider models, bundled catalog models and App models.
+  // A provider key was saved: refetch catalogs so its models unlock live.
+  useEffect(() => {
+    const onProvidersChanged = () => void fetchAllProviderModels();
+    window.addEventListener("claude:provider-connected", onProvidersChanged);
+    window.addEventListener("claude:providers-changed", onProvidersChanged);
+    return () => {
+      window.removeEventListener("claude:provider-connected", onProvidersChanged);
+      window.removeEventListener("claude:providers-changed", onProvidersChanged);
+    };
+  }, [fetchAllProviderModels]);
+
   const allModels = useMemo<UnifiedModel[]>(() => {
     const list: UnifiedModel[] = [];
     const seen = new Set<string>();
+    liveModels.forEach((m) => pushUnique(list, seen, m));
+    catalogModels.forEach((m) => pushUnique(list, seen, { ...m, providerLabel: labelFor(labels, m.provider) }));
 
-    const push = (model: UnifiedModel) => {
-      if (seen.has(model.uniqueKey)) return;
-      seen.add(model.uniqueKey);
-      list.push(model);
-    };
-
-    providerModels.forEach(push);
-    catalogModels.forEach(push);
-
-    const enabledAppModels = appModels.filter((m) => m.enabled && m.kind === "chat");
-    enabledAppModels.forEach((m) => {
-      const pKey = m.provider === "google" ? "gemini" : (m.provider || "gemini");
-      push({
-        id: m.api_model_id || m.slug,
-        uniqueKey: `${pKey}:${m.api_model_id || m.slug}`,
-        provider: pKey,
-        providerLabel: labelsFor(pKey, bootstrap.labels),
-        displayName: m.display_name,
-        alias: null,
-        description: m.description,
-        contextLength: (m as any).context_length ?? null,
-        supportsThinking: Boolean(m.supports_thinking),
-        supportsTools: Boolean(m.supports_tools),
-        supportsVision: Boolean(m.supports_vision),
-        supportsSearch: Boolean(m.supports_search),
-        pricing: null,
-        isEnabled: true,
-        isPinned: false,
-        isDefault: Boolean(m.is_default),
-        kind: m.kind,
-        vendor: (m as any).vendor,
-        requiresKey: false,
+    appModels
+      .filter((m) => m.enabled && m.kind === "chat")
+      .forEach((m) => {
+        const pKey = m.provider === "google" ? "gemini" : m.provider || "gemini";
+        pushUnique(list, seen, {
+          id: m.api_model_id || m.slug,
+          uniqueKey: `${pKey}:${m.api_model_id || m.slug}`,
+          provider: pKey,
+          providerLabel: labelFor(labels, pKey),
+          displayName: m.display_name,
+          alias: null,
+          description: m.description,
+          contextLength: (m as any).context_length ?? null,
+          family: (m as any).family ?? null,
+          vendor: (m as any).vendor ?? null,
+          status: (m as any).status || "active",
+          recommended: Boolean((m as any).recommended),
+          releasedAt: (m as any).release_date ?? null,
+          supportsThinking: Boolean(m.supports_thinking),
+          supportsTools: Boolean(m.supports_tools),
+          supportsVision: Boolean(m.supports_vision),
+          supportsSearch: Boolean(m.supports_search),
+          pricing: (m as any).pricing || null,
+          isEnabled: true,
+          isPinned: false,
+          isDefault: Boolean(m.is_default),
+          kind: m.kind,
+          requiresKey: false,
+        });
       });
-    });
 
     return list;
-  }, [providerModels, catalogModels, appModels, bootstrap.labels]);
+  }, [liveModels, catalogModels, appModels, labels]);
 
   const filteredModels = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return allModels;
-    return allModels.filter((m) => {
-      return (
+    return allModels.filter(
+      (m) =>
         m.displayName.toLowerCase().includes(q) ||
         (m.alias && m.alias.toLowerCase().includes(q)) ||
         m.id.toLowerCase().includes(q) ||
         m.providerLabel.toLowerCase().includes(q) ||
+        (m.family || "").toLowerCase().includes(q) ||
         (m.description && m.description.toLowerCase().includes(q))
-      );
-    });
+    );
   }, [allModels, searchQuery]);
 
-  const groupedProviders = useMemo<ProviderGroup[]>(() => {
-    const map = new Map<string, UnifiedModel[]>();
-    filteredModels.forEach((m) => {
-      const groupKey = `${providerOrderIndex(m.provider, bootstrap.order)}::${m.providerLabel}`;
-      if (!map.has(groupKey)) map.set(groupKey, []);
-      map.get(groupKey)!.push(m);
-    });
-
-    const groups: ProviderGroup[] = [];
-    [...map.entries()]
-      .sort(([a], [b]) => a.localeCompare(b, "en", { numeric: true }))
-      .forEach(([, models]) => {
-        const sorted = [...models].sort((a, b) => {
-          if (a.isPinned && !b.isPinned) return -1;
-          if (!a.isPinned && b.isPinned) return 1;
-          const kindRank = (m: UnifiedModel) => (m.kind && m.kind !== "chat" ? 1 : 0);
-          if (kindRank(a) !== kindRank(b)) return kindRank(a) - kindRank(b);
-          return a.displayName.localeCompare(b.displayName);
-        });
-        groups.push({
-          providerId: sorted[0]?.provider || "app",
-          providerLabel: sorted[0]?.providerLabel || "App models",
-          models: sorted,
-        });
-      });
-
-    return groups;
-  }, [filteredModels, bootstrap.order]);
+  const sections = useMemo<PickerSection[]>(
+    () => composerSections(filteredModels, (p) => labelFor(labels, p), order),
+    [filteredModels, labels, order]
+  );
 
   const activeModelObj = useMemo<UnifiedModel | null>(() => {
     if (!selectedModelId) {
       return allModels.find((m) => m.isDefault) || allModels[0] || null;
     }
-
     const norm = normalizeSlug(selectedModelId);
     return (
       allModels.find((m) => m.uniqueKey === selectedModelId) ||
@@ -261,22 +271,13 @@ export function useComposerModels(selectedModelId: string) {
 
   return {
     allModels,
-    groupedProviders,
+    sections,
     activeModelObj,
     pillLabel,
     searchQuery,
     setSearchQuery,
     loading,
     refresh: fetchAllProviderModels,
+    labelFor: (providerId: string) => labelFor(labels, providerId),
   };
-}
-
-function labelsFor(providerId: string, labels: Record<string, string>): string {
-  return labels[providerId] || getProviderLabel(providerId);
-}
-
-/** Numeric sort prefix so provider groups follow the registry order. */
-function providerOrderIndex(providerId: string, order: string[]): string {
-  const index = order.indexOf(providerId);
-  return String(index >= 0 ? index : 900 + order.length).padStart(4, "0");
 }

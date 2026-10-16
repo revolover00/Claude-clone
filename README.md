@@ -39,7 +39,7 @@ A high-fidelity web application clone of Claude.ai powered by Google's Gemini mo
   v
 +--------------------------------------------------------------------------+
   |            /api/providers/:id/models  (live catalog + bundled fallback)
-  |            /api/catalog               (full bundled catalog, no key needed)
+  |            /api/catalog               (merged catalog + facets/sync, no key needed)
   v
 +--------------------------------------------------------------------------+
 |                       BUNDLED MODEL CATALOG (committed)                  |
@@ -74,9 +74,9 @@ A high-fidelity web application clone of Claude.ai powered by Google's Gemini mo
   - Displays "Searched the web" indicator during generation and an interactive "Sources" row with site favicons and external domain links.
 - **Bundled Model Catalog (zero manual setup)**:
   - Every supported provider ships with its complete model list in the repository (`src/shared/catalog`), with full details: context window, max output, input/output modalities, tools, reasoning, structured output, vision, open weights, pricing per 1M tokens, knowledge cutoff, release date and lifecycle status.
-  - Nothing has to be added by hand: on boot the server installs the catalog into the data-driven `models` table, and `/api/models` serves the bundled Google chat models whenever the database is empty or unreachable.
+  - Nothing has to be added by hand: a background **sync service** keeps the `provider_catalog` table fresh — OpenRouter from its public endpoint (no key) and **every other provider through whatever API key a user saved in Settings > Providers** (source `user-key`; skipped while nobody connected that provider). The server never reads AI keys from deploy secrets. Rows are upserted on `(provider, model_id)`; a model is only marked `removed` after it is missing from two consecutive successful full syncs, and never on a failed fetch or when the response shrinks below 50% of the previous count.
   - **Settings → Providers** lists all providers (connected or not) with their bundled model counts, and the **Model Catalog** browser shows every model of every provider, searchable and filterable by kind and capability, with live provider data merged on top when a key is connected.
-  - The composer model picker shows the same catalog grouped per provider; models whose provider has no key yet are flagged **Key required** and selecting one opens the provider setup.
+  - The composer model picker shows the same catalog grouped per provider (Recommended first, then pinned, then provider/vendor groups); models whose provider has no key yet stay visible but dimmed with **Connect <provider> to use**, and selecting one opens Settings › Providers.
   - Providers without a bespoke adapter are wired through a single OpenAI-compatible factory (`server/lib/providers/openaiCompatible.ts`), so adding a provider is a data change.
   - Refresh the snapshot from the public models.dev dataset (MIT) with `npm run catalog:sync` (optionally `-- --from ./api.json` or `-- --only openai,groq`); the generator rewrites `src/shared/catalog/providers/*.ts` and `snapshot.ts`. Model names excluded by the repository naming policy are filtered out during generation.
 - **Interactive Artifacts**:
@@ -90,11 +90,12 @@ A high-fidelity web application clone of Claude.ai powered by Google's Gemini mo
 
 ## Environment Variables
 
-Create a `.env` file in the root directory (based on `.env.example`):
+Create a `.env` file in the root directory (based on `.env.example`).
+
+> **No server-side AI keys.** The server never reads `GEMINI_API_KEY`, `GROQ_API_KEY` or any other provider secret from the environment or your deployment platform. Every AI call — chat, titles, suggestions, memory, skills and catalog sync — runs on the API key each user saves in **Settings > Providers**. When a user has not added a key yet, the app asks them to add one (chat shows an *Add API key* button that opens Settings > Providers).
 
 | Variable | Required | Default | Description |
 | :--- | :---: | :---: | :--- |
-| `GEMINI_API_KEY` | **Yes** | - | Your Google Gemini API key from Google AI Studio. |
 | `PORT` | No | `3000` | Port for the full-stack server (default is 3000). |
 | `ALLOWED_ORIGIN` | No | Same-origin only | Allowed CORS origin (e.g. `https://yourdomain.com`). If unset, requests are restricted to same-origin. |
 | `ALLOW_GUEST` | No | `false` | Development only: lets `requireAuth` accept the guest/mock bearer token. Never honoured when `NODE_ENV=production`. |
@@ -169,24 +170,44 @@ modalities, tools, reasoning, structured output, vision, open weights, USD prici
 per 1M tokens (input/output/cache read), knowledge cutoff, release date, and
 `alpha`/`deprecated` status.
 
-How it is kept in sync, automatically:
+How it stays current, automatically:
 
-- **Server boot** installs the catalog into `public.models` when the table is empty
-  (`server/lib/modelsSeed.ts`), so the data-driven model list is populated with the
-  bundled Google chat models plus the curated offline defaults.
-- **`GET /api/models`** falls back to the catalog rows whenever Supabase is empty or
-  unreachable — no admin action required.
-- **`GET /api/catalog`** returns the whole bundled catalog (all providers, all
-  models, filterable by `provider`, `q`, `kind`, `capability`, `minContext`).
+- **Sync service** (`server/lib/catalog/`): fetches through the existing provider
+  adapters — OpenRouter's public models endpoint (no key) plus every registered
+  provider through an active user key (source `user-key`, no server secrets).
+  Providers nobody has connected yet are skipped. Saving a new key triggers an
+  immediate background sync for that provider. Every run upserts on
+  `(provider, model_id)`; `first_seen_at` is written only on insert, while
+  `last_seen_at` / `last_synced_at` always update.
+- **Removal rule**: a row is marked `status: "removed"` only after it is missing from
+  two consecutive *successful* full syncs. Rows are never deleted (conversations can
+  still reference them), and no removals are recorded on a failed fetch or when the
+  new count is under 50% of the previous one.
+- **Schedule**: the scheduler runs once at startup and then every 6 hours, guarded
+  by a database lock (a run started less than 5 minutes ago makes other instances
+  skip). Each run writes a `catalog_sync_runs` row (time, added/updated/removed,
+  status, error).
+- **`GET /api/catalog`** serves the merged catalog (filters for `provider`, `kind`,
+  `vendor`, `family`, `capability`, `status`, `free`, `q`, `sort`, cursor
+  pagination) and triggers a background sync when the newest `last_synced_at` is
+  older than 12 hours. `GET /api/catalog/facets` returns facet counts;
+  `GET /api/catalog/sync-runs` and `POST /api/catalog/sync` are admin-only.
+- **Settings → Model Catalog** is read-only for regular users; admins can hide a
+  model, force-recommend it or set an alias (stored in `catalog_overrides`), and run
+  **Sync now** per provider with the run history rendered from `catalog_sync_runs`.
+- **App models**: the Gemini chat list is derived from `provider_catalog` (chat
+  kind, active/preview) instead of manual rows; the default is the best recommended
+  Gemini Flash model unless an admin overrides it. The legacy `models` table stays
+  read-only, and `src/shared/fallbackModels.ts` is used only when both the catalog
+  and a live fetch fail.
 - **`GET /api/providers/:provider/models`** merges the live provider catalog over the
   bundled one. Missing keys are not an error: the bundled list is returned with
   `source: "bundled"` and a `liveError` when a live refresh was attempted.
-- **`POST /api/models/catalog/import`** (admin) reinstalls the bundled catalog into
-  the data-driven table, e.g. after a `catalog:sync`.
-- **`npm run catalog:sync`** regenerates the snapshot from the public models.dev
-  dataset (MIT). The generator filters out names excluded by the repository naming
-  policy before writing, and `tests/modelCatalog.test.ts` keeps the data, the
-  runtime kind inference and the generator in sync.
+- **`npm run catalog:sync`** regenerates the committed `src/shared/catalog`
+  snapshot from the public models.dev dataset (MIT). The generator filters out names
+  excluded by the repository naming policy before writing, and
+  `tests/modelCatalog.test.ts` keeps the data, the runtime kind inference and the
+  generator in sync.
 
 ---
 
@@ -264,4 +285,4 @@ This application uses a full-stack architecture where `server.ts` hosts the Expr
    npm run start
    # Executes: NODE_ENV=production tsx server.ts
    ```
-4. **Environment Variables**: Configure `GEMINI_API_KEY` in your platform's environment configuration.
+4. **Environment Variables**: No AI key is required on the platform — users connect their own provider keys in Settings > Providers (see the note above).

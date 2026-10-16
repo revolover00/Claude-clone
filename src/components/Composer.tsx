@@ -197,7 +197,7 @@ export default function Composer({
 
       <DragOverlay isDragging={isDragging} />
 
-      <div className="composer-surface mx-auto flex min-h-[132px] w-full max-w-[690px] flex-col rounded-[22px] border px-5 pb-3 pt-4">
+      <div className="composer-surface mx-auto flex min-h-[132px] w-full max-w-[720px] flex-col rounded-[24px] border px-5 pb-3 pt-4">
         <QuoteBanner activeQuote={activeQuote} onClear={() => setActiveQuote?.(null)} />
 
         <AttachmentChips attachments={attachments} onRemove={removeAttachment} />
@@ -213,7 +213,7 @@ export default function Composer({
           disabled={isOffline}
           aria-label="Message Claude"
           className={cn(
-            "max-h-44 w-full resize-none overflow-y-auto bg-transparent text-[15.5px] leading-6 text-ink placeholder:text-ink-muted focus:outline-none scroll-slim",
+            "max-h-44 w-full resize-none overflow-y-auto bg-transparent text-[16px] leading-[1.6] text-ink placeholder:text-ink-muted focus:outline-none scroll-slim",
             isOffline && "cursor-not-allowed opacity-60"
           )}
         />
@@ -245,7 +245,7 @@ export default function Composer({
                 type="button"
                 onClick={onStop}
                 title="Stop generation"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white shadow-sm transition-all duration-150 hover:opacity-90 scale-100"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-accent text-white shadow-sm transition-all duration-150 hover:opacity-90 scale-100"
               >
                 <Square size={13} fill="currentColor" strokeWidth={0} />
               </button>
@@ -256,7 +256,7 @@ export default function Composer({
                 disabled={!hasContent || isOffline}
                 title={isOffline ? "You are offline." : (hasContent ? "Send message" : "Type a message")}
                 className={cn(
-                  "inline-flex h-8 w-8 items-center justify-center rounded-full transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
+                  "inline-flex h-9 w-9 items-center justify-center rounded-full transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
                   hasContent && !isOffline
                     ? "bg-accent text-white shadow-sm hover:opacity-90 scale-100 opacity-100 cursor-pointer"
                     : "bg-elev-3 text-ink-muted opacity-40 scale-90 cursor-not-allowed pointer-events-none"

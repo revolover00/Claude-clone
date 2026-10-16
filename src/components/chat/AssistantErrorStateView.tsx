@@ -1,4 +1,6 @@
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { AlertTriangle, KeyRound, RotateCcw } from "lucide-react";
+import { useChat } from "../../context/ChatContext";
+import { requestSettingsTab } from "../../utils/settingsTab";
 
 interface AssistantErrorStateViewProps {
   messageId: string;
@@ -21,7 +23,15 @@ export default function AssistantErrorStateView({
   finishReason,
   onRetry,
 }: AssistantErrorStateViewProps) {
+  const { setSettingsModalOpen } = useChat();
+
   if (isErrorState) {
+    // KEY_MISSING: the server needs the user's own provider key (no server key).
+    const needsKey = /Settings > Providers/.test(displayErrorMessage);
+    const openProviders = () => {
+      requestSettingsTab("providers");
+      setSettingsModalOpen(true);
+    };
     return (
       <div className="rounded-xl border border-danger/30 bg-danger-bg p-3.5 text-[14px] text-ink font-sans">
         <div className="flex items-center gap-2 text-danger font-medium">
@@ -29,8 +39,21 @@ export default function AssistantErrorStateView({
           <span>{displayErrorMessage}</span>
         </div>
         <p className="mt-1 text-[13px] text-ink-muted">
-          There was a temporary disruption while generating. You can try again.
+          {needsKey
+            ? "Add your own provider API key once and the model list unlocks instantly."
+            : "There was a temporary disruption while generating. You can try again."}
         </p>
+
+        {needsKey && (
+          <button
+            type="button"
+            onClick={openProviders}
+            className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
+          >
+            <KeyRound size={13} />
+            <span>Add API key</span>
+          </button>
+        )}
 
         {errorDetails && (
           <div className="mt-2 text-[12px]">

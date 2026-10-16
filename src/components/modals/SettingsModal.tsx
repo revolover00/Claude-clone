@@ -3,10 +3,10 @@ import { X, Sun, Moon, Download, Trash2, Check } from "lucide-react";
 import { useChat } from "../../context/ChatContext";
 import { useFocusTrap } from "../../utils/useFocusTrap";
 import ModelsTab from "./ModelsTab";
+import { SETTINGS_TAB_EVENT } from "../../utils/settingsTab";
 import MemoryTab from "./MemoryTab";
 import SkillsTab from "./SkillsTab";
 import AboutTab from "./AboutTab";
-import { authFetch } from "../../utils/safeFetch";
 
 const SETTINGS_TABS = ["general", "appearance", "data", "models", "memory", "skills", "providers", "about"] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
@@ -22,10 +22,22 @@ export default function SettingsModal() {
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [confirmClear, setConfirmClear] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useFocusTrap(dialogRef, settingsModalOpen, () => setSettingsModalOpen(false));
+
+  // Lets any screen (e.g. "Connect <provider> to use" hints) switch tabs live.
+  useEffect(() => {
+    const onTabEvent = (event: Event) => {
+      const tab = (event as CustomEvent).detail;
+      if (tab && (SETTINGS_TABS as readonly string[]).includes(tab)) {
+        setActiveTab(tab as SettingsTab);
+        localStorage.removeItem("claude_clone_settings_tab");
+      }
+    };
+    window.addEventListener(SETTINGS_TAB_EVENT, onTabEvent);
+    return () => window.removeEventListener(SETTINGS_TAB_EVENT, onTabEvent);
+  }, []);
 
   useEffect(() => {
     if (settingsModalOpen) {
@@ -37,9 +49,6 @@ export default function SettingsModal() {
       } else {
         setActiveTab("general");
       }
-      authFetch("/api/models?all=true")
-        .then(res => setIsAdmin(res.ok))
-        .catch(() => setIsAdmin(false));
     }
   }, [settingsModalOpen]);
 
@@ -89,7 +98,7 @@ export default function SettingsModal() {
             <TabBtn id="memory" label="Memory" />
             <TabBtn id="skills" label="Skills" />
             <TabBtn id="providers" label="Providers" />
-            {isAdmin && <TabBtn id="models" label="Models" />}
+            <TabBtn id="models" label="Model Catalog" />
             <TabBtn id="about" label="About" />
           </nav>
         </div>

@@ -9,11 +9,24 @@ export function normalizeGeminiModel(m: any): ModelInfo {
   const supportsGen = actions.length === 0 || actions.includes("generateContent") || /gemini/i.test(id);
   const supportsTools = actions.includes("functionCalling") || actions.includes("tools") || /gemini/i.test(id);
   const isReasoning = /gemini-3/i.test(id) || /gemini-2\.5/i.test(id) || /thinking/i.test(id);
+  const displayName = m.displayName || id;
+
+  // Embedding: name contains "embed" or the only generation method is embedContent.
+  const kind =
+    (actions.length > 0 && actions.every((a) => a === "embedContent")) ||
+    /embed/i.test(id) ||
+    /embed/i.test(displayName)
+      ? "embedding"
+      : /imagen|diffusion/.test(id) || /imagen/.test(displayName)
+        ? "image"
+        : /tts|whisper|transcribe/.test(id)
+          ? "audio"
+          : "chat";
 
   return {
     provider: "gemini",
     id,
-    displayName: m.displayName || id,
+    displayName,
     description: m.description || null,
     contextLength: m.inputTokenLimit || null,
     maxOutputTokens: m.outputTokenLimit || null,
@@ -22,8 +35,10 @@ export function normalizeGeminiModel(m: any): ModelInfo {
     supportsTools,
     supportsReasoning: isReasoning,
     supportsVision: supportsGen,
+    supportsJson: supportsGen,
     pricing: null,
     isActive: true,
+    kind,
     raw: m,
   };
 }

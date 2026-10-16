@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { ai, apiKey, mapGeminiError } from "../lib/gemini";
+import { createGeminiClient, mapGeminiError } from "../lib/gemini";
+import { geminiKeyFor } from "../lib/userAiKey";
 import { getModelsFromDB } from "../lib/modelsStore";
 
 const router = Router();
@@ -7,10 +8,7 @@ const router = Router();
 router.post("/", async (req, res) => {
   const { firstUserMsg, firstReply } = req.body;
 
-  if (!apiKey) {
-    res.status(403).json({ error: "API key invalid or missing on the server", code: 403 });
-    return;
-  }
+  const userKey = await geminiKeyFor((req as any).user?.id);
 
   // Escape & limit to 500 chars each
   let safeUserMsg = typeof firstUserMsg === "string" ? firstUserMsg.slice(0, 500) : "";
@@ -28,7 +26,14 @@ router.post("/", async (req, res) => {
 
     const prompt = `Generate a 3-6 word title for a chat conversation based on the user's first message: "${safeUserMsg}" and the assistant's reply: "${safeReply}". The title MUST be in the same language as the chat conversation. Return ONLY the plain title text, with no quotation marks, no markdown, and no preamble.`;
 
-    const response = await ai.models.generateContent({
+    // No key yet: derive a plain title locally so chat naming still works.
+    if (!userKey) {
+      const words = safeUserMsg.split(/\s+/).filter(Boolean).slice(0, 6).join(" ");
+      res.json({ title: words || "New conversation" });
+      return;
+    }
+
+    const response = await createGeminiClient(userKey).models.generateContent({
       model: lightModel.api_model_id,
       contents: prompt,
     });

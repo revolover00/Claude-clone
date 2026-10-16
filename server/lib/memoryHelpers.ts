@@ -1,21 +1,23 @@
-import { ai } from "../lib/gemini";
+import { createGeminiClient } from "../lib/gemini";
 
-// In-memory or database embedding helper
-export async function generateEmbedding(text: string): Promise<number[]> {
+/**
+ * Embedding helper. Runs on the USER's Gemini key — without one it returns
+ * null so callers can skip similarity scoring instead of faking vectors.
+ */
+export async function generateEmbedding(text: string, apiKey?: string | null): Promise<number[] | null> {
+  if (!apiKey) return null;
   try {
+    const ai = createGeminiClient(apiKey);
     const response = await ai.models.embedContent({
       model: "text-embedding-004",
       contents: text,
     });
-    if (response?.embedding?.values) {
-      return response.embedding.values;
-    }
-    const fallback = (response as any).embedding?.values || [];
-    if (fallback.length > 0) return fallback;
-    return new Array(768).fill(0).map(() => Math.random() - 0.5);
+    const values = response?.embedding?.values;
+    if (values && values.length > 0) return values as number[];
+    return null;
   } catch (err) {
-    console.warn("Embedding generation failed, using mock vector:", err);
-    return new Array(768).fill(0).map(() => Math.random() - 0.5);
+    console.warn("Embedding generation failed, skipping:", err);
+    return null;
   }
 }
 

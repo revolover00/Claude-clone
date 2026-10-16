@@ -1,63 +1,47 @@
-export type ModelSource = "bundled" | "live" | "live+bundled";
+import type { GroupableModel } from "../../shared/catalog/grouping";
 
-/** A provider model as rendered by the settings browser and the composer picker. */
-export interface ProviderModelItem {
-  provider: string;
-  id: string;
-  displayName: string;
-  description: string | null;
-  contextLength: number | null;
-  maxOutputTokens: number | null;
-  inputModalities: string[];
-  outputModalities: string[];
-  supportsTools: boolean;
-  supportsReasoning: boolean;
-  supportsVision: boolean;
-  supportsStructuredOutput?: boolean;
-  pricing: { inputPerMTok: number; outputPerMTok: number; currency: string } | null;
-  isActive: boolean;
-  isEnabled: boolean;
-  isPinned: boolean;
-  alias?: string | null;
-  /** Catalog classification: chat, embedding, image, audio, video, rerank, moderation, other. */
-  kind?: string;
-  source?: ModelSource;
-  vendor?: string;
-  family?: string | null;
-  releaseDate?: string | null;
-  knowledgeCutoff?: string | null;
-  openWeights?: boolean;
-  status?: string | null;
-  /** True when the provider has no working credential yet, so the model needs a key. */
-  requiresKey?: boolean;
+/** A model row as served by GET /api/catalog and rendered by the browser. */
+export interface CatalogBrowserModel extends GroupableModel {
+  model_id: string;
+  name: string;
+  display_name?: string;
+  vendor: string;
+  family: string;
+  kind: string;
+  status: string;
+  context_length: number | null;
+  max_output_tokens: number | null;
+  pricing: { inputPerMTok: number | null; outputPerMTok: number | null; currency: string } | null;
+  supports_tools: boolean;
+  supports_vision: boolean;
+  supports_reasoning: boolean;
+  supports_json: boolean;
+  is_free: boolean;
+  recommended: boolean;
+  released_at?: string | null;
+  first_seen_at?: string | null;
+  connected: boolean;
+  requires_key: boolean;
+  enabled: boolean;
+  pinned: boolean;
+  alias: string | null;
 }
 
-export interface CatalogProviderView {
+export interface CatalogProviderSummary {
   id: string;
   label: string;
-  vendor: string;
-  docsUrl: string;
-  keyHelpUrl: string;
-  keyEnv?: string | null;
-  apiStyle?: string;
   connected: boolean;
   modelCount: number;
-  bundledModelCount: number;
-  source: ModelSource;
-  liveError?: string | null;
-  models: ProviderModelItem[];
 }
 
-export interface CatalogStats {
-  providerCount: number;
-  modelCount: number;
-  connectedCount: number;
-  snapshotDate: string | null;
+export interface CatalogBrowserData {
+  models: CatalogBrowserModel[];
+  providers: CatalogProviderSummary[];
+  source: "catalog" | "bundled";
+  syncable: string[];
 }
 
-export function isChatKind(kind?: string): boolean {
-  return !kind || kind === "chat";
-}
+export type CatalogSort = "recommended" | "newest" | "context" | "price";
 
 export function kindLabel(kind?: string): string {
   switch (kind) {
@@ -78,4 +62,26 @@ export function kindLabel(kind?: string): string {
     default:
       return "Chat";
   }
+}
+
+/** Client-side sort mirroring the server's sort parameter. */
+export function sortBrowserModels(models: CatalogBrowserModel[], sort: CatalogSort): CatalogBrowserModel[] {
+  const out = [...models];
+  const price = (m: CatalogBrowserModel) => (m.pricing && m.pricing.inputPerMTok != null ? m.pricing.inputPerMTok : Number.MAX_SAFE_INTEGER);
+  if (sort === "newest") {
+    out.sort((a, b) => String(b.released_at || "").localeCompare(String(a.released_at || "")) || a.model_id.localeCompare(b.model_id));
+  } else if (sort === "context") {
+    out.sort((a, b) => (b.context_length || 0) - (a.context_length || 0) || a.model_id.localeCompare(b.model_id));
+  } else if (sort === "price") {
+    out.sort((a, b) => price(a) - price(b) || a.model_id.localeCompare(b.model_id));
+  } else {
+    out.sort(
+      (a, b) =>
+        Number(b.recommended) - Number(a.recommended) ||
+        String(b.released_at || "").localeCompare(String(a.released_at || "")) ||
+        (b.context_length || 0) - (a.context_length || 0) ||
+        a.model_id.localeCompare(b.model_id)
+    );
+  }
+  return out;
 }

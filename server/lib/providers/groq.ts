@@ -2,13 +2,21 @@ import { Provider, ModelInfo, ValidationResult, ProviderStreamParams } from "./t
 import { streamOpenAICompatibleChat } from "./streamChat";
 
 export function normalizeGroqModel(m: any): ModelInfo {
-  const isReasoning = /deepseek-r1|qwen-2\.5-32b|gpt-oss/i.test(m.id || "") || Boolean(m.supports_reasoning || m.supportsReasoning);
-  const isVision = /vision|llava/i.test(m.id || "");
+  const id = String(m.id || "");
+  const isReasoning = /deepseek-r1|qwen-2\.5-32b|gpt-oss/i.test(id) || Boolean(m.supports_reasoning || m.supportsReasoning);
+  const isVision = /vision|llava/i.test(id);
+  const kind = /embed/i.test(id)
+    ? "embedding"
+    : /whisper|tts|transcribe/.test(id)
+      ? "audio"
+      : /guard|moderation/.test(id)
+        ? "moderation"
+        : "chat";
 
   return {
     provider: "groq",
-    id: m.id,
-    displayName: m.id,
+    id,
+    displayName: id,
     description: null,
     contextLength: m.context_window || null,
     maxOutputTokens: null,
@@ -17,8 +25,11 @@ export function normalizeGroqModel(m: any): ModelInfo {
     supportsTools: true,
     supportsReasoning: isReasoning,
     supportsVision: isVision,
+    supportsJson: true,
     pricing: null,
+    ownedBy: m.owned_by || null,
     isActive: m.active !== false,
+    kind,
     raw: m,
   };
 }

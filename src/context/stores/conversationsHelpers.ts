@@ -64,7 +64,7 @@ export function getMessageSiblings(
   };
 }
 
-import { normalizeSlug } from "../../hooks/useModels";
+import { toCanonicalModelId } from "../../shared/normalizeSlug";
 
 /**
  * Automatically migrates existing legacy flat message arrays to linked tree nodes and normalizes model slugs.
@@ -72,7 +72,7 @@ import { normalizeSlug } from "../../hooks/useModels";
 export function migrateConversations(savedRaw: any[]): Conversation[] {
   if (!Array.isArray(savedRaw)) return [];
   return savedRaw.map((c) => {
-    const convModelId = c.model_id ? normalizeSlug(c.model_id) : c.model_id;
+    const convModelId = toCanonicalModelId(c.model_id);
 
     if (!c.messages || !Array.isArray(c.messages) || c.messages.length === 0) {
       return {
@@ -90,7 +90,7 @@ export function migrateConversations(savedRaw: any[]): Conversation[] {
         model_id: convModelId,
         messages: c.messages.map((m: any) => ({
           ...m,
-          ...(m.model_id ? { model_id: normalizeSlug(m.model_id) } : {}),
+          ...(m.model_id ? { model_id: toCanonicalModelId(m.model_id) } : {}),
         })),
       };
     }
@@ -101,7 +101,7 @@ export function migrateConversations(savedRaw: any[]): Conversation[] {
       const nextId = idx < c.messages.length - 1 ? c.messages[idx + 1].id : null;
       return {
         ...m,
-        ...(m.model_id ? { model_id: normalizeSlug(m.model_id) } : {}),
+        ...(m.model_id ? { model_id: toCanonicalModelId(m.model_id) } : {}),
         parentId: prevId,
         activeChildId: nextId,
         childrenIds: nextId ? [nextId] : [],
