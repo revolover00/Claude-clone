@@ -42,6 +42,17 @@ export function useCatalogBrowser() {
     void load();
   }, [load]);
 
+  // A provider key was saved/removed: refetch so its rows un-dim instantly.
+  useEffect(() => {
+    const onProvidersChanged = () => void load({ refresh: true });
+    window.addEventListener("claude:provider-connected", onProvidersChanged);
+    window.addEventListener("claude:providers-changed", onProvidersChanged);
+    return () => {
+      window.removeEventListener("claude:provider-connected", onProvidersChanged);
+      window.removeEventListener("claude:providers-changed", onProvidersChanged);
+    };
+  }, [load]);
+
   const patchModel = useCallback((model: CatalogBrowserModel, patch: Partial<CatalogBrowserModel>) => {
     setModels((prev) => prev.map((m) => (m.provider === model.provider && m.model_id === model.model_id ? { ...m, ...patch } : m)));
   }, []);

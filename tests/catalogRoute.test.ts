@@ -73,7 +73,11 @@ describe("GET /api/catalog", () => {
 
     expect(payload.source).toBe("bundled");
     expect(payload.models.length).toBe(CATALOG_MODELS.length);
-    expect(payload.syncable).toEqual(["openrouter", "gemini", "groq"]);
+    // Every registered provider is syncable: the three builtins first, then
+    // the rest through whatever user key is connected (no server secrets).
+    expect(payload.syncable.slice(0, 3)).toEqual(["openrouter", "gemini", "groq"]);
+    expect(payload.syncable).toContain("openai");
+    expect(payload.syncable.length).toBeGreaterThan(3);
     expect(payload.providers.length).toBeGreaterThanOrEqual(CATALOG_PROVIDERS.length);
     expect(payload.nextCursor).toBeNull();
     expect(payload.sync.stale).toBe(true);

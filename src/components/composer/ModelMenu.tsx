@@ -14,6 +14,7 @@ import {
 import { computeVirtualWindow } from "../../utils/virtualWindow";
 import { closestRecommendedModel } from "../../shared/catalog/grouping";
 import { requestSettingsTab } from "../../utils/settingsTab";
+import { useProviderConnectAutoSelect } from "./modelPicker/useProviderConnectAutoSelect";
 
 export const EFFORTS = ["Low", "Medium", "High"] as const;
 export type Effort = (typeof EFFORTS)[number];
@@ -35,8 +36,17 @@ export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort
   const listRef = useRef<HTMLDivElement>(null);
   const { setSettingsModalOpen } = useChat();
 
-  const { allModels, sections, activeModelObj, pillLabel, searchQuery, setSearchQuery, loading } =
+  const { allModels, sections, activeModelObj, pillLabel, searchQuery, setSearchQuery, loading, refresh } =
     useComposerModels(model);
+
+
+  useProviderConnectAutoSelect({
+    allModels,
+    loading,
+    activeUniqueKey: activeModelObj?.uniqueKey,
+    refresh,
+    onSelectModel,
+  });
 
   const rows = useMemo(() => buildPickerRows(sections), [sections]);
   const heights = useMemo(() => rowHeights(rows), [rows]);
@@ -54,6 +64,7 @@ export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort
   }, [activeModelObj, model, onSelectModel, loading]);
 
   useEffect(() => setActiveIndex(-1), [sections]);
+
 
   const toggleOpen = () => {
     setIsOpen((prev) => {
@@ -152,19 +163,19 @@ export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort
         onClick={toggleOpen}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className="flex h-8 items-center gap-1.5 rounded-md px-2 transition-colors duration-150 hover:bg-elev-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
+        className="flex h-8 items-center gap-1 rounded-md pe-1 ps-2 transition-colors duration-150 hover:bg-elev-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
       >
-        <span className="text-[13.5px] font-medium text-ink-soft">{pillLabel}</span>
-        <span className="text-[13.5px] text-ink-muted">· {effort}</span>
+        <span className="text-[14px] font-medium text-ink-soft">{pillLabel}</span>
+        <span className="text-[14px] text-ink-muted">· {effort}</span>
       </button>
 
       <button
         type="button"
         aria-label="Model options"
         onClick={toggleOpen}
-        className="flex h-8 w-7 items-center justify-center rounded-md text-ink-muted transition-colors duration-150 hover:bg-elev-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
+        className="-ms-1 flex h-8 w-6 items-center justify-center rounded-md text-ink-muted transition-colors duration-150 hover:bg-elev-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
       >
-        <ChevronDown size={15} strokeWidth={2} />
+        <ChevronDown size={14} strokeWidth={2} />
       </button>
 
       {isOpen && (

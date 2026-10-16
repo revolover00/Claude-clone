@@ -1,5 +1,5 @@
 import { getEnabledSkill, getSkillFile, wrapSkillInstructions } from "./db";
-import { ai } from "../gemini";
+import { createGeminiClient } from "../gemini";
 import { createDocumentService } from "../documents/service";
 import type { GeneratedDocument } from "../documents/types";
 
@@ -121,13 +121,15 @@ export async function executeSkillFunctionCall(
 }
 
 export async function runSkillToolStream(
+  apiKey: string,
   modelId: string,
   formattedMessages: any[],
   config: any,
   call: any,
   toolResult: string
 ) {
-  if (!ai) throw new Error("Gemini AI client not initialized");
+  if (!apiKey) throw new Error("Missing Gemini API key for this user");
+  const ai = createGeminiClient(apiKey);
 
   const continuationMessages = [
     ...formattedMessages,

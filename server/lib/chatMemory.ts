@@ -6,7 +6,8 @@ export async function retrieveUserMemoryPrompt(
   messages: any[],
   projectId: string | null | undefined,
   supabaseServer: SupabaseClient | null,
-  isRealSupabaseConfigured: boolean
+  isRealSupabaseConfigured: boolean,
+  embedKey?: string | null
 ): Promise<string> {
   if (!userId) return "";
 
@@ -46,18 +47,22 @@ export async function retrieveUserMemoryPrompt(
     if (activeMemories.length === 0) return "";
 
     const latestUserMsg = messages[messages.length - 1]?.content || "";
-    const promptEmbedding = await generateEmbedding(latestUserMsg);
+    // Without the user's Gemini key there is no embedding: pinned and
+    // project memories still load, unpinned relevance scoring is skipped.
+    const promptEmbedding = embedKey ? await generateEmbedding(latestUserMsg, embedKey) : null;
 
     const pinnedMemories = activeMemories.filter((m) => m.pinned);
     const unpinnedMemories = activeMemories.filter((m) => !m.pinned);
 
-    const scored = unpinnedMemories.map((m) => {
-      let sim = 0;
-      if (m.embedding && Array.isArray(m.embedding)) {
-        sim = cosineSimilarity(promptEmbedding, m.embedding);
-      }
-      return { ...m, sim };
-    });
+    const scored = promptEmbedding
+      ? unpinnedMemories.map((m) => {
+          let sim = 0;
+          if (m.embedding && Array.isArray(m.embedding)) {
+            sim = cosineSimilarity(promptEmbedding, m.embedding);
+          }
+          return { ...m, sim };
+        })
+      : [];
     scored.sort((a, b) => b.sim - a.sim);
     const top8Unpinned = scored.slice(0, 8);
 

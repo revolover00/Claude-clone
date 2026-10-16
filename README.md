@@ -74,7 +74,7 @@ A high-fidelity web application clone of Claude.ai powered by Google's Gemini mo
   - Displays "Searched the web" indicator during generation and an interactive "Sources" row with site favicons and external domain links.
 - **Bundled Model Catalog (zero manual setup)**:
   - Every supported provider ships with its complete model list in the repository (`src/shared/catalog`), with full details: context window, max output, input/output modalities, tools, reasoning, structured output, vision, open weights, pricing per 1M tokens, knowledge cutoff, release date and lifecycle status.
-  - Nothing has to be added by hand: a background **sync service** keeps the `provider_catalog` table fresh — OpenRouter from its public endpoint (no key), Gemini with the server's `GEMINI_API_KEY` (source `app-key`) and Groq with an optional `GROQ_API_KEY` (skipped when unset). Rows are upserted on `(provider, model_id)`; a model is only marked `removed` after it is missing from two consecutive successful full syncs, and never on a failed fetch or when the response shrinks below 50% of the previous count.
+  - Nothing has to be added by hand: a background **sync service** keeps the `provider_catalog` table fresh — OpenRouter from its public endpoint (no key) and **every other provider through whatever API key a user saved in Settings > Providers** (source `user-key`; skipped while nobody connected that provider). The server never reads AI keys from deploy secrets. Rows are upserted on `(provider, model_id)`; a model is only marked `removed` after it is missing from two consecutive successful full syncs, and never on a failed fetch or when the response shrinks below 50% of the previous count.
   - **Settings → Providers** lists all providers (connected or not) with their bundled model counts, and the **Model Catalog** browser shows every model of every provider, searchable and filterable by kind and capability, with live provider data merged on top when a key is connected.
   - The composer model picker shows the same catalog grouped per provider (Recommended first, then pinned, then provider/vendor groups); models whose provider has no key yet stay visible but dimmed with **Connect <provider> to use**, and selecting one opens Settings › Providers.
   - Providers without a bespoke adapter are wired through a single OpenAI-compatible factory (`server/lib/providers/openaiCompatible.ts`), so adding a provider is a data change.
@@ -90,12 +90,12 @@ A high-fidelity web application clone of Claude.ai powered by Google's Gemini mo
 
 ## Environment Variables
 
-Create a `.env` file in the root directory (based on `.env.example`):
+Create a `.env` file in the root directory (based on `.env.example`).
+
+> **No server-side AI keys.** The server never reads `GEMINI_API_KEY`, `GROQ_API_KEY` or any other provider secret from the environment or your deployment platform. Every AI call — chat, titles, suggestions, memory, skills and catalog sync — runs on the API key each user saves in **Settings > Providers**. When a user has not added a key yet, the app asks them to add one (chat shows an *Add API key* button that opens Settings > Providers).
 
 | Variable | Required | Default | Description |
 | :--- | :---: | :---: | :--- |
-| `GEMINI_API_KEY` | **Yes** | - | Your Google Gemini API key from Google AI Studio. Used for chat and to sync the Gemini catalog (source `app-key`). |
-| `GROQ_API_KEY` | No | - | Optional Groq API key. When set, the Groq catalog is synced automatically; when missing, the Groq sync is skipped (bundled/offline data still serves the UI). |
 | `PORT` | No | `3000` | Port for the full-stack server (default is 3000). |
 | `ALLOWED_ORIGIN` | No | Same-origin only | Allowed CORS origin (e.g. `https://yourdomain.com`). If unset, requests are restricted to same-origin. |
 | `ALLOW_GUEST` | No | `false` | Development only: lets `requireAuth` accept the guest/mock bearer token. Never honoured when `NODE_ENV=production`. |
@@ -173,10 +173,12 @@ per 1M tokens (input/output/cache read), knowledge cutoff, release date, and
 How it stays current, automatically:
 
 - **Sync service** (`server/lib/catalog/`): fetches through the existing provider
-  adapters — OpenRouter's public models endpoint (no key), Gemini with
-  `GEMINI_API_KEY` (source `app-key`), Groq with an optional `GROQ_API_KEY`
-  (skipped when unset). Every run upserts on `(provider, model_id)`; `first_seen_at`
-  is written only on insert, while `last_seen_at` / `last_synced_at` always update.
+  adapters — OpenRouter's public models endpoint (no key) plus every registered
+  provider through an active user key (source `user-key`, no server secrets).
+  Providers nobody has connected yet are skipped. Saving a new key triggers an
+  immediate background sync for that provider. Every run upserts on
+  `(provider, model_id)`; `first_seen_at` is written only on insert, while
+  `last_seen_at` / `last_synced_at` always update.
 - **Removal rule**: a row is marked `status: "removed"` only after it is missing from
   two consecutive *successful* full syncs. Rows are never deleted (conversations can
   still reference them), and no removals are recorded on a failed fetch or when the
@@ -283,4 +285,4 @@ This application uses a full-stack architecture where `server.ts` hosts the Expr
    npm run start
    # Executes: NODE_ENV=production tsx server.ts
    ```
-4. **Environment Variables**: Configure `GEMINI_API_KEY` in your platform's environment configuration.
+4. **Environment Variables**: No AI key is required on the platform — users connect their own provider keys in Settings > Providers (see the note above).

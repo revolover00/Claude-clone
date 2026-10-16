@@ -10,6 +10,7 @@ import { createClient } from "@supabase/supabase-js";
 import { validateChatMessages, DEFAULT_CHAT_TOOLS, pumpGeminiStream } from "../lib/chatStreamHelpers";
 import { getProvider, isKnownProvider } from "../lib/providers";
 import { getUserDecryptedKey, markCredentialInvalid } from "../lib/providers/credentialsStore";
+import { geminiKeyFor } from "../lib/userAiKey";
 
 const router = Router();
 
@@ -72,6 +73,20 @@ router.post("/", async (req, res) => {
     }
     modelId = targetModelId;
 
+    // Every AI call uses the user's own saved key — the server ships none.
+    const userId: string | undefined = (req as any).user?.id;
+    const userKey = await getUserDecryptedKey(userId || "", provider);
+    if (!userKey) {
+      const providerLabel = getProvider(provider)?.label || provider;
+      res.status(400).json({
+        error: `No API key configured for ${providerLabel}. Add one in Settings > Providers to use ${providerLabel} models.`,
+        code: "KEY_MISSING",
+      });
+      return;
+    }
+    // Embeddings for the memory feature always run on the user's Gemini key.
+    const memoryKey = provider === "gemini" ? userKey : await geminiKeyFor(userId);
+
     let formattedMessages = messages.map(formatMessage);
     if (resolvedModel && !resolvedModel.supports_vision) {
       formattedMessages = formattedMessages.map((msg) => ({
@@ -88,7 +103,7 @@ router.post("/", async (req, res) => {
     const supabaseServer = isRealSupabaseConfigured ? createClient(supabaseUrl, supabaseServiceKey) : null;
 
     const memoryPromptSection = await retrieveUserMemoryPrompt(
-      (req as any).user?.id, messages, req.body.projectId, supabaseServer, isRealSupabaseConfigured
+      userId, messages, req.body.projectId, supabaseServer, isRealSupabaseConfigured, memoryKey
     );
 
     const availableSkills = await getAvailableSkillsSummary((req as any).user?.id);
@@ -136,16 +151,6 @@ router.post("/", async (req, res) => {
 
     // Stream through the provider adapter for every non-Gemini provider
     if (provider !== "gemini") {
-      const userId = (req as any).user?.id;
-      const userKey = await getUserDecryptedKey(userId, provider);
-      if (!userKey) {
-        res.status(400).json({
-          error: `No API key configured for ${provider}. Please add one in Settings > Providers.`,
-          code: "KEY_MISSING",
-        });
-        return;
-      }
-
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache, no-transform");
       res.setHeader("Connection", "keep-alive");
@@ -175,7 +180,7 @@ router.post("/", async (req, res) => {
     // Default Gemini streaming path
     let streamRes: any;
     try {
-      streamRes = await startGeminiStream(modelId, formattedMessages, config);
+      streamRes = await startGeminiStream(userKey, modelId, formattedMessages, config);
     } catch (err: any) {
       const errInfo = mapGeminiError(err, modelId);
       res.status(errInfo.status).json({
@@ -214,7 +219,8 @@ router.post("/", async (req, res) => {
       formattedMessages,
       config,
       executeSkillFunctionCall,
-      runSkillToolStream,
+      runSkillToolStream: (mId: string, msgs: any[], cfg: any, call: any, result: string) =>
+        runSkillToolStream(memoryKey || userKey, mId, msgs, cfg, call, result),
     });
   } catch (err: any) {
     if (abortCtrl.signal.aborted) {

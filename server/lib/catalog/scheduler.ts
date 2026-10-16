@@ -7,7 +7,7 @@
  * - GET /api/catalog calls `maybeSyncStaleCatalog` to trigger a background
  *   sync when the newest last_synced_at is older than 12 hours.
  */
-import { CATALOG_FETCHERS, type CatalogFetcher } from "./fetchers";
+import { allCatalogFetchers, type CatalogFetcher } from "./fetchers";
 import { syncProviderFetching } from "./syncEngine";
 import { getCatalogStore } from "./store";
 
@@ -27,7 +27,7 @@ export function catalogSyncEnabled(): boolean {
 
 export async function runProviderSync(provider: string, trigger: string, fetcher?: CatalogFetcher["fetch"]): Promise<any> {
   const store = getCatalogStore();
-  const entry = fetcher ? { provider, fetch: fetcher } : CATALOG_FETCHERS.find((f) => f.provider === provider);
+  const entry = fetcher ? { provider, fetch: fetcher } : allCatalogFetchers().find((f) => f.provider === provider);
   if (!entry) throw new Error(`No catalog fetcher for provider '${provider}'`);
   return syncProviderFetching(store, provider, entry.fetch, { trigger });
 }
@@ -43,7 +43,7 @@ export async function runCatalogSync(trigger: string): Promise<any[] | null> {
     const store = getCatalogStore();
     if (await store.recentRunWithin(LOCK_WINDOW_MS)) return null;
     const results: any[] = [];
-    for (const fetcher of CATALOG_FETCHERS) {
+    for (const fetcher of allCatalogFetchers()) {
       results.push(await syncProviderFetching(store, fetcher.provider, fetcher.fetch, { trigger }));
     }
     return results;

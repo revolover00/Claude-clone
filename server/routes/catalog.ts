@@ -11,7 +11,7 @@ import {
   type CatalogQuery,
 } from "../lib/catalog/query";
 import { maybeSyncStaleCatalog } from "../lib/catalog/scheduler";
-import { CATALOG_FETCHERS } from "../lib/catalog/fetchers";
+import { allCatalogFetchers } from "../lib/catalog/fetchers";
 import { listUserCredentials } from "../lib/providers/credentialsStore";
 import { getUserModelPrefsAll } from "../lib/providers/modelsCache";
 import { checkIsAdmin } from "../lib/modelsStore";
@@ -117,7 +117,7 @@ router.get("/", async (req: AuthenticatedRequest, res: Response) => {
       nextCursor,
       limit: all ? total : Math.min(Number(query.limit) || 50, 200),
       providers: providerSummary(merged, connected),
-      syncable: CATALOG_FETCHERS.map((f) => f.provider),
+      syncable: allCatalogFetchers().map((f) => f.provider),
       sync: {
         newest: newest || null,
         stale: !newest || Date.now() - Date.parse(newest) > STALE_AFTER_MS,
