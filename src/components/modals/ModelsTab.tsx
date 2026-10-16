@@ -4,7 +4,8 @@ import { GroupedCatalogList } from "../shared/GroupedCatalogList";
 import { ModelBadges } from "../shared/ModelBadges";
 import { SyncPanel } from "./catalog/SyncPanel";
 import { formatContext } from "../providers/ModelRow";
-import { formatPricing } from "../../shared/pricing";
+import { PricingBadge } from "../shared/PricingBadge";
+import { hasFreeTier } from "../../shared/catalog/freeTier";
 import { SettingsErrorCard } from "../shared/SettingsErrorCard";
 import { safeFetchJson, authFetch } from "../../utils/safeFetch";
 import { cn } from "../../utils/cn";
@@ -16,10 +17,6 @@ interface OverrideRow {
   hidden: boolean;
   force_recommended: boolean;
   alias: string | null;
-}
-
-function pricingLabel(model: GroupableModel): string {
-  return model.pricing ? formatPricing(model.pricing) : "Variable";
 }
 
 /**
@@ -121,7 +118,7 @@ export default function ModelsTab() {
         <div className="flex items-center gap-3 flex-wrap text-[11px] text-ink-muted font-mono">
           <span>{formatContext(row.context_length)} ctx</span>
           <span>·</span>
-          <span>{pricingLabel(model)}</span>
+          <PricingBadge pricing={row.pricing} isFree={row.is_free} freeTier={hasFreeTier(model.provider)} />
           <span>·</span>
           <span className="capitalize">{row.kind}</span>
           {isAdmin && (

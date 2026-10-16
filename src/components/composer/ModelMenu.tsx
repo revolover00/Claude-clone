@@ -39,7 +39,7 @@ export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort
 
   const {
     allModels, sections, activeModelObj, pillLabel, searchQuery, setSearchQuery,
-    vendorFilter, setVendorFilter, availableVendors, loading, refresh,
+    vendorFilter, setVendorFilter, freeOnly, setFreeOnly, availableVendors, loading, refresh,
   } = useComposerModels(model);
 
 
@@ -203,7 +203,7 @@ export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort
           </div>
 
           <div className="px-2 pt-2">
-            <VendorFilterChips vendors={availableVendors} active={vendorFilter} onChange={setVendorFilter} />
+            <VendorFilterChips vendors={availableVendors} active={vendorFilter} onChange={setVendorFilter} freeOnly={freeOnly} onFreeOnlyChange={setFreeOnly} />
           </div>
 
           <div
