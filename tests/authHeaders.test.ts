@@ -1,11 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  authorizationOfCall,
+  headerValue,
+  jsonResponse,
+  makeSession,
+  refreshFailed,
+  refreshOk,
+  sessionResult,
+} from "./helpers/authFetchHarness";
 
-const getSession = vi.fn();
+const mocks = vi.hoisted(() => ({ getSession: vi.fn(), refreshSession: vi.fn() }));
 
 vi.mock("../src/utils/supabaseClient", () => ({
   supabase: {
     auth: {
-      getSession: () => getSession(),
+      getSession: () => mocks.getSession(),
+      refreshSession: () => mocks.refreshSession(),
     },
   },
   isRealSupabaseConfigured: true,
@@ -13,71 +23,102 @@ vi.mock("../src/utils/supabaseClient", () => ({
 
 import { getAuthToken, getAuthHeaders, authFetch } from "../src/utils/authHeaders";
 
-const headerValue = (headers: HeadersInit | undefined, name: string): string | null => {
-  if (!headers) return null;
-  if (headers instanceof Headers) return headers.get(name);
-  if (Array.isArray(headers)) {
-    const hit = headers.find(([key]) => key.toLowerCase() === name.toLowerCase());
-    return hit ? hit[1] : null;
-  }
-  const record = headers as Record<string, string>;
-  const key = Object.keys(record).find((k) => k.toLowerCase() === name.toLowerCase());
-  return key ? record[key] : null;
-};
+let fetchSpy: ReturnType<typeof vi.spyOn>;
+const authorizationOf = (index: number) => authorizationOfCall(fetchSpy.mock.calls, index);
 
-describe("authHeaders", () => {
-  beforeEach(() => {
-    getSession.mockReset();
-    localStorage.clear();
-  });
+beforeEach(() => {
+  mocks.getSession.mockReset();
+  mocks.refreshSession.mockReset();
+  localStorage.clear();
+  mocks.getSession.mockResolvedValue(sessionResult(makeSession("real-jwt")));
+  mocks.refreshSession.mockResolvedValue(refreshFailed());
+  fetchSpy = vi.spyOn(global, "fetch").mockImplementation(async () => jsonResponse(200, []));
+});
 
+afterEach(() => {
+  fetchSpy.mockRestore();
+});
+
+describe("session token source", () => {
   it("uses the access token of the active session", async () => {
-    getSession.mockResolvedValue({ data: { session: { access_token: "real-jwt" } } });
-
     expect(await getAuthToken()).toBe("real-jwt");
+    expect(mocks.refreshSession).not.toHaveBeenCalled();
   });
 
   it("picks up a rotated token instead of a stale cached one", async () => {
-    getSession
-      .mockResolvedValueOnce({ data: { session: { access_token: "token-v1" } } })
-      .mockResolvedValueOnce({ data: { session: { access_token: "token-v2" } } });
+    mocks.getSession
+      .mockResolvedValueOnce(sessionResult(makeSession("token-v1")))
+      .mockResolvedValueOnce(sessionResult(makeSession("token-v2")));
 
     expect(await getAuthToken()).toBe("token-v1");
     expect(await getAuthToken()).toBe("token-v2");
   });
 
-  it("falls back to the persisted session token when the client reports no session", async () => {
-    getSession.mockResolvedValue({ data: { session: null } });
+  it("never falls back to a token copied into localStorage", async () => {
+    mocks.getSession.mockResolvedValue(sessionResult(null));
     localStorage.setItem("supabase_token", "persisted-token");
-
-    expect(await getAuthToken()).toBe("persisted-token");
-  });
-
-  it("ignores the placeholder guest token stored in localStorage", async () => {
-    getSession.mockResolvedValue({ data: { session: null } });
-    localStorage.setItem("supabase_token", "mock-jwt-token-guest");
 
     expect(await getAuthToken()).toBeNull();
   });
 
+  it("does not persist the access token in localStorage", async () => {
+    mocks.getSession.mockResolvedValue(sessionResult(makeSession("secret-access-token")));
+
+    await authFetch("/api/skills");
+
+    const stored = Object.keys(localStorage).map((key) => `${key}=${localStorage.getItem(key)}`);
+    expect(stored.join("\n")).not.toContain("secret-access-token");
+  });
+
   it("returns null instead of throwing when the auth client fails", async () => {
-    getSession.mockRejectedValue(new Error("network down"));
+    mocks.getSession.mockRejectedValue(new Error("network down"));
+    mocks.refreshSession.mockRejectedValue(new Error("network down"));
 
     await expect(getAuthToken()).resolves.toBeNull();
   });
 });
 
-describe("getAuthHeaders", () => {
-  beforeEach(() => {
-    getSession.mockReset();
-    localStorage.clear();
-    getSession.mockResolvedValue({ data: { session: { access_token: "real-jwt" } } });
+describe("proactive refresh before a request", () => {
+  it("refreshes once when the token expires within 60 seconds and sends the new token", async () => {
+    mocks.getSession.mockResolvedValue(sessionResult(makeSession("about-to-expire", 30)));
+    mocks.refreshSession.mockResolvedValue(refreshOk("fresh-jwt"));
+
+    await authFetch("/api/skills");
+
+    expect(mocks.refreshSession).toHaveBeenCalledTimes(1);
+    expect(authorizationOf(0)).toBe("Bearer fresh-jwt");
   });
 
-  it("adds Authorization when the caller did not set one", async () => {
+  it("does not refresh a token that is valid for longer than 60 seconds", async () => {
+    mocks.getSession.mockResolvedValue(sessionResult(makeSession("still-good", 5 * 60)));
+
+    await authFetch("/api/skills");
+
+    expect(mocks.refreshSession).not.toHaveBeenCalled();
+    expect(authorizationOf(0)).toBe("Bearer still-good");
+  });
+
+  it("tries one refresh when there is no session, then sends no Authorization header", async () => {
+    mocks.getSession.mockResolvedValue(sessionResult(null));
+
     const headers = await getAuthHeaders();
 
-    expect(headerValue(headers, "Authorization")).toBe("Bearer real-jwt");
+    expect(mocks.refreshSession).toHaveBeenCalledTimes(1);
+    expect(headerValue(headers, "Authorization")).toBeNull();
+  });
+
+  it("keeps using a not-yet-expired token when the proactive refresh fails", async () => {
+    mocks.getSession.mockResolvedValue(sessionResult(makeSession("expiring-but-valid", 20)));
+
+    await authFetch("/api/skills");
+
+    expect(authorizationOf(0)).toBe("Bearer expiring-but-valid");
+  });
+});
+
+describe("getAuthHeaders", () => {
+  it("adds Authorization when the caller did not set one", async () => {
+    expect(headerValue(await getAuthHeaders(), "Authorization")).toBe("Bearer real-jwt");
   });
 
   it("keeps an explicit caller Authorization header", async () => {
@@ -85,31 +126,9 @@ describe("getAuthHeaders", () => {
 
     expect(headerValue(headers, "Authorization")).toBe("Bearer caller-token");
   });
-
-  it("sends no Authorization header when there is no session", async () => {
-    getSession.mockResolvedValue({ data: { session: null } });
-
-    const headers = await getAuthHeaders();
-
-    expect(headerValue(headers, "Authorization")).toBeNull();
-  });
 });
 
 describe("authFetch", () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    getSession.mockReset();
-    localStorage.clear();
-    getSession.mockResolvedValue({ data: { session: { access_token: "real-jwt" } } });
-    fetchSpy = vi.spyOn(global, "fetch").mockImplementation(async () => ({
-      ok: true,
-      status: 200,
-      text: async () => "[]",
-      json: async () => [],
-    }) as Response);
-  });
-
   it("keeps method, body and other headers while attaching the token", async () => {
     await authFetch("/api/skills/deep-research/toggle", {
       method: "POST",
@@ -128,7 +147,6 @@ describe("authFetch", () => {
   it("works without an init object", async () => {
     await authFetch("/api/skills");
 
-    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    expect(headerValue(init.headers, "Authorization")).toBe("Bearer real-jwt");
+    expect(authorizationOf(0)).toBe("Bearer real-jwt");
   });
 });

@@ -108,6 +108,10 @@ export const mockSupabase = {
       authListeners.forEach((cb) => cb("SIGNED_OUT", null));
       return { error: null };
     },
+    refreshSession: async () => {
+      const s = getMockSession();
+      return { data: { session: s, user: s?.user ?? null }, error: s ? null : { message: "Auth session missing!" } };
+    },
     resetPasswordForEmail: async () => ({ error: null }),
     signInWithOAuth: async () => {
       const session = getMockSession();

@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
@@ -31,6 +32,7 @@ import memoryRouter from "./server/routes/memory";
 import skillsRouter from "./server/routes/skills";
 import documentsRouter from "./server/routes/documents";
 import providersRouter from "./server/routes/providers";
+import authDebugRouter from "./server/routes/authDebug";
 import { requireAuth } from "./server/middleware/auth";
 
 if (process.env.NODE_ENV === "production") {
@@ -65,7 +67,7 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: any) => {
-    return req.user?.id || ipKeyGenerator(req);
+    return req.user?.id || ipKeyGenerator(req.ip || "unknown");
   },
   handler: (_req, res) => {
     res.status(429).json({ error: "Rate limit reached, try again in a minute", code: 429 });
@@ -83,6 +85,9 @@ app.use("/api/memory", memoryRouter);
 app.use("/api/skills", skillsRouter);
 app.use("/api/documents", documentsRouter);
 
+// Auth diagnostics: no auth required (it must answer when auth is broken), rate-limited
+app.use("/api/auth", authDebugRouter);
+
 // Open healthcheck route
 app.use("/api", healthRouter);
 
@@ -90,10 +95,14 @@ app.use("/api", healthRouter);
 const isProd = process.env.NODE_ENV === "production";
 const isVercel = !!process.env.VERCEL;
 
+// One HTTP server carries the API, the frontend and Vite's HMR websocket, so live
+// reload works through a single forwarded port (e.g. an embedded preview proxy).
+const httpServer = http.createServer(app);
+
 if (!isProd && !isVercel) {
   const { createServer: createViteServer } = await import("vite");
   const vite = await createViteServer({
-    server: { middlewareMode: true, host: "0.0.0.0", port: 3000, hmr: { port: 24679 } },
+    server: { middlewareMode: true, host: "0.0.0.0", port: 3000, hmr: { server: httpServer } },
     appType: "spa",
   });
   app.use(vite.middlewares);
@@ -104,12 +113,14 @@ if (!isProd && !isVercel) {
   });
 }
 
-if (!isVercel) {
+// Vitest imports this module (tests/errorHandling.test.ts): binding the port there
+// would collide with a dev server already running on :3000.
+if (!isVercel && !process.env.VITEST) {
   const args = process.argv.slice(2);
   const portIndex = args.indexOf("--port");
   const cliPort = portIndex !== -1 && args[portIndex + 1] ? Number(args[portIndex + 1]) : null;
   const port = cliPort || (!isProd ? 3000 : (Number(process.env.PORT) || 3000));
-  app.listen(port, "0.0.0.0", () => {
+  httpServer.listen(port, "0.0.0.0", () => {
     console.log(`Server is running at http://0.0.0.0:${port}`);
   });
 }

@@ -1,20 +1,22 @@
-import { createClient } from "@supabase/supabase-js";
 import type { Request, Response, NextFunction } from "express";
+import {
+  AUTH_ERROR_CODES,
+  AUTH_ERROR_MESSAGES,
+  parseAuthorizationHeader,
+  type AuthErrorCode,
+  type ParsedAuthHeader,
+} from "../lib/auth/authHeader";
+import {
+  getServerAuthMode,
+  isGuestAllowed,
+  verifySupabaseToken,
+  type AuthResult,
+  type ServerAuthMode,
+} from "../lib/auth/verifyToken";
+import { logAuthFailure } from "../lib/auth/authLog";
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-
-const isRealSupabaseConfigured = Boolean(
-  supabaseUrl && 
-  supabaseServiceKey && 
-  !supabaseUrl.includes("YOUR_") && 
-  !supabaseServiceKey.includes("YOUR_")
-);
-
-// Initialize server-side Supabase client with the service key if configured
-const supabaseServer = isRealSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseServiceKey)
-  : null;
+export { AUTH_ERROR_CODES, AUTH_ERROR_MESSAGES, getServerAuthMode, parseAuthorizationHeader };
+export type { AuthErrorCode, AuthResult, ParsedAuthHeader, ServerAuthMode };
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -23,63 +25,65 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
+const MOCK_TOKEN_PREFIX = "mock-jwt-token-";
+const GUEST_EMAIL = "guest@example.com";
+
+/**
+ * Decides whether a request is authenticated, without side effects (no logging,
+ * no response). Shared by `requireAuth` and the `/api/auth/debug` endpoint so the
+ * diagnostic answer always matches what protected routes would do.
+ */
+export async function authenticateRequest(
+  req: Request,
+  header: ParsedAuthHeader = parseAuthorizationHeader(req.headers?.authorization)
+): Promise<AuthResult> {
+  // Development-only mock tokens issued by the client's local mode.
+  if (isGuestAllowed() && header.scheme === "Bearer" && header.token?.startsWith(MOCK_TOKEN_PREFIX)) {
+    const guestId = header.token.slice(MOCK_TOKEN_PREFIX.length) || "guest-random";
+    return { ok: true, user: { id: guestId, email: GUEST_EMAIL } };
+  }
+
+  const mode = getServerAuthMode();
+  if (mode === "guest") {
+    return { ok: true, user: { id: "guest-fallback", email: GUEST_EMAIL } };
+  }
+  if (mode === "unconfigured") {
+    return {
+      ok: false,
+      code: "AUTH_UNAVAILABLE",
+      message: "Authentication is not configured on this server.",
+    };
+  }
+
+  if (!header.present) return { ok: false, code: "AUTH_HEADER_MISSING" };
+  if (header.malformed || !header.token) return { ok: false, code: "AUTH_HEADER_MALFORMED" };
+  return verifySupabaseToken(header.token);
+}
+
 export async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-  const isProd = process.env.NODE_ENV === "production";
-  const allowGuest = process.env.ALLOW_GUEST === "true" || process.env.VITE_ALLOW_GUEST === "true";
-
-  // Check if it's a mock guest token in development/test
-  if (!isProd && allowGuest && authHeader && authHeader.startsWith("Bearer mock-jwt-token-")) {
-    const token = authHeader.split(" ")[1];
-    const guestId = token.substring("mock-jwt-token-".length) || "guest-random";
-    req.user = {
-      id: guestId,
-      email: "guest@example.com",
-    };
+  // Already verified earlier in this request (e.g. app-level + route-level guards).
+  if (req.user?.id) {
     next();
     return;
   }
 
-  if (!isRealSupabaseConfigured || !supabaseServer) {
-    if (isProd || !allowGuest) {
-      res.status(401).json({ error: "Unauthorized: Supabase not configured and guest mode is disabled." });
-      return;
-    }
-    // Default fallback if no token provided in guest mode
-    let guestId = "guest-fallback";
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.split(" ")[1];
-      if (token.startsWith("mock-jwt-token-")) {
-        guestId = token.substring("mock-jwt-token-".length);
-      }
-    }
-    req.user = {
-      id: guestId,
-      email: "guest@example.com",
-    };
-    next();
-    return;
-  }
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Missing or invalid authorization header" });
-    return;
-  }
-
-  const token = authHeader.split(" ")[1];
+  const header = parseAuthorizationHeader(req.headers?.authorization);
+  let result: AuthResult;
   try {
-    const { data: { user }, error } = await supabaseServer.auth.getUser(token);
-    if (error || !user) {
-      res.status(401).json({ error: "Unauthorized: Invalid token" });
-      return;
-    }
-
-    req.user = {
-      id: user.id,
-      email: user.email,
-    };
-    next();
+    result = await authenticateRequest(req, header);
   } catch {
-    res.status(401).json({ error: "Unauthorized: Verification failed" });
+    result = { ok: false, code: "AUTH_UNAVAILABLE" };
   }
+
+  if (result.ok) {
+    req.user = result.user;
+    next();
+    return;
+  }
+
+  logAuthFailure(req, result.code, header);
+  res.status(401).json({
+    error: result.message ?? AUTH_ERROR_MESSAGES[result.code],
+    code: result.code,
+  });
 }
