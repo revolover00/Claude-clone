@@ -31,6 +31,7 @@ import memoryRouter from "./server/routes/memory";
 import skillsRouter from "./server/routes/skills";
 import documentsRouter from "./server/routes/documents";
 import providersRouter from "./server/routes/providers";
+import authDebugRouter from "./server/routes/authDebug";
 import { requireAuth } from "./server/middleware/auth";
 
 if (process.env.NODE_ENV === "production") {
@@ -65,7 +66,7 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: any) => {
-    return req.user?.id || ipKeyGenerator(req);
+    return req.user?.id || ipKeyGenerator(req.ip || "unknown");
   },
   handler: (_req, res) => {
     res.status(429).json({ error: "Rate limit reached, try again in a minute", code: 429 });
@@ -82,6 +83,9 @@ app.use("/api/providers", requireAuth, apiLimiter, providersRouter);
 app.use("/api/memory", memoryRouter);
 app.use("/api/skills", skillsRouter);
 app.use("/api/documents", documentsRouter);
+
+// Auth diagnostics: no auth required (it must answer when auth is broken), rate-limited
+app.use("/api/auth", authDebugRouter);
 
 // Open healthcheck route
 app.use("/api", healthRouter);

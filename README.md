@@ -94,7 +94,36 @@ ALLOW_GUEST=true VITE_ALLOW_LOCAL_MODE=true npm run dev
 - `VITE_ALLOW_LOCAL_MODE=true` makes the client create a local mock session, so the app skips the login screen and `authFetch` (`src/utils/authHeaders.ts`) has a token to attach.
 - `ALLOW_GUEST=true` lets the Express middleware accept that mock/guest token in development.
 
-Requests never carry a hard-coded token: `authFetch` reads the access token from the live session on every call (falling back to the persisted `supabase_token`), so a rotated token after `refreshSession()` is picked up automatically and the Skills/Providers panels keep working.
+Requests never carry a hard-coded token: `authFetch` reads the access token from the live Supabase session on every call. Tokens are never copied into `localStorage` (the session already lives in Supabase's own storage; a leftover `supabase_token` key from older builds is deleted on startup).
+
+---
+
+## Authentication Failures & Diagnostics
+
+**Server (`requireAuth`).** Every rejection is still `401` with a short human message, plus a machine-readable `code`:
+
+| Code | Meaning |
+|---|---|
+| `AUTH_HEADER_MISSING` | No `Authorization` header was sent. |
+| `AUTH_HEADER_MALFORMED` | The header is not `Bearer <token>` or the token is empty. |
+| `AUTH_TOKEN_INVALID` | Supabase rejected the token. |
+| `AUTH_TOKEN_EXPIRED` | Supabase rejected the token because it expired. |
+| `AUTH_UNAVAILABLE` | The server could not verify the token (Supabase unreachable, timed out, or auth not configured). |
+
+Each failure writes one log line with only metadata: method, path (no query string), code, whether a header was present, its scheme, the token length, host, origin and browser family. The token, or any part of it, is never logged.
+
+`GET /api/auth/debug` needs no auth and is rate-limited (20 requests/minute per IP). It returns only `{ serverMode, hasAuthHeader, scheme, tokenLength, verified, userIdPrefix, errorCode }`, where `userIdPrefix` is the first 6 characters of the user id.
+
+**Client (`authFetch`).** Before a request, the session is refreshed if it is missing or expires within 60 seconds. A `401` with an `AUTH_*` code triggers one refresh and one retry. If that still fails, `authFetch` dispatches `claude:session-expired`. Only one refresh runs at a time; concurrent callers share the same promise. `AUTH_UNAVAILABLE` is retried once without a refresh and never signs the user out. On `claude:session-expired`, or when Supabase drops the session after a failed background refresh, `AuthContext` signs out locally and shows the login screen with "Your session expired, please sign in again". After signing in, the user returns to the page they were on.
+
+**UI.** Settings sections show "Your session is not valid" (with **Sign in again**, **Retry** and the code under **Details**) instead of raw HTTP errors. **Settings → About → Connection diagnostics** shows:
+
+- client mode (real Supabase or local mock)
+- session state and minutes until the token expires
+- whether storage works and whether the app is framed
+- the `/api/auth/debug` result
+
+**Copy report** copies all of this without any token. When the app runs inside an iframe, a banner offers to open it in its own tab, because embedded previews can block storage and cookies.
 
 ---
 
