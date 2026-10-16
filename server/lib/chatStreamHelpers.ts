@@ -101,6 +101,10 @@ export async function pumpGeminiStream({
   executeSkillFunctionCall,
   runSkillToolStream,
 }: PumpGeminiStreamParams): Promise<void> {
+  // finish_reason marks a real completion; ending without it (and without a
+  // user abort) means Gemini cut the stream — report it instead of emitting a
+  // silent-success [DONE] that leaves the client with an empty reply.
+  let sawFinish = false;
   const skillExecutionState = { skillLoadsCount: 0, totalBytesLoaded: 0 };
   const collectedSources: Array<{ title: string; url: string }> = [];
   const seenUrls = new Set<string>();
@@ -160,6 +164,7 @@ export async function pumpGeminiStream({
 
     const finishReason = candidate?.finishReason;
     if (finishReason) {
+      sawFinish = true;
       res.write(`data: ${JSON.stringify({ finish: finishReason })}\n\n`);
     }
 
@@ -173,5 +178,13 @@ export async function pumpGeminiStream({
     }
   }
 
+  if (!sawFinish && !abortCtrl.signal.aborted) {
+    res.write(
+      `data: ${JSON.stringify({
+        error: "The provider closed the stream before the response finished. Very long responses can be cut off — try again or split the task into smaller parts.",
+        code: "STREAM_INTERRUPTED",
+      })}\n\n`
+    );
+  }
   res.write("data: [DONE]\n\n");
 }
