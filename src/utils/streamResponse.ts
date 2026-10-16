@@ -1,5 +1,5 @@
 import { SSEParser } from "./sseParser";
-import { supabase } from "./supabaseClient";
+import { authFetch } from "./authHeaders";
 
 export interface StreamCallbacks {
   onThinkingStart?: () => void;
@@ -46,39 +46,12 @@ export function streamRealResponse(
     try {
       callbacks.onThinkingStart?.();
 
-      let token = "";
-      try {
-        let { data: { session } } = await supabase.auth.getSession();
-        
-        // Refresh if session is expired or close to expiring
-        if (session && session.expires_at && session.expires_at < Date.now() / 1000 + 300) {
-          const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-          if (refreshError) {
-            console.error("Failed to refresh session:", refreshError);
-            await supabase.auth.signOut();
-            throw new Error("Session expired, please sign in again.");
-          }
-          if (refreshedSession) {
-            session = refreshedSession;
-          }
-        }
-        
-        if (session?.access_token) {
-          token = session.access_token;
-        } else {
-           throw new Error("No active session");
-        }
-      } catch (err: any) {
-        console.warn("Could not retrieve auth session token:", err);
-        throw err;
-      }
-
-      const response = await fetch("/api/chat", {
+      // authFetch attaches the live session token, refreshes it when it is about to
+      // expire (sharing one in-flight refresh with every other request), retries once
+      // on an AUTH_* 401 and raises "claude:session-expired" when recovery fails.
+      const response = await authFetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [
             ...options.messages.map((m) => ({
