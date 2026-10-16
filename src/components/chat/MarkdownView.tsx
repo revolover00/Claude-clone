@@ -62,7 +62,7 @@ export default function MarkdownView({
 
   return (
     <div
-      className={`space-y-3 font-serif text-[16px] leading-7 text-ink ${className}`}
+      className={`space-y-3 font-serif text-[16.5px] leading-[1.72] tracking-[0.005em] text-ink ${className}`}
     >
       {tokens.map((token, idx) => {
         const isLast = idx === tokens.length - 1;
