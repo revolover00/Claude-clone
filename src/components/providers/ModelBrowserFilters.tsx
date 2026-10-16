@@ -2,11 +2,14 @@ import React from "react";
 import { Search, Filter, CheckSquare, XSquare } from "lucide-react";
 
 export interface FilterProps {
-  providers: Array<{ id: string; label: string }>;
+  providers: Array<{ id: string; label: string; count: number }>;
   selectedProvider: string;
   onSelectProvider: (p: string) => void;
   search: string;
   onSearchChange: (s: string) => void;
+  kinds: Array<{ id: string; label: string; count: number }>;
+  selectedKind: string;
+  onSelectKind: (k: string) => void;
   filterReasoning: boolean;
   onToggleReasoning: () => void;
   filterTools: boolean;
@@ -26,6 +29,9 @@ export const ModelBrowserFilters: React.FC<FilterProps> = ({
   onSelectProvider,
   search,
   onSearchChange,
+  kinds,
+  selectedKind,
+  onSelectKind,
   filterReasoning,
   onToggleReasoning,
   filterTools,
@@ -40,32 +46,48 @@ export const ModelBrowserFilters: React.FC<FilterProps> = ({
 }) => {
   return (
     <div className="space-y-3">
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-1 bg-elev-1 p-1 rounded-lg border border-line shrink-0 overflow-x-auto">
-          {providers.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => onSelectProvider(p.id)}
-              className={`px-2.5 py-1 rounded-md text-[12px] font-medium transition-colors cursor-pointer ${
-                selectedProvider === p.id ? "bg-elev-3 text-ink shadow-sm" : "text-ink-muted hover:text-ink"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+      <div className="flex items-center gap-1 bg-elev-1 p-1 rounded-lg border border-line overflow-x-auto scroll-slim">
+        {providers.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onSelectProvider(p.id)}
+            className={`shrink-0 px-2.5 py-1 rounded-md text-[12px] font-medium transition-colors cursor-pointer ${
+              selectedProvider === p.id ? "bg-elev-3 text-ink shadow-sm" : "text-ink-muted hover:text-ink"
+            }`}
+          >
+            {p.label}
+            <span className="ml-1.5 text-[10.5px] font-mono text-ink-faint">{p.count}</span>
+          </button>
+        ))}
+      </div>
 
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
         <div className="relative flex-1 max-w-md">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted" />
           <input
             type="text"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search by name, ID, or description..."
+            placeholder="Search by name, ID, family, or description..."
             className="w-full h-8 pl-8 pr-3 text-[12.5px] rounded-lg border border-line bg-elev-1 text-ink placeholder:text-ink-muted focus:outline-none focus:border-accent"
           />
         </div>
+
+        <label className="flex items-center gap-1.5 text-[11.5px] text-ink-muted">
+          Kind
+          <select
+            value={selectedKind}
+            onChange={(e) => onSelectKind(e.target.value)}
+            className="h-8 rounded-lg border border-line bg-elev-1 px-2 text-[12px] text-ink focus:outline-none focus:border-accent"
+          >
+            {kinds.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.label} ({k.count})
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11.5px]">

@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { FALLBACK_MODELS, type FallbackModel as Model } from "../../src/shared/fallbackModels";
 import { normalizeSlug } from "../../src/shared/normalizeSlug";
+import { buildCatalogAppModels } from "../../src/shared/catalog/appModels";
 
 export type { Model };
 export { FALLBACK_MODELS };
@@ -22,6 +23,14 @@ export const supabaseServer = isRealSupabaseConfigured
 
 let cachedModels: any[] | null = null;
 let cacheExpiry = 0;
+
+/**
+ * Default model rows when the database has no rows yet: the bundled catalog is
+ * the source of truth, so the app starts fully populated without manual entry.
+ */
+function defaultModelRows(): any[] {
+  return buildCatalogAppModels();
+}
 
 export function invalidateModelCache() {
   cachedModels = null;
@@ -59,10 +68,10 @@ export async function getModelsFromDB(all = false): Promise<any[]> {
       if (!error && data && data.length > 0) {
         models = data;
       } else {
-        models = FALLBACK_MODELS;
+        models = defaultModelRows();
       }
     } catch {
-      models = FALLBACK_MODELS;
+      models = defaultModelRows();
     }
   } else {
     try {
@@ -70,10 +79,10 @@ export async function getModelsFromDB(all = false): Promise<any[]> {
       if (saved) {
         models = JSON.parse(saved);
       } else {
-        models = FALLBACK_MODELS;
+        models = defaultModelRows();
       }
     } catch {
-      models = FALLBACK_MODELS;
+      models = defaultModelRows();
     }
   }
 

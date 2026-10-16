@@ -11,6 +11,7 @@
     "test": "vitest run",
     "eval": "tsx evals/claude-style.eval.ts",
     "eval:skills": "tsx evals/skills.eval.ts",
+    "catalog:sync": "node scripts/generate-model-catalog.mjs",
     "lint": "tsc --noEmit",
     "check": "tsc --noEmit && eslint src server --max-warnings=0 && vitest run && vite build"
   },
