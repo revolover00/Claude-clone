@@ -9,7 +9,7 @@ interface ProviderData {
   id: string;
   name: string;
   vendor?: string;
-  status: "disconnected" | "active" | "invalid" | "rate_limited";
+  status: "disconnected" | "active" | "invalid" | "rate_limited" | "exhausted";
   last4?: string;
   lastVerified?: string;
   lastError?: string;
@@ -18,6 +18,7 @@ interface ProviderData {
   keyEnv?: string | null;
   modelCount?: number;
   credentialId?: string;
+  credentials?: any[];
 }
 
 /** Offline default: the bundled catalog itself, so providers always render. */
@@ -50,17 +51,22 @@ export const ProvidersSettingsView: React.FC = () => {
       }
 
       const updated: ProviderData[] = registry.map((provider) => {
-        const cred = data.credentials?.find((c: any) => c.provider === provider.id);
+        const creds = (data.credentials || []).filter((c: any) => c.provider === provider.id);
+        const hasActive = creds.some((c: any) => !c.status || c.status === "active");
+        const cred = creds.find((c: any) => !c.status || c.status === "active") || creds[0];
         const bundled = BUNDLED_PROVIDERS.find((b) => b.id === provider.id);
+        const derivedStatus =
+          creds.length === 0 ? "disconnected" : hasActive ? "active" : ((cred?.status as any) || "disconnected");
         return {
           id: provider.id,
           name: provider.label || provider.id,
           vendor: provider.vendor || bundled?.vendor,
-          status: cred ? ((cred.status as any) || "active") : "disconnected",
+          status: derivedStatus,
           last4: cred?.key_last4 || cred?.last4,
           lastVerified: cred?.last_verified_at,
           lastError: cred?.last_error,
           credentialId: cred?.id,
+          credentials: creds,
           docsUrl: provider.docsUrl || bundled?.docsUrl || "",
           keyHelpUrl: provider.keyHelpUrl || bundled?.keyHelpUrl,
           keyEnv: provider.keyEnv ?? bundled?.keyEnv ?? null,

@@ -3,7 +3,7 @@
 import type { CatalogSnapshot } from "./types";
 
 export const CATALOG_SNAPSHOT: CatalogSnapshot = {
-  generatedAt: "2026-10-16",
+  generatedAt: "2026-10-17",
   source: "models.dev (https://models.dev/api.json)",
-  totalModels: 680,
+  totalModels: 668,
 };

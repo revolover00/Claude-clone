@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit by hand.
 // Provider: Mistral (mistral) · models.dev key: mistral
-// Source: models.dev (MIT) · snapshot 2026-10-16 · 20 models
+// Source: models.dev (MIT) · snapshot 2026-10-17 · 20 models
 // Regenerate with: npm run catalog:sync
 import type { CatalogEntry } from "../types";
 

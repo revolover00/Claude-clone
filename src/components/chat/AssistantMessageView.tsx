@@ -179,7 +179,9 @@ export default function AssistantMessageView({
     message.errorText ||
     (message.finishReason === "length"
       ? "The response reached the output length limit before finishing"
-      : "Unable to generate complete response");
+      : message.content
+        ? "Unable to generate complete response"
+        : "The stream ended before the model returned a response");
   const messageDate = new Date(message.createdAt || Date.now());
   const timeStr = messageDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const fullDateStr = messageDate.toLocaleString([], { dateStyle: "full", timeStyle: "medium" });

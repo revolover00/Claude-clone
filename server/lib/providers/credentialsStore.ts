@@ -13,6 +13,7 @@ export interface SafeCredential {
 }
 
 const memoryCredentials = new Map<string, any>();
+export const memoryCredentialRows = memoryCredentials;
 const creationTimestamps = new Map<string, number[]>();
 
 export function redact(text: string): string {
@@ -99,7 +100,8 @@ export async function listUserCredentials(userId: string): Promise<SafeCredentia
       const { data, error } = await supabase
         .from("provider_credentials")
         .select("id, provider, label, key_last4, status, last_verified_at, last_error")
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return (data || []).map((c: any) => ({
         id: c.id, provider: c.provider, label: c.label,
@@ -121,7 +123,8 @@ export async function listUserCredentials(userId: string): Promise<SafeCredentia
       });
     }
   }
-  return result;
+  // Newest first — matches the default priority used by listKeyCandidates.
+  return result.sort((a, b) => String(b.id).localeCompare(String(a.id)));
 }
 
 export async function deleteCredential(userId: string, providerId: string, id: string): Promise<boolean> {

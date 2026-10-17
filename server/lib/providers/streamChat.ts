@@ -10,6 +10,9 @@ export interface StreamChatParams {
   abortSignal?: AbortSignal;
   thinkingPlan?: { level: string; reason?: string };
   onInvalidKey?: () => Promise<void> | void;
+  /** Priority-ordered fallback keys; rotated past auth/quota/rate failures before the first token. */
+  apiKeys?: Array<{ id?: string; label?: string; key: string }>;
+  onKeyFailure?: (id: string, code: "KEY_INVALID" | "CREDITS_EXHAUSTED" | "RATE_LIMITED") => Promise<void> | void;
 }
 
 export function formatOpenAIMessages(messages: any[], systemInstruction?: string): any[] {
@@ -97,7 +100,7 @@ export function mapProviderError(
 }
 
 export async function streamOpenAICompatibleChat(params: StreamChatParams): Promise<void> {
-  const { provider, endpoint, modelId, apiKey, messages, config, res, abortSignal, thinkingPlan, onInvalidKey } = params;
+  const { provider, endpoint, modelId, apiKey, messages, config, res, abortSignal, thinkingPlan, onKeyFailure } = params;
 
   const openaiMessages = formatOpenAIMessages(messages, config?.systemInstruction);
   const basePayload: Record<string, any> = {
@@ -110,55 +113,83 @@ export async function streamOpenAICompatibleChat(params: StreamChatParams): Prom
   const hasReasoning = Object.keys(reasoningPayload).length > 0;
   let payload = hasReasoning ? { ...basePayload, ...reasoningPayload } : { ...basePayload };
 
-  let response: Response;
+  // Priority-ordered fallback: rotate past auth (401/403), quota (402) and
+  // rate (429) failures BEFORE the first streamed byte, so a spent key never
+  // surfaces an error while another key can still answer this request.
+  const candidates: Array<{ id?: string; key: string }> =
+    params.apiKeys?.length ? params.apiKeys : [{ key: apiKey }];
+  const startupFailure = (
+    status: number
+  ): "KEY_INVALID" | "CREDITS_EXHAUSTED" | "RATE_LIMITED" | null => {
+    if (status === 401 || status === 403) return "KEY_INVALID";
+    if (status === 402) return "CREDITS_EXHAUSTED";
+    if (status === 429) return "RATE_LIMITED";
+    return null;
+  };
 
-  try {
-    response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        ...(provider === "openrouter" ? { "HTTP-Referer": "https://aistudio.google.com", "X-Title": "Claude Clone" } : {}),
-      },
-      body: JSON.stringify(payload),
-      signal: abortSignal,
-    });
-
+  type FetchOutcome = { done: true } | { response: Response };
+  const fetchWithKey = async (key: string): Promise<FetchOutcome> => {
+    const doFetch = () =>
+      fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+          ...(provider === "openrouter" ? { "HTTP-Referer": "https://aistudio.google.com", "X-Title": "Claude Clone" } : {}),
+        },
+        body: JSON.stringify(payload),
+        signal: abortSignal,
+      });
+    const resp = await doFetch();
     // Check if reasoning parameters were rejected by model
-    if (!response.ok && hasReasoning && response.status === 400) {
-      const errText = await response.text();
+    if (!resp.ok && hasReasoning && resp.status === 400) {
+      const errText = await resp.text();
       if (/reasoning|unrecognized|unknown parameter|extra_fields/i.test(errText)) {
         payload = { ...basePayload };
         res.write(`data: ${JSON.stringify({ warning: "Reasoning parameters rejected by model, retried without them" })}\n\n`);
-        response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-            ...(provider === "openrouter" ? { "HTTP-Referer": "https://aistudio.google.com", "X-Title": "Claude Clone" } : {}),
-          },
-          body: JSON.stringify(payload),
-          signal: abortSignal,
-        });
-      } else {
-        // Non-reasoning 400 (e.g. decommissioned model): answer with a mapped
-        // event instead of throwing the raw provider JSON at the client.
-        const mapped = mapProviderError(400, errText, modelId);
-        res.write(`data: ${JSON.stringify({ error: mapped.error, code: mapped.code, status: mapped.status })}\n\n`);
+        return { response: await doFetch() };
+      }
+      // Non-reasoning 400 (e.g. decommissioned model): answer with a mapped
+      // event instead of throwing the raw provider JSON at the client.
+      const mapped = mapProviderError(400, errText, modelId);
+      res.write(`data: ${JSON.stringify({ error: mapped.error, code: mapped.code, status: mapped.status })}\n\n`);
+      res.write("data: [DONE]\n\n");
+      return { done: true };
+    }
+    return { response: resp };
+  };
+
+  let response: Response | null = null;
+  for (let i = 0; i < candidates.length; i++) {
+    const cand = candidates[i];
+    let outcome: FetchOutcome;
+    try {
+      outcome = await fetchWithKey(cand.key);
+    } catch (err: any) {
+      // User-initiated abort (stop button): close quietly without an error event.
+      if (abortSignal?.aborted || err?.name === "AbortError") {
         res.write("data: [DONE]\n\n");
         return;
       }
-    }
-  } catch (err: any) {
-    // User-initiated abort (stop button): close quietly without an error event.
-    if (abortSignal?.aborted || err?.name === "AbortError") {
+      const raw = String(err?.message || "Upstream connection error");
+      const looksJson = raw.trim().startsWith("{");
+      const mapped = looksJson ? mapProviderError(502, raw, modelId) : null;
+      res.write(`data: ${JSON.stringify({ error: mapped?.error || raw, code: mapped?.code ?? 502 })}\n\n`);
       res.write("data: [DONE]\n\n");
       return;
     }
-    const raw = String(err?.message || "Upstream connection error");
-    const looksJson = raw.trim().startsWith("{");
-    const mapped = looksJson ? mapProviderError(502, raw, modelId) : null;
-    res.write(`data: ${JSON.stringify({ error: mapped?.error || raw, code: mapped?.code ?? 502 })}\n\n`);
+    if ("done" in outcome) return;
+    response = outcome.response;
+    if (response.ok) break;
+    const failure = startupFailure(response.status);
+    if (!failure) break;
+    // Notify even for the last candidate so a dead key is not retried next request.
+    await onKeyFailure?.(cand.id || "", failure);
+    if (i === candidates.length - 1) break;
+    response = null; // rotate: the next candidate re-assigns it
+  }
+  if (!response) {
+    res.write(`data: ${JSON.stringify({ error: "No API key could reach the provider", code: "KEY_MISSING", status: 400 })}\n\n`);
     res.write("data: [DONE]\n\n");
     return;
   }
@@ -166,7 +197,6 @@ export async function streamOpenAICompatibleChat(params: StreamChatParams): Prom
   // Handle HTTP error statuses
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
-      await onInvalidKey?.();
       res.write(`data: ${JSON.stringify({ error: "Invalid API key for provider", code: "KEY_INVALID", status: 400 })}\n\n`);
     } else if (response.status === 402) {
       res.write(`data: ${JSON.stringify({ error: "Credits exhausted or quota exceeded", code: "CREDITS_EXHAUSTED", status: 402 })}\n\n`);

@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit by hand.
 // Provider: Cerebras (cerebras) · models.dev key: cerebras
-// Source: models.dev (MIT) · snapshot 2026-10-16 · 2 models
+// Source: models.dev (MIT) · snapshot 2026-10-17 · 2 models
 // Regenerate with: npm run catalog:sync
 import type { CatalogEntry } from "../types";
 

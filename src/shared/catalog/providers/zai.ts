@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit by hand.
 // Provider: Z.AI (GLM) (zai) · models.dev key: zai
-// Source: models.dev (MIT) · snapshot 2026-10-16 · 18 models
+// Source: models.dev (MIT) · snapshot 2026-10-17 · 18 models
 // Regenerate with: npm run catalog:sync
 import type { CatalogEntry } from "../types";
 
