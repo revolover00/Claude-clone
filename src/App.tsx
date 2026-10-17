@@ -18,6 +18,7 @@ const SettingsModal = lazy(() => import("./components/modals/SettingsModal"));
 const KeyboardShortcutsModal = lazy(() => import("./components/modals/KeyboardShortcutsModal"));
 const MotionReview = lazy(() => import("./components/views/MotionReview"));
 const ResetPasswordView = lazy(() => import("./components/views/ResetPasswordView"));
+const AssistantUiPage = lazy(() => import("./components/assistantUi/AssistantUiPage"));
 
 function BackendNotConfiguredPage() {
   return (
@@ -162,6 +163,9 @@ function AppContent() {
 
   const isResetPage = window.location.pathname === "/reset-password";
   if (isResetPage) return <Suspense fallback={null}><ResetPasswordView /></Suspense>;
+
+  const isAssistantUiPage = window.location.pathname === "/assistant";
+  if (isAssistantUiPage) return <Suspense fallback={null}><AssistantUiPage /></Suspense>;
 
   if ((import.meta as any)?.env?.PROD && !isRealSupabaseConfigured) {
     return <BackendNotConfiguredPage />;
