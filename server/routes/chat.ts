@@ -27,7 +27,10 @@ router.post("/", async (req, res) => {
   }
 
   const abortCtrl = new AbortController();
-  req.on("close", () => abortCtrl.abort());
+  // NOT req 'close' (fires once the body is read, ~1ms → aborts every stream).
+  res.on?.("close", () => {
+    if (!res.writableEnded) abortCtrl.abort();
+  });
 
   let modelId = "";
   try {
@@ -153,6 +156,9 @@ router.post("/", async (req, res) => {
       }
     }
 
+    // Ops/test knob: tighten both liveness watchdogs when set.
+    const timeoutOverride = Number(process.env.PROVIDER_TIMEOUT_MS) || undefined;
+
     // Stream through the provider adapter for every non-Gemini provider
     if (provider !== "gemini") {
       res.setHeader("Content-Type", "text/event-stream");
@@ -174,6 +180,8 @@ router.post("/", async (req, res) => {
         res,
         abortSignal: abortCtrl.signal,
         thinkingPlan: thinkingDecision?.plan,
+        idleTimeoutMs: timeoutOverride,
+        connectTimeoutMs: timeoutOverride,
         apiKeys: keyCandidates,
         onKeyFailure: async (
           credId: string,
@@ -260,6 +268,7 @@ router.post("/", async (req, res) => {
       modelId,
       formattedMessages,
       config,
+      idleTimeoutMs: timeoutOverride,
       executeSkillFunctionCall,
       runSkillToolStream: (mId: string, msgs: any[], cfg: any, call: any, result: string) =>
         runSkillToolStream(memoryKey || userKey, mId, msgs, cfg, call, result),

@@ -1,3 +1,5 @@
+import { readWithIdleTimeout, STREAM_IDLE_TIMEOUT_MS } from "./providers/streamIdle";
+
 export function validateChatMessages(messages: any[]): { error?: string; status?: number } {
   if (!messages || !Array.isArray(messages) || messages.length > 100) {
     return { error: "Invalid request: messages error.", status: 400 };
@@ -88,6 +90,8 @@ export interface PumpGeminiStreamParams {
   config: any;
   executeSkillFunctionCall: any;
   runSkillToolStream: any;
+  /** Idle-watchdog override in ms (tests use a tiny value). */
+  idleTimeoutMs?: number;
 }
 
 export async function pumpGeminiStream({
@@ -100,6 +104,7 @@ export async function pumpGeminiStream({
   config,
   executeSkillFunctionCall,
   runSkillToolStream,
+  idleTimeoutMs,
 }: PumpGeminiStreamParams): Promise<void> {
   // finish_reason marks a real completion; ending without it (and without a
   // user abort) means Gemini cut the stream — report it instead of emitting a
@@ -108,8 +113,20 @@ export async function pumpGeminiStream({
   const skillExecutionState = { skillLoadsCount: 0, totalBytesLoaded: 0 };
   const collectedSources: Array<{ title: string; url: string }> = [];
   const seenUrls = new Set<string>();
-
-  for await (const chunk of stream) {
+  const iterator = (stream as AsyncIterable<any>)[Symbol.asyncIterator]();
+  try {
+    while (true) {
+      const next = await readWithIdleTimeout(
+        {
+          read: async () => {
+            const r = await iterator.next();
+            return r.done ? { done: true } : { done: false, value: r.value };
+          },
+        },
+        idleTimeoutMs ?? STREAM_IDLE_TIMEOUT_MS
+      );
+      if (next.done) break;
+      const chunk = next.value;
     if (abortCtrl.signal.aborted) break;
     const candidate = chunk.candidates?.[0];
 
@@ -176,6 +193,13 @@ export async function pumpGeminiStream({
         res.write(`data: ${JSON.stringify({ token: part.text })}\n\n`);
       }
     }
+    }
+  } catch (idleErr: any) {
+    if (abortCtrl.signal.aborted) return;
+    if (idleErr?.code !== "STREAM_INTERRUPTED") throw idleErr;
+    res.write(`data: ${JSON.stringify({ error: idleErr.message, code: "STREAM_INTERRUPTED" })}\n\n`);
+    res.write("data: [DONE]\n\n");
+    return;
   }
 
   if (!sawFinish && !abortCtrl.signal.aborted) {

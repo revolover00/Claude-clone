@@ -1,3 +1,5 @@
+import { fetchWithConnectTimeout, readWithIdleTimeout, STREAM_IDLE_TIMEOUT_MS } from "./streamIdle";
+
 export interface StreamChatParams {
   /** Any provider id from the registry (all OpenAI-compatible providers share this transport). */
   provider: string;
@@ -10,6 +12,9 @@ export interface StreamChatParams {
   abortSignal?: AbortSignal;
   thinkingPlan?: { level: string; reason?: string };
   onInvalidKey?: () => Promise<void> | void;
+  /** Idle-watchdog / connect-timeout overrides in ms (tests use tiny values). */
+  idleTimeoutMs?: number;
+  connectTimeoutMs?: number;
   /** Priority-ordered fallback keys; rotated past auth/quota/rate failures before the first token. */
   apiKeys?: Array<{ id?: string; label?: string; key: string }>;
   onKeyFailure?: (id: string, code: "KEY_INVALID" | "CREDITS_EXHAUSTED" | "RATE_LIMITED") => Promise<void> | void;
@@ -130,7 +135,7 @@ export async function streamOpenAICompatibleChat(params: StreamChatParams): Prom
   type FetchOutcome = { done: true } | { response: Response };
   const fetchWithKey = async (key: string): Promise<FetchOutcome> => {
     const doFetch = () =>
-      fetch(endpoint, {
+      fetchWithConnectTimeout(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -139,7 +144,7 @@ export async function streamOpenAICompatibleChat(params: StreamChatParams): Prom
         },
         body: JSON.stringify(payload),
         signal: abortSignal,
-      });
+      }, params.connectTimeoutMs);
     const resp = await doFetch();
     // Check if reasoning parameters were rejected by model
     if (!resp.ok && hasReasoning && resp.status === 400) {
@@ -232,7 +237,7 @@ export async function streamOpenAICompatibleChat(params: StreamChatParams): Prom
 
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await readWithIdleTimeout(reader, params.idleTimeoutMs ?? STREAM_IDLE_TIMEOUT_MS);
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
@@ -285,7 +290,7 @@ export async function streamOpenAICompatibleChat(params: StreamChatParams): Prom
     res.write("data: [DONE]\n\n");
   } catch (streamErr: any) {
     if (abortSignal?.aborted) return;
-    res.write(`data: ${JSON.stringify({ error: streamErr.message || "Stream interrupted", code: 500 })}\n\n`);
+    res.write(`data: ${JSON.stringify({ error: streamErr.message || "Stream interrupted", code: streamErr.code ?? 500 })}\n\n`);
     res.write("data: [DONE]\n\n");
   }
 }

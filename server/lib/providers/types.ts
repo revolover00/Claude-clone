@@ -40,6 +40,9 @@ export interface ProviderStreamParams {
   res: any;
   abortSignal?: AbortSignal;
   thinkingPlan?: { level: string; reason?: string };
+  /** Idle watchdog + connect timeout overrides in ms (ops/test knob). */
+  idleTimeoutMs?: number;
+  connectTimeoutMs?: number;
   /** Priority-ordered fallback keys; when present the transport rotates past quota/auth failures. */
   apiKeys?: Array<{ id?: string; label?: string; key: string }>;
   onKeyFailure?: (id: string, code: "KEY_INVALID" | "CREDITS_EXHAUSTED" | "RATE_LIMITED") => Promise<void> | void;

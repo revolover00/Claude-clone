@@ -1,5 +1,5 @@
 import type { Conversation, Message } from "../../types/chat";
-import { getActiveBranch, getMessageSiblings, migrateConversations } from "./conversationsHelpers";
+import { emptyCompletionReason, getActiveBranch, getMessageSiblings, migrateConversations } from "./conversationsHelpers";
 
 export { getActiveBranch, getMessageSiblings, migrateConversations };
 
@@ -148,6 +148,8 @@ export function conversationsReducer(
         if (c.id !== action.conversationId) return c;
         const updatedMessages = c.messages.map((m) => {
           if (m.id !== action.messageId) return m;
+          const terminal = !action.isStreaming && !action.isThinking;
+          const silentEmpty = terminal && !action.content.trim() && !action.isError;
           return {
             ...m,
             content: action.content,
@@ -158,6 +160,13 @@ export function conversationsReducer(
             ...(action.isError !== undefined ? { isError: action.isError } : {}),
             ...(action.errorText !== undefined ? { errorText: action.errorText } : {}),
             ...(action.errorDetails !== undefined ? { errorDetails: action.errorDetails } : {}),
+            // A live update (fresh attempt or retry) must clear the previous
+            // attempt's error — otherwise the old card stays glued to the
+            // message for the whole retry, which looked like "same error again".
+            ...(terminal ? {} : { isError: false, errorText: undefined, errorDetails: undefined }),
+            // A stream that stops with zero text and zero error must explain
+            // itself — silent empty terminals were the disruption card's source.
+            ...(silentEmpty ? { isError: true, errorText: emptyCompletionReason(action.finishReason) } : {}),
             ...(action.sources !== undefined ? { sources: action.sources } : {}),
             ...(action.isSearchingWeb !== undefined ? { isSearchingWeb: action.isSearchingWeb } : {}),
             ...(action.thinkingStartedAt !== undefined ? { thinkingStartedAt: action.thinkingStartedAt } : {}),

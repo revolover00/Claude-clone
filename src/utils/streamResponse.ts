@@ -47,9 +47,28 @@ export function streamRealResponse(
   prompt: string,
   signal: AbortSignal,
   options: ChatStreamOptions,
-  callbacks: StreamCallbacks
+  callbacks: StreamCallbacks,
+  runtime: { idleTimeoutMs?: number } = {}
 ): () => void {
   let isCancelled = false;
+
+  // Liveness watchdog: the server prep (fetch) and the provider stream (read)
+  // are both raced against an inactivity timer, so a wedged socket can never
+  // leave the composer spinning forever — it becomes an onError (code 504)
+  // which the auto-retry policy treats as a transient 5xx.
+  const idleMs = runtime.idleTimeoutMs ?? 120_000;
+  const SERVER_IDLE_LABEL = "The server did not respond within 2 minutes. Check the backend and try again.";
+  const PROVIDER_IDLE_LABEL =
+    "The provider stopped responding mid-stream. Try again or split the task into smaller parts.";
+  const withIdle = <T,>(promise: Promise<T>, label: string): Promise<T> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const idle = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(Object.assign(new Error(label), { code: 504 })), idleMs);
+    });
+    return Promise.race([promise, idle]).finally(() => {
+      if (timer) clearTimeout(timer);
+    }) as Promise<T>;
+  };
 
   const onAbort = () => {
     isCancelled = true;
@@ -63,7 +82,8 @@ export function streamRealResponse(
       // authFetch attaches the live session token, refreshes it when it is about to
       // expire (sharing one in-flight refresh with every other request), retries once
       // on an AUTH_* 401 and raises "claude:session-expired" when recovery fails.
-      const response = await authFetch("/api/chat", {
+      const response = await withIdle(
+        authFetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -88,7 +108,9 @@ export function streamRealResponse(
           keyOrder: keyOrderFor(options.model),
         }),
         signal,
-      });
+        }),
+        SERVER_IDLE_LABEL
+      );
 
       if (!response.ok) {
         const contentType = response.headers.get("content-type");
@@ -183,7 +205,7 @@ export function streamRealResponse(
       });
 
       while (!isCancelled) {
-        const { value, done } = await reader.read();
+        const { value, done } = await withIdle(reader.read(), PROVIDER_IDLE_LABEL);
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
