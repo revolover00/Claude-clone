@@ -9,7 +9,7 @@ import { retrieveUserMemoryPrompt } from "../lib/chatMemory";
 import { createClient } from "@supabase/supabase-js";
 import { validateChatMessages, DEFAULT_CHAT_TOOLS, pumpGeminiStream } from "../lib/chatStreamHelpers";
 import { getProvider, isKnownProvider } from "../lib/providers";
-import { getUserDecryptedKey, markCredentialInvalid } from "../lib/providers/credentialsStore";
+import { listKeyCandidates, markCredentialStatus, sanitizeKeyOrder } from "../lib/providers/keyRotation";
 import { geminiKeyFor } from "../lib/userAiKey";
 
 const router = Router();
@@ -73,9 +73,13 @@ router.post("/", async (req, res) => {
     }
     modelId = targetModelId;
 
-    // Every AI call uses the user's own saved key — the server ships none.
+    // Every AI call uses the user's own saved keys — the server ships none.
+    // Candidates arrive in priority order (client-organized, then newest),
+    // skipping credentials already marked invalid or exhausted.
     const userId: string | undefined = (req as any).user?.id;
-    const userKey = await getUserDecryptedKey(userId || "", provider);
+    const keyOrder = sanitizeKeyOrder(req.body.keyOrder);
+    const keyCandidates = await listKeyCandidates(userId || "", provider, keyOrder);
+    const userKey = keyCandidates[0]?.key || null;
     if (!userKey) {
       const providerLabel = getProvider(provider)?.label || provider;
       res.status(400).json({
@@ -170,8 +174,18 @@ router.post("/", async (req, res) => {
         res,
         abortSignal: abortCtrl.signal,
         thinkingPlan: thinkingDecision?.plan,
-        onInvalidKey: async () => {
-          await markCredentialInvalid(userId, provider);
+        apiKeys: keyCandidates,
+        onKeyFailure: async (
+          credId: string,
+          code: "KEY_INVALID" | "CREDITS_EXHAUSTED" | "RATE_LIMITED"
+        ) => {
+          if (!userId || !credId) return;
+          if (code === "KEY_INVALID") {
+            await markCredentialStatus(userId, provider, credId, "invalid", "Authentication failed during chat request");
+          } else if (code === "CREDITS_EXHAUSTED") {
+            await markCredentialStatus(userId, provider, credId, "exhausted", "Credits exhausted or quota exceeded");
+          }
+          // RATE_LIMITED is transient: rotate for this request, persist nothing.
         },
       });
       // Close the SSE stream: without this the client waits for a socket close
@@ -180,12 +194,37 @@ router.post("/", async (req, res) => {
       return;
     }
 
-    // Default Gemini streaming path
+    // Default Gemini streaming path — rotate past spent keys before the stream opens.
     let streamRes: any;
-    try {
-      streamRes = await startGeminiStream(userKey, modelId, formattedMessages, config);
-    } catch (err: any) {
-      const errInfo = mapGeminiError(err, modelId);
+    let lastErrInfo: any = null;
+    for (let i = 0; i < keyCandidates.length; i++) {
+      try {
+        streamRes = await startGeminiStream(keyCandidates[i].key, modelId, formattedMessages, config);
+        break;
+      } catch (err: any) {
+        const errInfo = mapGeminiError(err, modelId);
+        lastErrInfo = errInfo;
+        const credId = keyCandidates[i].id;
+        if (userId && credId) {
+          if (errInfo.status === 401 || errInfo.status === 403) {
+            await markCredentialStatus(userId, provider, credId, "invalid", errInfo.error);
+          } else if (errInfo.status === 402) {
+            await markCredentialStatus(userId, provider, credId, "exhausted", errInfo.error);
+          }
+        }
+        const rotate = [401, 402, 403, 429].includes(errInfo.status) && i < keyCandidates.length - 1;
+        if (!rotate) {
+          res.status(errInfo.status).json({
+            error: errInfo.error,
+            details: errInfo.details || errInfo.technical,
+            code: errInfo.code || errInfo.status,
+          });
+          return;
+        }
+      }
+    }
+    if (!streamRes) {
+      const errInfo = lastErrInfo || { status: 500, error: "Provider stream failed to start" };
       res.status(errInfo.status).json({
         error: errInfo.error,
         details: errInfo.details || errInfo.technical,

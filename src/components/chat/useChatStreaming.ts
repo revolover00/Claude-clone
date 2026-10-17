@@ -237,6 +237,11 @@ export function useChatStreaming({
       const streamingMsg = messages.find((m) => m.isStreaming);
       if (streamingMsg) {
         const displayed = streamerRef.current?.getDisplayedText() ?? streamingMsg.content;
+        // Stopping with nothing on screen must name the stop, not fall
+        // through to the generic "Unable to generate complete response" card.
+        const stopError = displayed.trim()
+          ? undefined
+          : { isError: true, errorText: "Stopped before the model produced a response." };
         updateMessageContent(
           activeConversationId,
           streamingMsg.id,
@@ -244,7 +249,7 @@ export function useChatStreaming({
           false,
           false,
           streamingMsg.thinking,
-          undefined,
+          stopError,
           streamingMsg.sources,
           false,
           {

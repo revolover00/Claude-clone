@@ -32,7 +32,15 @@ export function useComposerState({
 
   useEffect(() => {
     const saved = localStorage.getItem("claude_clone_last_model");
-    if (!saved && defaultModel?.slug && model !== defaultModel.slug) {
+    // Adopt the default only while no canonical "provider:model" key is set:
+    // ModelMenu's initial sync writes that form, and reverting it here made
+    // the two effects fight over `model` (infinite update loop on fresh runs).
+    if (
+      !saved &&
+      defaultModel?.slug &&
+      !model.includes(":") &&
+      model !== defaultModel.slug
+    ) {
       setModel(defaultModel.slug);
     }
   }, [defaultModel, model]);

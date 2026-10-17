@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit by hand.
 // Provider: Groq (groq) · models.dev key: groq
-// Source: models.dev (MIT) · snapshot 2026-10-16 · 16 models
+// Source: models.dev (MIT) · snapshot 2026-10-17 · 16 models
 // Regenerate with: npm run catalog:sync
 import type { CatalogEntry } from "../types";
 

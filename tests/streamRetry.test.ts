@@ -22,6 +22,15 @@ describe("shouldAutoRetryStream", () => {
     expect(shouldAutoRetryStream({ message: "anything", code: 404 }, false, 0)).toBe(false);
   });
 
+  it("retries a provider-cut stream only while nothing is on screen", () => {
+    const cut = { message: "The provider closed the stream before the response finished.", code: "STREAM_INTERRUPTED" };
+    expect(shouldAutoRetryStream(cut, false, 0)).toBe(true);
+    expect(shouldAutoRetryStream(cut, false, 1)).toBe(true);
+    expect(shouldAutoRetryStream(cut, false, 2)).toBe(false);
+    // Partial content must never be re-sent (it would duplicate the reply).
+    expect(shouldAutoRetryStream(cut, true, 0)).toBe(false);
+  });
+
   it("stops retrying after the attempt budget", () => {
     expect(shouldAutoRetryStream({ message: "Backend unreachable", code: 502 }, false, 2)).toBe(false);
     expect(shouldAutoRetryStream({ message: "Backend unreachable", code: 502 }, false, 1)).toBe(true);

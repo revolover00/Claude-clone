@@ -1,66 +1,85 @@
 # Claude UI Clone
 
-A high-fidelity web application clone of Claude.ai powered by Google's Gemini models via the official `@google/genai` SDK. Built with React 19, TypeScript, Tailwind CSS, Express, and Server-Sent Events (SSE) streaming.
+A high-fidelity clone of the Claude.ai chat experience — built with **React 19**, **TypeScript**, **Tailwind CSS 4**, **Vite** and an **Express 5** gateway streaming over **Server-Sent Events**.
+
+- **15 providers · 668 models** bundled out of the box (OpenAI, Gemini, Groq, OpenRouter, Cerebras, DeepSeek, xAI, Mistral, Together, Fireworks, NVIDIA, Qwen, Moonshot, Z.ai and more) — switch models from the composer, connect a key, done.
+- **Bring your own key** — the server ships with **zero AI secrets**; every call runs on the API key each user saves in *Settings → Providers*, encrypted at rest with `PROVIDER_KEY_ENCRYPTION_SECRET`.
+- **Claude.ai parity features** — message versioning & branching (`‹ 2/3 ›`), interactive artifacts with live preview, projects + knowledge base, Google-search grounding, extended thinking, personal memory, skills.
+- **assistant-ui thread** embedded at **`/assistant`**, streaming through the same SSE pipeline.
+- **Local testing needs no login** — a bare `npm run dev` boots straight into the app with a guest session (production only ever accepts a real Supabase session).
+
+<p align="center">
+  <img src="docs/screenshots/home.jpg" alt="Claude UI Clone — home" width="920">
+</p>
+
 
 ---
 
-## Architecture Diagram
+## Screenshots
 
+Captured live from the running app (regenerate with `node scripts/screenshot-readme.mjs` while `npm run dev` is up):
+
+| Home & composer | Streaming reply with code artifact |
+| :---: | :---: |
+| ![Home](docs/screenshots/home.jpg) | ![Chat with artifact](docs/screenshots/chat.jpg) |
+
+| Model catalog picker (668 models) | Provider keys — Settings → Providers |
+| :---: | :---: |
+| ![Model picker](docs/screenshots/models.jpg) | ![Providers](docs/screenshots/providers.jpg) |
+
+**assistant-ui thread at `/assistant`:**
+
+![assistant-ui thread](docs/screenshots/assistant-ui.jpg)
+
+---
+
+## Quick Start
+
+```bash
+git clone https://github.com/revolover00/Claude-clone.git
+cd Claude-clone
+npm install
+npm run dev          # → http://localhost:3000
 ```
-+--------------------------------------------------------------------------+
-|                                CLIENT SPA                                |
-|   (React 19 + TypeScript + Tailwind CSS + Lucide Icons + Vite)           |
-+--------------------------------------------------------------------------+
-  |                   |                     |                      |
-  | [Tree State]      | [Chat Views]        | [Projects / Knowledge| [SSE Reader]
-  | conversations     | MainChat            | /projects/:id        | SSEParser
-  | Reducer (parentId,| MessageList         | ProjectInstructions  | token, thinking,
-  | activeChildId)    | ChatMessage         | KnowledgeList        | sources, error
-  |                   | ("‹ 2/3 ›" switcher)| ProjectsGrid         | [DONE]
-+--------------------------------------------------------------------------+
-                                    |
-                    HTTP / SSE API (Port 3000 / Same-Origin)
-                                    |
-+--------------------------------------------------------------------------+
-|                             BACKEND GATEWAY                              |
-|                   (Node.js + Express 5 + TSX + CORS)                     |
-+--------------------------------------------------------------------------+
-  |                   |                     |                      |
-  | CORS Validation   | Body Validation     | Rate Limiter         | Health Check
-  | ALLOWED_ORIGIN    | <= 25MB, <= 100 msgs| 20 req/min / IP      | /api/health
-  | (Same-origin def) | <= 100k char/msg    | express-rate-limit   | {ok, hasKey,
-  |                   | <= 20MB attachments |                      |  models}
-+--------------------------------------------------------------------------+
-  |
-  +----> /api/chat  (SSE Streaming: tokens, thoughts, grounding sources, errors)
-  +----> /api/title (Fast 3-6 word auto-titling via gemini-3.1-flash-lite)
-  |
-  | [Abort Signal on Client Disconnect: req.on("close") -> abortCtrl.abort()]
-  v
-+--------------------------------------------------------------------------+
-  |            /api/providers/:id/models  (live catalog + bundled fallback)
-  |            /api/catalog               (merged catalog + facets/sync, no key needed)
-  v
-+--------------------------------------------------------------------------+
-|                       BUNDLED MODEL CATALOG (committed)                  |
-|  15 providers · 400+ models with context, pricing, modalities, dates     |
-|  gemini · openai · xai · mistral · deepseek · groq · cerebras ·          |
-|  togetherai · fireworks · nvidia · qwen · moonshotai · zai ·             |
-|  perplexity · openrouter                                                 |
-+--------------------------------------------------------------------------+
-  |
-  v
-+--------------------------------------------------------------------------+
-|                         GOOGLE GEMINI API (SDK)                          |
-|             gemini-3.8-flash / gemini-3.1-pro-preview                    |
-|         Google Search Grounding Tool + Extended Thinking Budget          |
-+--------------------------------------------------------------------------+
-```
+
+That is the entire local setup:
+
+- **No sign-in screen** — outside production the server defaults to guest mode and the client creates a local mock session automatically (opt out with `ALLOW_GUEST=false` / `VITE_ALLOW_LOCAL_MODE=false`).
+- **No AI key on the server** — paste your own key in **Settings → Providers** (a free Groq or Google AI Studio key works) and every model of that provider unlocks live.
+- Run the full gate before contributing: `npm run check` (tsc + eslint + vitest + vite build).
+
+---
+
+## Supported Providers
+
+Every provider is bundled with its **original brand icon** and complete model list. Save one key in **Settings → Providers** and its models unlock live in the composer — keyless models stay visible but dimmed with *Connect <provider> to use*.
+
+| | Provider | Models | API key (Settings → Providers) | Free tier |
+| :---: | --- | ---: | --- | :---: |
+| <img src="docs/icons/gemini.svg" alt="Google AI Studio" width="20"> | **Google AI Studio** | 39 | `GEMINI_API_KEY` | ✓ |
+| <img src="docs/icons/openai.svg" alt="OpenAI" width="20"> | **OpenAI** | 41 | `OPENAI_API_KEY` | — |
+| <img src="docs/icons/xai.svg" alt="xAI" width="20"> | **xAI** | 13 | `XAI_API_KEY` | — |
+| <img src="docs/icons/mistral.svg" alt="Mistral" width="20"> | **Mistral** | 20 | `MISTRAL_API_KEY` | — |
+| <img src="docs/icons/deepseek.svg" alt="DeepSeek" width="20"> | **DeepSeek** | 2 | `DEEPSEEK_API_KEY` | — |
+| <img src="docs/icons/groq.svg" alt="Groq" width="20"> | **Groq** | 16 | `GROQ_API_KEY` | ✓ |
+| <img src="docs/icons/cerebras.svg" alt="Cerebras" width="20"> | **Cerebras** | 2 | `CEREBRAS_API_KEY` | — |
+| <img src="docs/icons/togetherai.svg" alt="Together AI" width="20"> | **Together AI** | 18 | `TOGETHER_API_KEY` | — |
+| <img src="docs/icons/fireworks.svg" alt="Fireworks AI" width="20"> | **Fireworks AI** | 23 | `FIREWORKS_API_KEY` | — |
+| <img src="docs/icons/nvidia.svg" alt="NVIDIA NIM" width="20"> | **NVIDIA NIM** | 56 | `NVIDIA_API_KEY` | — |
+| <img src="docs/icons/qwen.svg" alt="Qwen (Model Studio)" width="20"> | **Qwen (Model Studio)** | 58 | `DASHSCOPE_API_KEY` | — |
+| <img src="docs/icons/moonshotai.svg" alt="Moonshot AI (Kimi)" width="20"> | **Moonshot AI (Kimi)** | 4 | `MOONSHOT_API_KEY` | — |
+| <img src="docs/icons/zai.svg" alt="Z.AI (GLM)" width="20"> | **Z.AI (GLM)** | 18 | `ZAI_API_KEY` | — |
+| <img src="docs/icons/perplexity.svg" alt="Perplexity" width="20"> | **Perplexity** | 4 | `PERPLEXITY_API_KEY` | — |
+| <img src="docs/icons/openrouter.svg" alt="OpenRouter" width="20"> | **OpenRouter** | 354 | `OPENROUTER_API_KEY` | — |
+
+**668 models** in total · bundled snapshot `2026-10-17` · source: [models.dev](https://models.dev) (MIT) · refresh with `npm run catalog:sync`.
 
 ---
 
 ## Features
 
+- **assistant-ui Thread at `/assistant`**: a full-page chat surface powered by [`@assistant-ui/react`](https://github.com/assistant-ui/assistant-ui) (`useExternalStoreRuntime`) streaming through the exact same `/api/chat` SSE pipeline as the main chat — see [assistant-ui Integration](#assistant-ui-integration).
+- **Zero-friction local development**: guest mode is on by default outside production (`npm run dev` → straight in, no login), while deployments only ever accept a real Supabase session.
 - **Full Message Versioning & Branching**:
   - Editing any user message or clicking "Retry response" creates a new sibling branch in the conversation tree (`parentId` + `activeChildId`) without destructive overwrites.
   - Interactive `‹ 2/3 ›` switcher under user messages and assistant responses to freely toggle between variants.
@@ -85,6 +104,96 @@ A high-fidelity web application clone of Claude.ai powered by Google's Gemini mo
   - Strict CORS validation (`ALLOWED_ORIGIN`), express-rate-limit (20 req/min), 25MB body limit, 100 messages cap, 100,000 characters per message, and 20MB attachment caps.
   - Live stream cancellation via `AbortController` on client disconnect (`req.on("close")`).
   - Dynamic Vite loading ensuring zero dev dependencies imported in production.
+
+---
+
+## assistant-ui Integration
+
+`/assistant` runs a second, full-page thread built on **`@assistant-ui/react@0.15`** (`useExternalStoreRuntime`) and reuses this app's transport — there is no second backend path:
+
+- `src/components/assistantUi/useAssistantUiStore.ts` — external-store adapter; `onNew` streams through the shared `streamRealResponse` client into `POST /api/chat` with the same auth headers, abort handling and error mapping as the main composer.
+- `src/components/assistantUi/AssistantUiThread.tsx` — `AssistantRuntimeProvider` with Thread/Composer primitives and custom rows (markdown via the shared `MarkdownView`, thinking dots, stopped/error notes), themed from the app's design tokens.
+- Registered as a pathname view in `App.tsx` (same pattern as `/motion`), so the main chat flow is untouched.
+
+---
+
+## Architecture Diagram
+
+```mermaid
+flowchart TB
+  subgraph CLIENT["Client SPA — React 19 · TypeScript · Tailwind · Vite"]
+    UI["Claude.ai-style UI<br/>chat · artifacts · projects<br/>message versioning · memory · skills"]
+    AUI["assistant-ui thread — /assistant"]
+    PARSE["SSEParser<br/>tokens · thinking · sources · [DONE]"]
+  end
+  subgraph SERVER["Express 5 gateway — port 3000, same origin"]
+    AUTH["requireAuth · guest mode locally<br/>rate-limit 20/min · body 25MB · 100 msgs"]
+    CHAT["POST /api/chat — SSE stream"]
+    REST["title · suggest · models · providers<br/>catalog · memory · skills · documents"]
+  end
+  subgraph PROVIDERS["Provider adapters — BYOK keys encrypted at rest"]
+    ADAPT["gemini adapter · openai adapter<br/>openaiCompatible factory → 15 providers"]
+    SYNC["catalog sync — models.dev + user keys"]
+  end
+  UI -- "fetch + SSE" --> AUTH
+  AUI -- "POST /api/chat" --> AUTH
+  AUTH --> CHAT
+  AUTH --> REST
+  CHAT --> ADAPT
+  REST --> SYNC
+  SYNC --> ADAPT
+  ADAPT -- "text/event-stream" --> PARSE
+```
+
+---
+
+## Project Structure
+
+```mermaid
+mindmap
+  root((Claude UI Clone))
+    src/
+      components/
+        MainChat — chat + artifacts
+        composer — ModelMenu + picker
+        assistantUi — /assistant thread
+        projects · knowledge · settings
+      hooks/ — useSendStream + sseParser
+      shared/catalog — 15 providers · 668 models
+      utils — authFetch · supabase mock
+    server.ts — Express 5 + Vite middleware
+    server/
+      routes — chat · models · providers · catalog
+      lib/providers — gemini · openai · factory
+      middleware — auth + rate limit
+      lib — keyVault · streamChat
+    tests/ — 52 files · 362 specs
+    docs/ — screenshots + guides
+    scripts/ — screenshot-readme + catalog sync
+```
+
+---
+
+## API Reference
+
+All routes are same-origin under `/api`. 🔒 routes require a session (`requireAuth`; most are additionally rate-limited to 20 req/min/IP).
+
+| Method & route | Auth | Purpose |
+| --- | :-: | --- |
+| `POST /api/chat` | 🔒 | SSE chat stream: tokens, thinking, sources, warnings, `[DONE]` |
+| `POST /api/title` | 🔒 | 3–6 word conversation auto-title |
+| `POST /api/suggest` | 🔒 | Follow-up suggestion chips |
+| `GET /api/models` | 🔒 | Enabled model list for the picker |
+| `GET/PUT /api/models/prefs` | 🔒 | Per-user pinned / enabled / alias model preferences |
+| `GET /api/providers` | 🔒 | Provider registry + saved-key status (keys are never returned) |
+| `GET /api/catalog` | 🔒 | Full model-catalog browser payload |
+| `GET/POST/DELETE /api/memory…` | 🔒 | Personal memory CRUD + background extraction |
+| `GET /api/skills`, `POST /api/skills/…` | 🔒 | Skills list, instructions, source & toggle |
+| `POST /api/documents` | — | Document parsing (PDF / DOCX / PPTX / XLSX) |
+| `GET /api/auth/debug` | — | Auth diagnostics (always answers) |
+| `GET /api/health` | — | Liveness, auth mode, enabled models |
+
+In development the same Express process also mounts the Vite dev middleware, so one process serves the SPA and the API on port 3000.
 
 ---
 
@@ -123,6 +232,7 @@ Requests never carry a hard-coded token: `authFetch` reads the access token from
 
 ---
 
+
 ## Authentication Failures & Diagnostics
 
 **Server (`requireAuth`).** Every rejection is still `401` with a short human message, plus a machine-readable `code`:
@@ -151,6 +261,7 @@ Each failure writes one log line with only metadata: method, path (no query stri
 **Copy report** copies all of this without any token. When the app runs inside an iframe, a banner offers to open it in its own tab, because embedded previews can block storage and cookies.
 
 ---
+
 
 ## Bundled Model Catalog
 
@@ -214,6 +325,7 @@ How it stays current, automatically:
 
 ---
 
+
 ## Available Scripts
 
 ```bash
@@ -237,6 +349,7 @@ npm run start
 ```
 
 ---
+
 
 ## Manual Verification Checklist for Message Versioning ("‹ 2/3 ›")
 
@@ -264,6 +377,7 @@ To manually test and verify the Claude.ai message version switcher in the UI:
 
 ---
 
+
 ## Extended Thinking & Model Configuration
 
 Extended thinking produces reasoning and thought summaries during response streaming. By default, `Gemini 3.1 Pro (Preview)` (`gemini-3.1-pro-preview`) is configured with `supports_thinking: true`.
@@ -271,6 +385,7 @@ Extended thinking produces reasoning and thought summaries during response strea
 > **Note for Administrators**: reasoning capability is derived from the bundled model catalog (`supportsReasoning` per model) and can be overridden per App model with `supports_thinking` in **Settings > Models**. The thinking router also reads the catalog directly for provider models, so non-Gemini providers get the right reasoning level without configuration.
 
 ---
+
 
 ## Deployment Notes
 
