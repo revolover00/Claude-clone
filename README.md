@@ -98,8 +98,8 @@ Create a `.env` file in the root directory (based on `.env.example`).
 | :--- | :---: | :---: | :--- |
 | `PORT` | No | `3000` | Port for the full-stack server (default is 3000). |
 | `ALLOWED_ORIGIN` | No | Same-origin only | Allowed CORS origin (e.g. `https://yourdomain.com`). If unset, requests are restricted to same-origin. |
-| `ALLOW_GUEST` | No | `false` | Development only: lets `requireAuth` accept the guest/mock bearer token. Never honoured when `NODE_ENV=production`. |
-| `VITE_ALLOW_LOCAL_MODE` | No | `false` | Development only: the client creates a local mock session so the app can be used without a Supabase project. |
+| `ALLOW_GUEST` | No | `true` (outside production) | Development/test only: lets `requireAuth` accept guest/mock bearer tokens — on by default so a bare `npm run dev` needs no login. Set to `false` to opt out. Never honoured when `NODE_ENV=production`. |
+| `VITE_ALLOW_LOCAL_MODE` | No | `true` (in development) | Development only: the client creates a local mock session so the app works without a Supabase project — on by default in dev; set to `false` to require a real sign-in. |
 | `VITE_BRAND_LOGO_URL` | No | unset | Opt-in URL for externally hosted brand artwork; the app uses its local vector mark by default. |
 | `NODE_ENV` | No | `development` | Set to `production` when building for deployment. |
 | `PROVIDER_KEY_ENCRYPTION_SECRET` | **Yes (production)** | unset | secret used to encrypt saved provider API keys at rest — any strong **non-empty** value works (it is normalized to a 32-byte key via SHA-256). Recommended: `openssl rand -base64 32` (or `openssl rand -hex 32`). The server **exits on boot** in production only when it is missing or empty. |
@@ -109,14 +109,15 @@ Create a `.env` file in the root directory (based on `.env.example`).
 
 ## Local Development Without Supabase
 
-Every user-scoped endpoint (`/api/chat`, `/api/skills`, `/api/providers`, `/api/models/prefs`, ...) is guarded by `requireAuth` and expects the bearer token of the active session, so they answer `401` by default. To try the app locally with no Supabase project, set both flags:
+Every user-scoped endpoint (`/api/chat`, `/api/skills`, `/api/providers`, `/api/models/prefs`, ...) is guarded by `requireAuth` and expects the bearer token of the active session, so they answer `401` whenever no auth mode applies. To try the app locally with no Supabase project, just run:
 
 ```bash
-ALLOW_GUEST=true VITE_ALLOW_LOCAL_MODE=true npm run dev
+npm run dev
 ```
 
-- `VITE_ALLOW_LOCAL_MODE=true` makes the client create a local mock session, so the app skips the login screen and `authFetch` (`src/utils/authHeaders.ts`) has a token to attach.
-- `ALLOW_GUEST=true` lets the Express middleware accept that mock/guest token in development.
+- Outside production, guest mode is **on by default**: the client creates a local mock session (no login screen; `authFetch` in `src/utils/authHeaders.ts` has a token to attach) and the Express middleware accepts it.
+- `VITE_ALLOW_LOCAL_MODE=false` disables the client-side mock session, `ALLOW_GUEST=false` disables server-side guest access — use either to test the real login flow locally.
+- Production never honours these flags: the server rejects guest/mock tokens there, so deployed endpoints only accept a real Supabase session.
 
 Requests never carry a hard-coded token: `authFetch` reads the access token from the live Supabase session on every call. Tokens are never copied into `localStorage` (the session already lives in Supabase's own storage; a leftover `supabase_token` key from older builds is deleted on startup).
 

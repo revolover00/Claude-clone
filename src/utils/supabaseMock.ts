@@ -2,7 +2,11 @@ import { FALLBACK_MODELS, normalizeSlug } from "../hooks/useModels";
 
 const env = (import.meta as any)?.env || (typeof process !== "undefined" ? process.env : {}) || {};
 const isDev = Boolean(env.DEV ?? (env.NODE_ENV !== "production"));
-const allowLocalMode = env.VITE_ALLOW_LOCAL_MODE === "true" || env.ALLOW_GUEST === "true";
+// Dev defaults to local mode so a bare `npm run dev` needs no login; an
+// explicit "false" on either flag turns it off, production stays explicit-only.
+const localExplicitOn = env.VITE_ALLOW_LOCAL_MODE === "true" || env.ALLOW_GUEST === "true";
+const localExplicitOff = env.VITE_ALLOW_LOCAL_MODE === "false" || env.ALLOW_GUEST === "false";
+const allowLocalMode = localExplicitOn || (isDev && !localExplicitOff);
 
 function getMockSession() {
   if (isDev && allowLocalMode) {
