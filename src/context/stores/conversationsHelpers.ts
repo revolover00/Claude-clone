@@ -1,6 +1,25 @@
 import type { Conversation, Message } from "../../types/chat";
 
 /**
+ * Why a completed stream produced no text. The generic "stream ended" line
+ * hid actionable causes (token cap, safety filter, tool-only reply), so the
+ * card now names the real reason whenever the provider told us one.
+ */
+export function emptyCompletionReason(finishReason?: string): string {
+  const reason = String(finishReason || "").toLowerCase();
+  if (reason.includes("length") || reason.includes("max_tokens")) {
+    return "The model hit its output limit before writing any text. Shorten the request or raise the max-token setting.";
+  }
+  if (reason.includes("content_filter") || reason.includes("safety") || reason.includes("blocklist")) {
+    return "The provider's safety filter blocked this reply before any text was produced. Rephrase the request and try again.";
+  }
+  if (reason.includes("tool") || reason.includes("function")) {
+    return "The model only requested a tool call and produced no text. Try again or adjust the request.";
+  }
+  return "The stream ended before the model returned a response. Try again.";
+}
+
+/**
  * Traverses the conversation tree from root to leaf following activeChildId.
  */
 export function getActiveBranch(
