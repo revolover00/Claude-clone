@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit by hand.
 // Provider: OpenAI (openai) · models.dev key: openai
-// Source: models.dev (MIT) · snapshot 2026-10-16 · 41 models
+// Source: models.dev (MIT) · snapshot 2026-10-17 · 41 models
 // Regenerate with: npm run catalog:sync
 import type { CatalogEntry } from "../types";
 

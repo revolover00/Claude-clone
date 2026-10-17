@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit by hand.
 // Provider: NVIDIA NIM (nvidia) · models.dev key: nvidia
-// Source: models.dev (MIT) · snapshot 2026-10-16 · 56 models
+// Source: models.dev (MIT) · snapshot 2026-10-17 · 56 models
 // Regenerate with: npm run catalog:sync
 import type { CatalogEntry } from "../types";
 

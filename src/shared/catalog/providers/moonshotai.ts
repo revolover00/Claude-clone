@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit by hand.
 // Provider: Moonshot AI (Kimi) (moonshotai) · models.dev key: moonshotai
-// Source: models.dev (MIT) · snapshot 2026-10-16 · 4 models
+// Source: models.dev (MIT) · snapshot 2026-10-17 · 4 models
 // Regenerate with: npm run catalog:sync
 import type { CatalogEntry } from "../types";
 

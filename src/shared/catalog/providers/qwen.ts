@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit by hand.
 // Provider: Qwen (Model Studio) (qwen) · models.dev key: alibaba
-// Source: models.dev (MIT) · snapshot 2026-10-16 · 58 models
+// Source: models.dev (MIT) · snapshot 2026-10-17 · 58 models
 // Regenerate with: npm run catalog:sync
 import type { CatalogEntry } from "../types";
 

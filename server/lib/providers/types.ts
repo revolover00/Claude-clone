@@ -39,6 +39,10 @@ export interface ProviderStreamParams {
   config?: any;
   res: any;
   abortSignal?: AbortSignal;
+  thinkingPlan?: { level: string; reason?: string };
+  /** Priority-ordered fallback keys; when present the transport rotates past quota/auth failures. */
+  apiKeys?: Array<{ id?: string; label?: string; key: string }>;
+  onKeyFailure?: (id: string, code: "KEY_INVALID" | "CREDITS_EXHAUSTED" | "RATE_LIMITED") => Promise<void> | void;
 }
 
 export interface Provider {

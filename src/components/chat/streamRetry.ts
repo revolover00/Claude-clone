@@ -17,7 +17,11 @@ export function shouldAutoRetryStream(
 
   const code = err.code;
   // Explicit non-server codes (KEY_MISSING, MODEL_NOT_FOUND, ...) and 4xx never retry.
-  if (typeof code === "string") return false;
+  if (typeof code === "string") {
+    // The provider dropped a long generation before anything rendered —
+    // one clean re-request is safe (nothing was shown, so no duplication).
+    return code === "STREAM_INTERRUPTED";
+  }
   if (typeof code === "number" && code < 500) return false;
 
   // True transport failure (server unreachable) with nothing rendered.

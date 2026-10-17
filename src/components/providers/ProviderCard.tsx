@@ -4,22 +4,21 @@ import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
 import { Badge } from "@/components/shared/Badge";
 import { authFetch } from "../../utils/safeFetch";
+import { CredentialList, type CredentialRow } from "./CredentialList";
 import { Package, CheckCircle2, Sparkles } from "lucide-react";
 
 export interface ProviderCardProps {
   id: string;
   name: string;
   vendor?: string;
-  status: "disconnected" | "active" | "invalid" | "rate_limited";
-  last4?: string;
-  lastVerified?: string;
-  lastError?: string;
+  status: "disconnected" | "active" | "invalid" | "rate_limited" | "exhausted";
   docsUrl: string;
   keyHelpUrl?: string;
   keyEnv?: string | null;
   /** Number of models shipped for this provider by the bundled catalog. */
   modelCount?: number;
-  credentialId?: string;
+  /** Every saved key for this provider (multiple allowed), display order. */
+  credentials?: CredentialRow[];
   onRefresh?: () => void;
 }
 
@@ -28,14 +27,11 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
   name,
   vendor,
   status,
-  last4,
-  lastVerified,
-  lastError,
   docsUrl,
   keyHelpUrl,
   keyEnv,
   modelCount,
-  credentialId,
+  credentials,
   onRefresh,
 }) => {
   const [key, setKey] = useState("");
@@ -51,10 +47,20 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
       case "invalid":
         return "danger";
       case "rate_limited":
+      case "exhausted":
         return "warning";
       default:
         return "secondary";
     }
+  };
+
+  /** Unique per provider — re-saving "default" must not overwrite an existing key. */
+  const nextLabel = () => {
+    const used = new Set((credentials || []).map((c) => c.label));
+    if (!used.has("default")) return "default";
+    let n = 2;
+    while (used.has(`key${n}`)) n++;
+    return `key${n}`;
   };
 
   const handleConnect = async () => {
@@ -67,7 +73,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ key: key.trim(), label: "default" }),
+        body: JSON.stringify({ key: key.trim(), label: nextLabel() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -91,49 +97,6 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
       }
     } catch {
       setErrorMsg("Network error connecting provider");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerify = async () => {
-    if (!credentialId) return;
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      const res = await authFetch(`/api/providers/${id}/credentials/${credentialId}/verify`, {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMsg(data.error || "Verification failed");
-      }
-      onRefresh?.();
-    } catch {
-      setErrorMsg("Network error verifying credential");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    if (!credentialId) return;
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      const res = await authFetch(`/api/providers/${id}/credentials/${credentialId}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setConnectedMsg(null);
-        window.dispatchEvent(new CustomEvent("claude:provider-connected", { detail: { provider: id } }));
-        onRefresh?.();
-      } else {
-        const data = await res.json();
-        setErrorMsg(data.error || "Failed to disconnect");
-      }
-    } catch {
-      setErrorMsg("Network error disconnecting credential");
     } finally {
       setLoading(false);
     }
@@ -169,51 +132,37 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
           </div>
         )}
 
-        {status === "disconnected" ? (
-          <div className="space-y-2.5">
-            <div className="relative w-full">
-              <Input
-                type={showKey ? "text" : "password"}
-                placeholder="Paste your API key"
-                value={key}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKey(e.target.value)}
-                disabled={loading}
-                className="w-full pr-14"
-              />
-              <button
-                type="button"
-                onClick={() => setShowKey(!showKey)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-ink-muted hover:text-ink cursor-pointer px-1 py-0.5"
-                aria-label={showKey ? "Hide API key" : "Show API key"}
-              >
-                {showKey ? "Hide" : "Show"}
-              </button>
-            </div>
-            <div className="w-full pt-0.5">
-              <Button
-                onClick={handleConnect}
-                disabled={loading || !key.trim()}
-                className="w-full sm:w-auto cursor-pointer"
-              >
-                {loading ? "Connecting..." : "Connect"}
-              </Button>
-            </div>
+        <div className="space-y-2.5">
+          <div className="relative w-full">
+            <Input
+              type={showKey ? "text" : "password"}
+              placeholder={status === "disconnected" ? "Paste your API key" : "Add another API key"}
+              value={key}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKey(e.target.value)}
+              disabled={loading}
+              className="w-full pr-14"
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-ink-muted hover:text-ink cursor-pointer px-1 py-0.5"
+              aria-label={showKey ? "Hide API key" : "Show API key"}
+            >
+              {showKey ? "Hide" : "Show"}
+            </button>
           </div>
-        ) : (
-          <div className="space-y-2 text-[12.5px] text-ink-muted">
-            <p>Last 4: <span className="font-mono text-ink">••••{last4 || "•••"}</span></p>
-            {lastVerified && <p>Verified: {new Date(lastVerified).toLocaleString()}</p>}
-            {lastError && <p className="text-xs text-danger break-words">Error: {lastError}</p>}
-            <div className="flex gap-2 pt-1.5 flex-wrap">
-              <Button size="sm" variant="secondary" onClick={handleVerify} disabled={loading} className="cursor-pointer">
-                {loading ? "Verifying..." : "Verify"}
-              </Button>
-              <Button size="sm" variant="danger" onClick={handleDisconnect} disabled={loading} className="cursor-pointer">
-                Disconnect
-              </Button>
-            </div>
+          <div className="w-full pt-0.5">
+            <Button
+              onClick={handleConnect}
+              disabled={loading || !key.trim()}
+              className="w-full sm:w-auto cursor-pointer"
+            >
+              {loading ? "Connecting..." : status === "disconnected" ? "Connect" : "Add key"}
+            </Button>
           </div>
-        )}
+        </div>
+
+        <CredentialList providerId={id} credentials={credentials || []} onChange={onRefresh} />
 
         {errorMsg && <p className="text-xs text-danger font-medium break-words">{errorMsg}</p>}
 

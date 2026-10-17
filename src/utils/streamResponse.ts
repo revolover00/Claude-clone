@@ -1,6 +1,20 @@
 import { SSEParser } from "./sseParser";
 import { authFetch } from "./authHeaders";
 
+/** Priority-ordered credential ids the Settings UI saved for this model's provider. */
+function keyOrderFor(model: string): string[] | undefined {
+  try {
+    const raw = localStorage.getItem("claude_clone_key_order");
+    if (!raw) return undefined;
+    const map = JSON.parse(raw) as Record<string, string[]>;
+    const provider = model && model.includes(":") ? model.split(":")[0] : "gemini";
+    const order = map[provider];
+    return Array.isArray(order) && order.length > 0 ? order : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export interface StreamCallbacks {
   onThinkingStart?: () => void;
   onThinkingUpdate?: (thought: string) => void;
@@ -71,6 +85,7 @@ export function streamRealResponse(
           extendedThinking: options.extendedThinking,
           language: options.language,
           memoryEnabled: options.memoryEnabled !== false,
+          keyOrder: keyOrderFor(options.model),
         }),
         signal,
       });
