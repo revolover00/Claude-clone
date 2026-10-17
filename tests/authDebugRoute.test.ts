@@ -141,6 +141,7 @@ describe("GET /api/auth/debug", () => {
   it("reports unconfigured and guest server modes", async () => {
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    process.env.ALLOW_GUEST = "false"; // explicit opt-out; dev default is guest
     expect(await (await debug(`Bearer ${TOKEN}`)).json()).toMatchObject({
       serverMode: "unconfigured",
       verified: false,
