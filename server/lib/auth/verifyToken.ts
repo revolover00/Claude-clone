@@ -24,11 +24,15 @@ function readAuthConfig() {
     url && serviceKey && !url.includes("YOUR_") && !serviceKey.includes("YOUR_")
   );
   const isProd = process.env.NODE_ENV === "production";
-  const guestFlag = process.env.ALLOW_GUEST === "true" || process.env.VITE_ALLOW_GUEST === "true";
-  return { url, serviceKey, configured, guestAllowed: !isProd && guestFlag };
+  // Local testing works without a login: guest mode is ON by default outside
+  // production (ALLOW_GUEST=false opts out). Production never honours the
+  // flag — guest/mock tokens stay rejected there.
+  const explicit = process.env.ALLOW_GUEST ?? process.env.VITE_ALLOW_GUEST;
+  const guestAllowed = !isProd && explicit !== "false";
+  return { url, serviceKey, configured, guestAllowed };
 }
 
-/** Guest/mock tokens are accepted only outside production with ALLOW_GUEST=true. */
+/** Guest/mock tokens are accepted only outside production (off when ALLOW_GUEST=false). */
 export function isGuestAllowed(): boolean {
   return readAuthConfig().guestAllowed;
 }

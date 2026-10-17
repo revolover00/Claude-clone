@@ -162,9 +162,10 @@ describe("requireAuth reason codes", () => {
     expect((await run({ authorization: `Bearer ${TOKEN}` })).body.code).toBe("AUTH_UNAVAILABLE");
   });
 
-  it("AUTH_UNAVAILABLE with an explanation when the server has no auth configured", async () => {
+  it("AUTH_UNAVAILABLE with an explanation when no auth is configured and guest mode is off", async () => {
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    process.env.ALLOW_GUEST = "false";
 
     const { res, body } = await run({ authorization: `Bearer ${TOKEN}` });
 
@@ -193,6 +194,23 @@ describe("requireAuth reason codes", () => {
 
     expect(next).toHaveBeenCalled();
     expect(req.user.id).toBe("guest42");
+  });
+
+  it("guest mode defaults to on outside production and stays off in production", async () => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    // No flags set: local testing must work without a login.
+    const dev = await run({ authorization: "Bearer mock-jwt-token-local7" });
+    expect(dev.next).toHaveBeenCalled();
+    expect(dev.req.user.id).toBe("local7");
+
+    // Production never honours the flag, even when set to true.
+    process.env.NODE_ENV = "production";
+    process.env.ALLOW_GUEST = "true";
+    const prod = await run({ authorization: "Bearer mock-jwt-token-local7" });
+    expect(prod.res.status).toHaveBeenCalledWith(401);
+    expect(prod.body.code).toBe("AUTH_UNAVAILABLE");
   });
 });
 
