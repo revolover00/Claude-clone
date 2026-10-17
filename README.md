@@ -1,6 +1,93 @@
 # Claude UI Clone
 
-A high-fidelity web application clone of Claude.ai powered by Google's Gemini models via the official `@google/genai` SDK. Built with React 19, TypeScript, Tailwind CSS, Express, and Server-Sent Events (SSE) streaming.
+A high-fidelity clone of the Claude.ai chat experience — built with **React 19**, **TypeScript**, **Tailwind CSS 4**, **Vite** and an **Express 5** gateway streaming over **Server-Sent Events**.
+
+- **15 providers · 680 models** bundled out of the box (OpenAI, Gemini, Groq, OpenRouter, Cerebras, DeepSeek, xAI, Mistral, Together, Fireworks, NVIDIA, Qwen, Moonshot, Z.ai and more) — switch models from the composer, connect a key, done.
+- **Bring your own key** — the server ships with **zero AI secrets**; every call runs on the API key each user saves in *Settings → Providers*, encrypted at rest with `PROVIDER_KEY_ENCRYPTION_SECRET`.
+- **Claude.ai parity features** — message versioning & branching (`‹ 2/3 ›`), interactive artifacts with live preview, projects + knowledge base, Google-search grounding, extended thinking, personal memory, skills.
+- **assistant-ui thread** embedded at **`/assistant`**, streaming through the same SSE pipeline.
+- **Local testing needs no login** — a bare `npm run dev` boots straight into the app with a guest session (production only ever accepts a real Supabase session).
+
+<p align="center">
+  <img src="docs/screenshots/home.jpg" alt="Claude UI Clone — home" width="920">
+</p>
+
+
+---
+
+## Screenshots
+
+Captured live from the running app (regenerate with `node scripts/screenshot-readme.mjs` while `npm run dev` is up):
+
+| Home & composer | Streaming reply with code artifact |
+| :---: | :---: |
+| ![Home](docs/screenshots/home.jpg) | ![Chat with artifact](docs/screenshots/chat.jpg) |
+
+| Model catalog picker (680 models) | Provider keys — Settings → Providers |
+| :---: | :---: |
+| ![Model picker](docs/screenshots/models.jpg) | ![Providers](docs/screenshots/providers.jpg) |
+
+**assistant-ui thread at `/assistant`:**
+
+![assistant-ui thread](docs/screenshots/assistant-ui.jpg)
+
+---
+
+## Quick Start
+
+```bash
+git clone https://github.com/revolover00/Claude-clone.git
+cd Claude-clone
+npm install
+npm run dev          # → http://localhost:3000
+```
+
+That is the entire local setup:
+
+- **No sign-in screen** — outside production the server defaults to guest mode and the client creates a local mock session automatically (opt out with `ALLOW_GUEST=false` / `VITE_ALLOW_LOCAL_MODE=false`).
+- **No AI key on the server** — paste your own key in **Settings → Providers** (a free Groq or Google AI Studio key works) and every model of that provider unlocks live.
+- Run the full gate before contributing: `npm run check` (tsc + eslint + vitest + vite build).
+
+---
+
+## Features
+
+- **assistant-ui Thread at `/assistant`**: a full-page chat surface powered by [`@assistant-ui/react`](https://github.com/assistant-ui/assistant-ui) (`useExternalStoreRuntime`) streaming through the exact same `/api/chat` SSE pipeline as the main chat — see [assistant-ui Integration](#assistant-ui-integration).
+- **Zero-friction local development**: guest mode is on by default outside production (`npm run dev` → straight in, no login), while deployments only ever accept a real Supabase session.
+- **Full Message Versioning & Branching**:
+  - Editing any user message or clicking "Retry response" creates a new sibling branch in the conversation tree (`parentId` + `activeChildId`) without destructive overwrites.
+  - Interactive `‹ 2/3 ›` switcher under user messages and assistant responses to freely toggle between variants.
+  - Switching versions instantly swaps the downstream dialogue branch.
+- **Projects Workspace (`/projects/:id`)**:
+  - Custom system instructions configured per project and automatically injected into every conversation started within the project.
+  - Knowledge base supporting file uploads (`.txt`, `.md`, `.json`, code files) and text snippets.
+  - Dedicated conversations list scoped to each project.
+- **Google Search Grounding**:
+  - Live web search enabled with real-time SSE source streaming.
+  - Displays "Searched the web" indicator during generation and an interactive "Sources" row with site favicons and external domain links.
+- **Bundled Model Catalog (zero manual setup)**:
+  - Every supported provider ships with its complete model list in the repository (`src/shared/catalog`), with full details: context window, max output, input/output modalities, tools, reasoning, structured output, vision, open weights, pricing per 1M tokens, knowledge cutoff, release date and lifecycle status.
+  - Nothing has to be added by hand: a background **sync service** keeps the `provider_catalog` table fresh — OpenRouter from its public endpoint (no key) and **every other provider through whatever API key a user saved in Settings > Providers** (source `user-key`; skipped while nobody connected that provider). The server never reads AI keys from deploy secrets. Rows are upserted on `(provider, model_id)`; a model is only marked `removed` after it is missing from two consecutive successful full syncs, and never on a failed fetch or when the response shrinks below 50% of the previous count.
+  - **Settings → Providers** lists all providers (connected or not) with their bundled model counts, and the **Model Catalog** browser shows every model of every provider, searchable and filterable by kind and capability, with live provider data merged on top when a key is connected.
+  - The composer model picker shows the same catalog grouped per provider (Recommended first, then pinned, then provider/vendor groups); models whose provider has no key yet stay visible but dimmed with **Connect <provider> to use**, and selecting one opens Settings › Providers.
+  - Providers without a bespoke adapter are wired through a single OpenAI-compatible factory (`server/lib/providers/openaiCompatible.ts`), so adding a provider is a data change.
+  - Refresh the snapshot from the public models.dev dataset (MIT) with `npm run catalog:sync` (optionally `-- --from ./api.json` or `-- --only openai,groq`); the generator rewrites `src/shared/catalog/providers/*.ts` and `snapshot.ts`. Model names excluded by the repository naming policy are filtered out during generation.
+- **Interactive Artifacts**:
+  - Detects React components, HTML/Tailwind, SVGs, and documents with a live right-hand preview panel, version history, copy, and export options.
+- **Harden & Secure Server Gateway**:
+  - Strict CORS validation (`ALLOWED_ORIGIN`), express-rate-limit (20 req/min), 25MB body limit, 100 messages cap, 100,000 characters per message, and 20MB attachment caps.
+  - Live stream cancellation via `AbortController` on client disconnect (`req.on("close")`).
+  - Dynamic Vite loading ensuring zero dev dependencies imported in production.
+
+---
+
+## assistant-ui Integration
+
+`/assistant` runs a second, full-page thread built on **`@assistant-ui/react@0.15`** (`useExternalStoreRuntime`) and reuses this app's transport — there is no second backend path:
+
+- `src/components/assistantUi/useAssistantUiStore.ts` — external-store adapter; `onNew` streams through the shared `streamRealResponse` client into `POST /api/chat` with the same auth headers, abort handling and error mapping as the main composer.
+- `src/components/assistantUi/AssistantUiThread.tsx` — `AssistantRuntimeProvider` with Thread/Composer primitives and custom rows (markdown via the shared `MarkdownView`, thinking dots, stopped/error notes), themed from the app's design tokens.
+- Registered as a pathname view in `App.tsx` (same pattern as `/motion`), so the main chat flow is untouched.
 
 ---
 
@@ -57,34 +144,26 @@ A high-fidelity web application clone of Claude.ai powered by Google's Gemini mo
 +--------------------------------------------------------------------------+
 ```
 
----
+## API Reference
 
-## Features
+All routes are same-origin under `/api`. 🔒 routes require a session (`requireAuth`; most are additionally rate-limited to 20 req/min/IP).
 
-- **Full Message Versioning & Branching**:
-  - Editing any user message or clicking "Retry response" creates a new sibling branch in the conversation tree (`parentId` + `activeChildId`) without destructive overwrites.
-  - Interactive `‹ 2/3 ›` switcher under user messages and assistant responses to freely toggle between variants.
-  - Switching versions instantly swaps the downstream dialogue branch.
-- **Projects Workspace (`/projects/:id`)**:
-  - Custom system instructions configured per project and automatically injected into every conversation started within the project.
-  - Knowledge base supporting file uploads (`.txt`, `.md`, `.json`, code files) and text snippets.
-  - Dedicated conversations list scoped to each project.
-- **Google Search Grounding**:
-  - Live web search enabled with real-time SSE source streaming.
-  - Displays "Searched the web" indicator during generation and an interactive "Sources" row with site favicons and external domain links.
-- **Bundled Model Catalog (zero manual setup)**:
-  - Every supported provider ships with its complete model list in the repository (`src/shared/catalog`), with full details: context window, max output, input/output modalities, tools, reasoning, structured output, vision, open weights, pricing per 1M tokens, knowledge cutoff, release date and lifecycle status.
-  - Nothing has to be added by hand: a background **sync service** keeps the `provider_catalog` table fresh — OpenRouter from its public endpoint (no key) and **every other provider through whatever API key a user saved in Settings > Providers** (source `user-key`; skipped while nobody connected that provider). The server never reads AI keys from deploy secrets. Rows are upserted on `(provider, model_id)`; a model is only marked `removed` after it is missing from two consecutive successful full syncs, and never on a failed fetch or when the response shrinks below 50% of the previous count.
-  - **Settings → Providers** lists all providers (connected or not) with their bundled model counts, and the **Model Catalog** browser shows every model of every provider, searchable and filterable by kind and capability, with live provider data merged on top when a key is connected.
-  - The composer model picker shows the same catalog grouped per provider (Recommended first, then pinned, then provider/vendor groups); models whose provider has no key yet stay visible but dimmed with **Connect <provider> to use**, and selecting one opens Settings › Providers.
-  - Providers without a bespoke adapter are wired through a single OpenAI-compatible factory (`server/lib/providers/openaiCompatible.ts`), so adding a provider is a data change.
-  - Refresh the snapshot from the public models.dev dataset (MIT) with `npm run catalog:sync` (optionally `-- --from ./api.json` or `-- --only openai,groq`); the generator rewrites `src/shared/catalog/providers/*.ts` and `snapshot.ts`. Model names excluded by the repository naming policy are filtered out during generation.
-- **Interactive Artifacts**:
-  - Detects React components, HTML/Tailwind, SVGs, and documents with a live right-hand preview panel, version history, copy, and export options.
-- **Harden & Secure Server Gateway**:
-  - Strict CORS validation (`ALLOWED_ORIGIN`), express-rate-limit (20 req/min), 25MB body limit, 100 messages cap, 100,000 characters per message, and 20MB attachment caps.
-  - Live stream cancellation via `AbortController` on client disconnect (`req.on("close")`).
-  - Dynamic Vite loading ensuring zero dev dependencies imported in production.
+| Method & route | Auth | Purpose |
+| --- | :-: | --- |
+| `POST /api/chat` | 🔒 | SSE chat stream: tokens, thinking, sources, warnings, `[DONE]` |
+| `POST /api/title` | 🔒 | 3–6 word conversation auto-title |
+| `POST /api/suggest` | 🔒 | Follow-up suggestion chips |
+| `GET /api/models` | 🔒 | Enabled model list for the picker |
+| `GET/PUT /api/models/prefs` | 🔒 | Per-user pinned / enabled / alias model preferences |
+| `GET /api/providers` | 🔒 | Provider registry + saved-key status (keys are never returned) |
+| `GET /api/catalog` | 🔒 | Full model-catalog browser payload |
+| `GET/POST/DELETE /api/memory…` | 🔒 | Personal memory CRUD + background extraction |
+| `GET /api/skills`, `POST /api/skills/…` | 🔒 | Skills list, instructions, source & toggle |
+| `POST /api/documents` | — | Document parsing (PDF / DOCX / PPTX / XLSX) |
+| `GET /api/auth/debug` | — | Auth diagnostics (always answers) |
+| `GET /api/health` | — | Liveness, auth mode, enabled models |
+
+In development the same Express process also mounts the Vite dev middleware, so one process serves the SPA and the API on port 3000.
 
 ---
 
@@ -123,6 +202,7 @@ Requests never carry a hard-coded token: `authFetch` reads the access token from
 
 ---
 
+
 ## Authentication Failures & Diagnostics
 
 **Server (`requireAuth`).** Every rejection is still `401` with a short human message, plus a machine-readable `code`:
@@ -151,6 +231,7 @@ Each failure writes one log line with only metadata: method, path (no query stri
 **Copy report** copies all of this without any token. When the app runs inside an iframe, a banner offers to open it in its own tab, because embedded previews can block storage and cookies.
 
 ---
+
 
 ## Bundled Model Catalog
 
@@ -214,6 +295,7 @@ How it stays current, automatically:
 
 ---
 
+
 ## Available Scripts
 
 ```bash
@@ -237,6 +319,7 @@ npm run start
 ```
 
 ---
+
 
 ## Manual Verification Checklist for Message Versioning ("‹ 2/3 ›")
 
@@ -264,6 +347,7 @@ To manually test and verify the Claude.ai message version switcher in the UI:
 
 ---
 
+
 ## Extended Thinking & Model Configuration
 
 Extended thinking produces reasoning and thought summaries during response streaming. By default, `Gemini 3.1 Pro (Preview)` (`gemini-3.1-pro-preview`) is configured with `supports_thinking: true`.
@@ -271,6 +355,7 @@ Extended thinking produces reasoning and thought summaries during response strea
 > **Note for Administrators**: reasoning capability is derived from the bundled model catalog (`supportsReasoning` per model) and can be overridden per App model with `supports_thinking` in **Settings > Models**. The thinking router also reads the catalog directly for provider models, so non-Gemini providers get the right reasoning level without configuration.
 
 ---
+
 
 ## Deployment Notes
 
