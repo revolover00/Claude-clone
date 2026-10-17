@@ -2,7 +2,7 @@
 
 A high-fidelity clone of the Claude.ai chat experience — built with **React 19**, **TypeScript**, **Tailwind CSS 4**, **Vite** and an **Express 5** gateway streaming over **Server-Sent Events**.
 
-- **15 providers · 680 models** bundled out of the box (OpenAI, Gemini, Groq, OpenRouter, Cerebras, DeepSeek, xAI, Mistral, Together, Fireworks, NVIDIA, Qwen, Moonshot, Z.ai and more) — switch models from the composer, connect a key, done.
+- **15 providers · 668 models** bundled out of the box (OpenAI, Gemini, Groq, OpenRouter, Cerebras, DeepSeek, xAI, Mistral, Together, Fireworks, NVIDIA, Qwen, Moonshot, Z.ai and more) — switch models from the composer, connect a key, done.
 - **Bring your own key** — the server ships with **zero AI secrets**; every call runs on the API key each user saves in *Settings → Providers*, encrypted at rest with `PROVIDER_KEY_ENCRYPTION_SECRET`.
 - **Claude.ai parity features** — message versioning & branching (`‹ 2/3 ›`), interactive artifacts with live preview, projects + knowledge base, Google-search grounding, extended thinking, personal memory, skills.
 - **assistant-ui thread** embedded at **`/assistant`**, streaming through the same SSE pipeline.
@@ -23,7 +23,7 @@ Captured live from the running app (regenerate with `node scripts/screenshot-rea
 | :---: | :---: |
 | ![Home](docs/screenshots/home.jpg) | ![Chat with artifact](docs/screenshots/chat.jpg) |
 
-| Model catalog picker (680 models) | Provider keys — Settings → Providers |
+| Model catalog picker (668 models) | Provider keys — Settings → Providers |
 | :---: | :---: |
 | ![Model picker](docs/screenshots/models.jpg) | ![Providers](docs/screenshots/providers.jpg) |
 
@@ -70,9 +70,9 @@ Every provider is bundled with its **original brand icon** and complete model li
 | <img src="docs/icons/moonshotai.svg" alt="Moonshot AI (Kimi)" width="20"> | **Moonshot AI (Kimi)** | 4 | `MOONSHOT_API_KEY` | — |
 | <img src="docs/icons/zai.svg" alt="Z.AI (GLM)" width="20"> | **Z.AI (GLM)** | 18 | `ZAI_API_KEY` | — |
 | <img src="docs/icons/perplexity.svg" alt="Perplexity" width="20"> | **Perplexity** | 4 | `PERPLEXITY_API_KEY` | — |
-| <img src="docs/icons/openrouter.svg" alt="OpenRouter" width="20"> | **OpenRouter** | 366 | `OPENROUTER_API_KEY` | — |
+| <img src="docs/icons/openrouter.svg" alt="OpenRouter" width="20"> | **OpenRouter** | 354 | `OPENROUTER_API_KEY` | — |
 
-**680 models** in total · bundled snapshot `2026-10-16` · source: [models.dev](https://models.dev) (MIT) · refresh with `npm run catalog:sync`.
+**668 models** in total · bundled snapshot `2026-10-17` · source: [models.dev](https://models.dev) (MIT) · refresh with `npm run catalog:sync`.
 
 ---
 
@@ -159,7 +159,7 @@ mindmap
         assistantUi — /assistant thread
         projects · knowledge · settings
       hooks/ — useSendStream + sseParser
-      shared/catalog — 15 providers · 680 models
+      shared/catalog — 15 providers · 668 models
       utils — authFetch · supabase mock
     server.ts — Express 5 + Vite middleware
     server/

@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit by hand.
 // Provider: Google AI Studio (gemini) · models.dev key: google
-// Source: models.dev (MIT) · snapshot 2026-10-16 · 39 models
+// Source: models.dev (MIT) · snapshot 2026-10-17 · 39 models
 // Regenerate with: npm run catalog:sync
 import type { CatalogEntry } from "../types";
 

@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit by hand.
 // Provider: xAI (xai) · models.dev key: xai
-// Source: models.dev (MIT) · snapshot 2026-10-16 · 13 models
+// Source: models.dev (MIT) · snapshot 2026-10-17 · 13 models
 // Regenerate with: npm run catalog:sync
 import type { CatalogEntry } from "../types";
 

@@ -161,7 +161,9 @@ async function main() {
     }
 
     const models = Object.values(source.models)
-      .filter((m) => m && m.id && !FORBIDDEN_NAME.test(`${m.id} ${m.name || ""}`))
+      // `~`-prefixed ids are placeholders models.dev publishes for hidden
+      // entries — they are not callable upstream (404 model_not_found).
+      .filter((m) => m && m.id && !String(m.id).startsWith("~") && !FORBIDDEN_NAME.test(`${m.id} ${m.name || ""}`))
       // Bundle only models that actually work: upstream marks retired entries
       // `deprecated`/`removed` (they fail with model_decommissioned upstream).
       .filter((m) => !m.status || (m.status !== "deprecated" && m.status !== "removed"))

@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit by hand.
 // Provider: Fireworks AI (fireworks) · models.dev key: fireworks-ai
-// Source: models.dev (MIT) · snapshot 2026-10-16 · 23 models
+// Source: models.dev (MIT) · snapshot 2026-10-17 · 23 models
 // Regenerate with: npm run catalog:sync
 import type { CatalogEntry } from "../types";
 
