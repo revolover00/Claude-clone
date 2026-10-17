@@ -132,3 +132,102 @@ describe("conversationsReducer", () => {
     expect(nextState[0].isTypingTitle).toBe(true);
   });
 });
+
+describe("terminal silent-empty guard (disruption card fix)", () => {
+  const baseConv = (): Conversation => ({
+    id: "conv-1",
+    title: "t",
+    messages: [
+      { id: "msg-1", role: "user", content: "hi", createdAt: 1000, parentId: null, activeChildId: null } as Message,
+      { id: "msg-a", role: "assistant", content: "", createdAt: 1001, parentId: "msg-1" } as Message,
+    ],
+    rootMessageId: "msg-1",
+    createdAt: 1000,
+    updatedAt: 1000,
+    starred: false,
+  });
+
+  it("attaches a specific error when a stream goes terminal with zero content", () => {
+    const action = {
+      type: "UPDATE_MESSAGE_CONTENT",
+      conversationId: "conv-1",
+      messageId: "msg-a",
+      content: "",
+      isStreaming: false,
+      isThinking: false,
+    } as ConversationAction;
+    const m = conversationsReducer([baseConv()], action)[0].messages[1];
+    expect(m.isError).toBe(true);
+    expect(m.errorText).toContain("The stream ended before the model returned a response");
+  });
+
+  it("does not fabricate an error for partial content or live streams", () => {
+    const partial = {
+      type: "UPDATE_MESSAGE_CONTENT",
+      conversationId: "conv-1",
+      messageId: "msg-a",
+      content: "partial answer",
+      isStreaming: false,
+      isThinking: false,
+    } as ConversationAction;
+    expect(conversationsReducer([baseConv()], partial)[0].messages[1].isError).toBeUndefined();
+
+    const live = {
+      type: "UPDATE_MESSAGE_CONTENT",
+      conversationId: "conv-1",
+      messageId: "msg-a",
+      content: "",
+      isStreaming: true,
+      isThinking: false,
+    } as ConversationAction;
+    expect(conversationsReducer([baseConv()], live)[0].messages[1].isError).toBe(false);
+  });
+
+  it("keeps a real server error untouched", () => {
+    const action = {
+      type: "UPDATE_MESSAGE_CONTENT",
+      conversationId: "conv-1",
+      messageId: "msg-a",
+      content: "",
+      isStreaming: false,
+      isThinking: false,
+      isError: true,
+      errorText: "Rate limit reached",
+    } as ConversationAction;
+    const m = conversationsReducer([baseConv()], action)[0].messages[1];
+    expect(m.errorText).toBe("Rate limit reached");
+  });
+});
+
+describe("emptyCompletionReason variants", () => {
+  const base = (): Conversation => ({
+    id: "c", title: "t",
+    messages: [{ id: "a", role: "assistant", content: "", createdAt: 1, parentId: null } as Message],
+    rootMessageId: null, createdAt: 1, updatedAt: 1, starred: false,
+  });
+  const finish = (finishReason: string) =>
+    conversationsReducer([base()], {
+      type: "UPDATE_MESSAGE_CONTENT", conversationId: "c", messageId: "a",
+      content: "", isStreaming: false, isThinking: false, finishReason,
+    } as ConversationAction)[0].messages[0].errorText || "";
+
+  it("names the token cap", () => {
+    expect(finish("MAX_TOKENS")).toContain("output limit");
+    expect(finish("length")).toContain("output limit");
+  });
+  it("names the safety filter", () => {
+    expect(finish("SAFETY")).toContain("safety filter");
+    expect(finish("content_filter")).toContain("safety filter");
+  });
+  it("clears a stale error when a new attempt starts", () => {
+    const action = {
+      type: "UPDATE_MESSAGE_CONTENT", conversationId: "c", messageId: "a",
+      content: "", isStreaming: true, isThinking: false,
+    } as ConversationAction;
+    const prev = base();
+    prev.messages[0] = { ...prev.messages[0], isError: true, errorText: "old failure" } as Message;
+    const m = conversationsReducer([prev], action)[0].messages[0];
+    expect(m.isError).toBe(false);
+    expect(m.errorText).toBeUndefined();
+  });
+});
