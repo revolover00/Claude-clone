@@ -50,6 +50,32 @@ That is the entire local setup:
 
 ---
 
+## Supported Providers
+
+Every provider is bundled with its **original brand icon** and complete model list. Save one key in **Settings → Providers** and its models unlock live in the composer — keyless models stay visible but dimmed with *Connect <provider> to use*.
+
+| | Provider | Models | API key (Settings → Providers) | Free tier |
+| :---: | --- | ---: | --- | :---: |
+| <img src="docs/icons/gemini.svg" alt="Google AI Studio" width="20"> | **Google AI Studio** | 39 | `GEMINI_API_KEY` | ✓ |
+| <img src="docs/icons/openai.svg" alt="OpenAI" width="20"> | **OpenAI** | 41 | `OPENAI_API_KEY` | — |
+| <img src="docs/icons/xai.svg" alt="xAI" width="20"> | **xAI** | 13 | `XAI_API_KEY` | — |
+| <img src="docs/icons/mistral.svg" alt="Mistral" width="20"> | **Mistral** | 20 | `MISTRAL_API_KEY` | — |
+| <img src="docs/icons/deepseek.svg" alt="DeepSeek" width="20"> | **DeepSeek** | 2 | `DEEPSEEK_API_KEY` | — |
+| <img src="docs/icons/groq.svg" alt="Groq" width="20"> | **Groq** | 16 | `GROQ_API_KEY` | ✓ |
+| <img src="docs/icons/cerebras.svg" alt="Cerebras" width="20"> | **Cerebras** | 2 | `CEREBRAS_API_KEY` | — |
+| <img src="docs/icons/togetherai.svg" alt="Together AI" width="20"> | **Together AI** | 18 | `TOGETHER_API_KEY` | — |
+| <img src="docs/icons/fireworks.svg" alt="Fireworks AI" width="20"> | **Fireworks AI** | 23 | `FIREWORKS_API_KEY` | — |
+| <img src="docs/icons/nvidia.svg" alt="NVIDIA NIM" width="20"> | **NVIDIA NIM** | 56 | `NVIDIA_API_KEY` | — |
+| <img src="docs/icons/qwen.svg" alt="Qwen (Model Studio)" width="20"> | **Qwen (Model Studio)** | 58 | `DASHSCOPE_API_KEY` | — |
+| <img src="docs/icons/moonshotai.svg" alt="Moonshot AI (Kimi)" width="20"> | **Moonshot AI (Kimi)** | 4 | `MOONSHOT_API_KEY` | — |
+| <img src="docs/icons/zai.svg" alt="Z.AI (GLM)" width="20"> | **Z.AI (GLM)** | 18 | `ZAI_API_KEY` | — |
+| <img src="docs/icons/perplexity.svg" alt="Perplexity" width="20"> | **Perplexity** | 4 | `PERPLEXITY_API_KEY` | — |
+| <img src="docs/icons/openrouter.svg" alt="OpenRouter" width="20"> | **OpenRouter** | 366 | `OPENROUTER_API_KEY` | — |
+
+**680 models** in total · bundled snapshot `2026-10-16` · source: [models.dev](https://models.dev) (MIT) · refresh with `npm run catalog:sync`.
+
+---
+
 ## Features
 
 - **assistant-ui Thread at `/assistant`**: a full-page chat surface powered by [`@assistant-ui/react`](https://github.com/assistant-ui/assistant-ui) (`useExternalStoreRuntime`) streaming through the exact same `/api/chat` SSE pipeline as the main chat — see [assistant-ui Integration](#assistant-ui-integration).
@@ -93,56 +119,60 @@ That is the entire local setup:
 
 ## Architecture Diagram
 
+```mermaid
+flowchart TB
+  subgraph CLIENT["Client SPA — React 19 · TypeScript · Tailwind · Vite"]
+    UI["Claude.ai-style UI<br/>chat · artifacts · projects<br/>message versioning · memory · skills"]
+    AUI["assistant-ui thread — /assistant"]
+    PARSE["SSEParser<br/>tokens · thinking · sources · [DONE]"]
+  end
+  subgraph SERVER["Express 5 gateway — port 3000, same origin"]
+    AUTH["requireAuth · guest mode locally<br/>rate-limit 20/min · body 25MB · 100 msgs"]
+    CHAT["POST /api/chat — SSE stream"]
+    REST["title · suggest · models · providers<br/>catalog · memory · skills · documents"]
+  end
+  subgraph PROVIDERS["Provider adapters — BYOK keys encrypted at rest"]
+    ADAPT["gemini adapter · openai adapter<br/>openaiCompatible factory → 15 providers"]
+    SYNC["catalog sync — models.dev + user keys"]
+  end
+  UI -- "fetch + SSE" --> AUTH
+  AUI -- "POST /api/chat" --> AUTH
+  AUTH --> CHAT
+  AUTH --> REST
+  CHAT --> ADAPT
+  REST --> SYNC
+  SYNC --> ADAPT
+  ADAPT -- "text/event-stream" --> PARSE
 ```
-+--------------------------------------------------------------------------+
-|                                CLIENT SPA                                |
-|   (React 19 + TypeScript + Tailwind CSS + Lucide Icons + Vite)           |
-+--------------------------------------------------------------------------+
-  |                   |                     |                      |
-  | [Tree State]      | [Chat Views]        | [Projects / Knowledge| [SSE Reader]
-  | conversations     | MainChat            | /projects/:id        | SSEParser
-  | Reducer (parentId,| MessageList         | ProjectInstructions  | token, thinking,
-  | activeChildId)    | ChatMessage         | KnowledgeList        | sources, error
-  |                   | ("‹ 2/3 ›" switcher)| ProjectsGrid         | [DONE]
-+--------------------------------------------------------------------------+
-                                    |
-                    HTTP / SSE API (Port 3000 / Same-Origin)
-                                    |
-+--------------------------------------------------------------------------+
-|                             BACKEND GATEWAY                              |
-|                   (Node.js + Express 5 + TSX + CORS)                     |
-+--------------------------------------------------------------------------+
-  |                   |                     |                      |
-  | CORS Validation   | Body Validation     | Rate Limiter         | Health Check
-  | ALLOWED_ORIGIN    | <= 25MB, <= 100 msgs| 20 req/min / IP      | /api/health
-  | (Same-origin def) | <= 100k char/msg    | express-rate-limit   | {ok, hasKey,
-  |                   | <= 20MB attachments |                      |  models}
-+--------------------------------------------------------------------------+
-  |
-  +----> /api/chat  (SSE Streaming: tokens, thoughts, grounding sources, errors)
-  +----> /api/title (Fast 3-6 word auto-titling via gemini-3.1-flash-lite)
-  |
-  | [Abort Signal on Client Disconnect: req.on("close") -> abortCtrl.abort()]
-  v
-+--------------------------------------------------------------------------+
-  |            /api/providers/:id/models  (live catalog + bundled fallback)
-  |            /api/catalog               (merged catalog + facets/sync, no key needed)
-  v
-+--------------------------------------------------------------------------+
-|                       BUNDLED MODEL CATALOG (committed)                  |
-|  15 providers · 400+ models with context, pricing, modalities, dates     |
-|  gemini · openai · xai · mistral · deepseek · groq · cerebras ·          |
-|  togetherai · fireworks · nvidia · qwen · moonshotai · zai ·             |
-|  perplexity · openrouter                                                 |
-+--------------------------------------------------------------------------+
-  |
-  v
-+--------------------------------------------------------------------------+
-|                         GOOGLE GEMINI API (SDK)                          |
-|             gemini-3.8-flash / gemini-3.1-pro-preview                    |
-|         Google Search Grounding Tool + Extended Thinking Budget          |
-+--------------------------------------------------------------------------+
+
+---
+
+## Project Structure
+
+```mermaid
+mindmap
+  root((Claude UI Clone))
+    src/
+      components/
+        MainChat — chat + artifacts
+        composer — ModelMenu + picker
+        assistantUi — /assistant thread
+        projects · knowledge · settings
+      hooks/ — useSendStream + sseParser
+      shared/catalog — 15 providers · 680 models
+      utils — authFetch · supabase mock
+    server.ts — Express 5 + Vite middleware
+    server/
+      routes — chat · models · providers · catalog
+      lib/providers — gemini · openai · factory
+      middleware — auth + rate limit
+      lib — keyVault · streamChat
+    tests/ — 52 files · 362 specs
+    docs/ — screenshots + guides
+    scripts/ — screenshot-readme + catalog sync
 ```
+
+---
 
 ## API Reference
 
