@@ -230,4 +230,14 @@ describe("emptyCompletionReason variants", () => {
     expect(m.isError).toBe(false);
     expect(m.errorText).toBeUndefined();
   });
+
+  it("clears the interrupted marker when continuing a saved reply", () => {
+    const prev = base();
+    prev.messages[0] = { ...prev.messages[0], finishReason: "INTERRUPTED" } as Message;
+    const m = conversationsReducer([prev], {
+      type: "UPDATE_MESSAGE_CONTENT", conversationId: "c", messageId: "a",
+      content: "partial answer", isStreaming: true, isThinking: false,
+    } as ConversationAction)[0].messages[0];
+    expect(m.finishReason).toBeUndefined();
+  });
 });
