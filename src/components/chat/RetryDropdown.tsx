@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { RotateCcw, ChevronDown, Brain, Globe, Eye } from "lucide-react";
 import type { Message, Model } from "../../types/chat";
 import { useModels } from "../../hooks/useModels";
@@ -18,6 +19,15 @@ export default function RetryDropdown({
   dropdownRef,
 }: RetryDropdownProps) {
   const { models } = useModels();
+  const [showCustomInstruction, setShowCustomInstruction] = useState(false);
+  const [customInstruction, setCustomInstruction] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) {
+      setShowCustomInstruction(false);
+      setCustomInstruction("");
+    }
+  }, [isOpen]);
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -32,7 +42,7 @@ export default function RetryDropdown({
         <ChevronDown size={11} strokeWidth={2} />
       </button>
 
-      {isOpen && (
+      {isOpen && !showCustomInstruction && (
         <div className="absolute bottom-9 left-0 z-30 w-64 rounded-xl border border-line bg-[#1e1c1a] py-1.5 shadow-xl anim-fade-in font-sans text-start animate-scale-up">
           <button
             type="button"
@@ -122,6 +132,57 @@ export default function RetryDropdown({
           >
             Make it more detailed
           </button>
+          <div className="h-px bg-line/60 my-1 mx-2" />
+          <button
+            type="button"
+            onClick={() => setShowCustomInstruction(true)}
+            className="w-full text-start px-3 py-1.5 text-[12px] text-accent hover:bg-elev-2 transition-colors cursor-pointer"
+          >
+            Retry with custom instruction…
+          </button>
+        </div>
+      )}
+      {isOpen && showCustomInstruction && (
+        <div className="absolute bottom-9 left-0 z-30 w-64 rounded-xl border border-line bg-[#1e1c1a] p-3 shadow-xl anim-fade-in font-sans text-start animate-scale-up">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const instruction = customInstruction.trim();
+              if (!instruction) return;
+              onToggle();
+              onRetry(message.id, { modifier: instruction });
+            }}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <label htmlFor={`retry-instruction-${message.id}`} className="text-[12px] font-semibold text-ink">
+                Custom retry instruction
+              </label>
+              <button type="button" onClick={() => setShowCustomInstruction(false)} className="text-[11px] text-ink-muted hover:text-ink">
+                Back
+              </button>
+            </div>
+            <textarea
+              id={`retry-instruction-${message.id}`}
+              aria-label="Custom retry instruction"
+              autoFocus
+              rows={4}
+              maxLength={500}
+              value={customInstruction}
+              onChange={(event) => setCustomInstruction(event.target.value)}
+              placeholder="e.g. Explain in Arabic and include an example."
+              className="w-full resize-none rounded-lg border border-line bg-elev-2 px-2.5 py-2 text-[12px] text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none"
+            />
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-[10px] text-ink-muted">{customInstruction.length}/500</span>
+              <button
+                type="submit"
+                disabled={!customInstruction.trim()}
+                className="rounded-md bg-accent px-2.5 py-1 text-[11px] font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Retry response
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

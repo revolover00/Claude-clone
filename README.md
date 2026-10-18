@@ -86,6 +86,7 @@ Every provider is bundled with its **original brand icon** and complete model li
   - Switching versions instantly swaps the downstream dialogue branch.
 - **Portable read-only conversation sharing**: creates a compressed link for the active message branch and opens it without an account or server-side share record. The link intentionally excludes attachments, hidden reasoning, and alternate versions; it is an immutable snapshot, cannot be revoked, and anyone with the link can read it.
 - **Interrupted reply recovery**: after a page reload, stale streaming state is cleared while any generated text is preserved; partial replies offer Continue and empty replies can be retried. Continuation includes the saved assistant text in model context. This is client-side recovery, not durable server-side resumption of the original SSE stream.
+- **Custom AI retry directives**: revise an answer with a natural-language instruction (for example, change its language, tone, or level of detail); the previous assistant response is included in context so the model can edit the actual answer rather than guess what it wrote.
 - **Projects Workspace (`/projects/:id`)**:
   - Custom system instructions configured per project and automatically injected into every conversation started within the project.
   - Knowledge base supporting file uploads (`.txt`, `.md`, `.json`, code files) and text snippets.
