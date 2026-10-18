@@ -172,7 +172,7 @@ export function conversationsReducer(
             ...(action.thinkingStartedAt !== undefined ? { thinkingStartedAt: action.thinkingStartedAt } : {}),
             ...(action.firstTokenAt !== undefined ? { firstTokenAt: action.firstTokenAt } : {}),
             ...(action.thinkingMs !== undefined ? { thinkingMs: action.thinkingMs } : {}),
-            ...(action.finishReason !== undefined ? { finishReason: action.finishReason } : {}),
+            ...(action.finishReason !== undefined ? { finishReason: action.finishReason } : !terminal ? { finishReason: undefined } : {}),
             ...(action.extendedThinking !== undefined ? { extendedThinking: action.extendedThinking } : {}),
             ...(action.thinkingPlan !== undefined ? { thinkingPlan: action.thinkingPlan } : {}),
           };

@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { SmoothStreamer } from "../../utils/smoothStreamer";
-import { streamRealResponse } from "../../utils/streamResponse";
 import type { Message, Project } from "../../types/chat";
 import { useSendStream } from "./useSendStream";
 import { useEditRetryStream } from "./useEditRetryStream";
+import { useContinueStream } from "./useContinueStream";
 
 interface StreamingOptions {
   activeConversationId: string | null;
@@ -73,6 +73,8 @@ export function useChatStreaming({
 
   useEffect(() => {
     return () => {
+      // Intentionally stop whichever streamer is active when this hook unmounts.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       streamerRef.current?.stop();
     };
   }, []);
@@ -126,139 +128,39 @@ export function useChatStreaming({
     lastOptions,
   });
 
-  const handleContinue = (assistantMsgId: string) => {
-    if (isStreaming || !activeConversationId) return;
-
-    const assistantMsg = messages.find((m) => m.id === assistantMsgId);
-    if (!assistantMsg) return;
-
-    abortRef.current?.abort();
-    const abortCtrl = new AbortController();
-    abortRef.current = abortCtrl;
-
-    setIsStreaming(true);
-
-    updateMessageContent(
-      activeConversationId,
-      assistantMsgId,
-      assistantMsg.content,
-      true,
-      false,
-      assistantMsg.thinking
-    );
-
-    const parentUserMsgIdx = messages.findIndex((m) => m.id === assistantMsgId) - 1;
-    const promptToSend = "Continue generating the response exactly from where you left off. Do not repeat any part of your previous response. Just continue typing the remainder immediately.";
-    const contextBranch = messages.slice(0, parentUserMsgIdx >= 0 ? parentUserMsgIdx + 1 : undefined);
-
-    const currentContent = assistantMsg.content;
-    let latestContinueFinishReason: string | undefined;
-
-    const streamer = new SmoothStreamer({
-      onUpdate: (displayedText, isFinished) => {
-        updateMessageContent(
-          activeConversationId,
-          assistantMsgId,
-          currentContent + displayedText,
-          !isFinished,
-          false,
-          assistantMsg.thinking,
-          undefined,
-          undefined,
-          false,
-          undefined,
-          false,
-          latestContinueFinishReason
-        );
-      },
-      onFlushComplete: () => {
-        setIsStreaming(false);
-        updateMessageContent(
-          activeConversationId,
-          assistantMsgId,
-          currentContent + streamer.getDisplayedText(),
-          false,
-          false,
-          assistantMsg.thinking,
-          undefined,
-          undefined,
-          false,
-          undefined,
-          false,
-          latestContinueFinishReason
-        );
-      },
-    });
-    streamerRef.current = streamer;
-    streamer.start();
-
-    streamRealResponse(
-      promptToSend,
-      abortCtrl.signal,
-      {
-        messages: contextBranch,
-        style: preferences.responseStyle,
-        profileInstructions: preferences.profileInstructions,
-        model: lastOptions.model,
-        effort: lastOptions.effort,
-        webSearch: lastOptions.webSearch,
-        extendedThinking: false,
-        language: preferences.language,
-      },
-      {
-        onThinkingStart: () => {},
-        onThinkingUpdate: () => {},
-        onSources: () => {},
-        onToken: (token) => {
-          streamer.push(token);
-        },
-        onFinish: (finish) => {
-          latestContinueFinishReason = finish;
-        },
-        onDone: () => {
-          streamer.markDone();
-        },
-        onError: (_err) => {
-          streamer.stop();
-          setIsStreaming(false);
-        },
-      }
-    );
-  };
+  const { handleContinue, getContinuationPrefix } = useContinueStream({
+    activeConversationId,
+    activeBranch,
+    isStreaming,
+    setIsStreaming,
+    updateMessageContent,
+    preferences,
+    currentProject,
+    lastOptions,
+    abortRef,
+    streamerRef,
+    registerActiveStream,
+    unregisterActiveStream,
+  });
 
   const handleStop = () => {
-    if (activeConversationId) {
-      stopActiveStream(activeConversationId);
-    }
-    if (streamerRef.current) {
-      streamerRef.current.flushImmediate();
-    }
-    if (activeConversationId) {
-      const streamingMsg = messages.find((m) => m.isStreaming);
-      if (streamingMsg) {
-        const displayed = streamerRef.current?.getDisplayedText() ?? streamingMsg.content;
-        // Stopping with nothing on screen must name the stop, not fall
-        // through to the generic "Unable to generate complete response" card.
-        const stopError = displayed.trim()
-          ? undefined
-          : { isError: true, errorText: "Stopped before the model produced a response." };
-        updateMessageContent(
-          activeConversationId,
-          streamingMsg.id,
-          displayed,
-          false,
-          false,
-          streamingMsg.thinking,
-          stopError,
-          streamingMsg.sources,
-          false,
-          {
-            thinkingStartedAt: streamingMsg.thinkingStartedAt,
-            firstTokenAt: streamingMsg.firstTokenAt,
-            thinkingMs: streamingMsg.thinkingMs,
-          }
-        );
-      }
+    const streamingMsg = messages.find((message) => message.isStreaming);
+    const continuationPrefix = streamingMsg ? getContinuationPrefix(streamingMsg.id) : null;
+    if (activeConversationId) stopActiveStream(activeConversationId);
+    streamerRef.current?.flushImmediate();
+    if (activeConversationId && streamingMsg) {
+      const displayed = continuationPrefix !== null
+        ? continuationPrefix + (streamerRef.current?.getDisplayedText() ?? "")
+        : streamerRef.current?.getDisplayedText() ?? streamingMsg.content;
+      const stopError = displayed.trim()
+        ? undefined
+        : { isError: true, errorText: "Stopped before the model produced a response." };
+      updateMessageContent(
+        activeConversationId, streamingMsg.id, displayed, false, false, streamingMsg.thinking,
+        stopError, streamingMsg.sources, false,
+        { thinkingStartedAt: streamingMsg.thinkingStartedAt, firstTokenAt: streamingMsg.firstTokenAt, thinkingMs: streamingMsg.thinkingMs },
+        false, continuationPrefix !== null ? "INTERRUPTED" : undefined
+      );
     }
   };
 
