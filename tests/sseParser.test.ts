@@ -79,6 +79,20 @@ describe("SSEParser", () => {
     expect(onToken).toHaveBeenCalledWith("React is a JavaScript library.");
   });
 
+  it("parses typed tool activity events", () => {
+    const onTool = vi.fn();
+    const parser = new SSEParser({ onTool });
+
+    parser.feed('data: {"tool":{"id":"call-1","name":"load_skill","skill":"writing","status":"executing"}}\n\n');
+
+    expect(onTool).toHaveBeenCalledWith({
+      id: "call-1",
+      name: "load_skill",
+      skill: "writing",
+      status: "executing",
+    });
+  });
+
   it("handles [DONE] termination event", () => {
     const onDone = vi.fn();
     const onToken = vi.fn();

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readWithIdleTimeout, STREAM_IDLE_TIMEOUT_MS } from "./providers/streamIdle";
 
 export function validateChatMessages(messages: any[]): { error?: string; status?: number } {
@@ -134,8 +135,9 @@ export async function pumpGeminiStream({
       for (const part of candidate.content.parts) {
         if ((part as any).functionCall) {
           const call = (part as any).functionCall;
+          const toolEventId = randomUUID();
           const skillTarget = call.args?.name || call.args?.skill;
-          res.write(`data: ${JSON.stringify({ tool: { name: call.name, skill: skillTarget, status: "executing" } })}\n\n`);
+          res.write(`data: ${JSON.stringify({ tool: { id: toolEventId, name: call.name, skill: skillTarget, status: "executing" } })}\n\n`);
 
           const execRes = await executeSkillFunctionCall(userId, call, skillExecutionState);
           if (execRes.document) {
@@ -146,7 +148,7 @@ export async function pumpGeminiStream({
           }
 
           const toolStatus = execRes.documentError ? "error" : "completed";
-          res.write(`data: ${JSON.stringify({ tool: { name: call.name, skill: execRes.skillName || skillTarget, status: toolStatus } })}\n\n`);
+          res.write(`data: ${JSON.stringify({ tool: { id: toolEventId, name: call.name, skill: execRes.skillName || skillTarget, status: toolStatus } })}\n\n`);
 
           try {
             const contStream = await runSkillToolStream(modelId, formattedMessages, config, call, execRes.result);

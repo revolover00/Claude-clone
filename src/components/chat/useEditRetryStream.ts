@@ -54,7 +54,7 @@ export function useEditRetryStream(options: EditRetryStreamOptions) {
     onDocumentError,
   } = options;
 
-  const { activeConversation } = useChat();
+  const { activeConversation, updateMessageToolEvent } = useChat();
 
   const messages = activeBranch;
 
@@ -180,6 +180,7 @@ export function useEditRetryStream(options: EditRetryStreamOptions) {
         onDocumentError: (docErr) => {
           onDocumentError?.(docErr);
         },
+        onTool: (event) => updateMessageToolEvent(activeConversationId, newAssistantMsg.id, event),
         onToken: (token) => {
           if (!firstTokenTimestamp) {
             firstTokenTimestamp = Date.now();

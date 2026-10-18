@@ -87,6 +87,7 @@ Every provider is bundled with its **original brand icon** and complete model li
 - **Portable read-only conversation sharing**: creates a compressed link for the active message branch and opens it without an account or server-side share record. The link intentionally excludes attachments, hidden reasoning, and alternate versions; it is an immutable snapshot, cannot be revoked, and anyone with the link can read it.
 - **Interrupted reply recovery**: after a page reload, stale streaming state is cleared while any generated text is preserved; partial replies offer Continue and empty replies can be retried. Continuation includes the saved assistant text in model context. This is client-side recovery, not durable server-side resumption of the original SSE stream.
 - **Custom AI retry directives**: revise an answer with a natural-language instruction (for example, change its language, tone, or level of detail); the previous assistant response is included in context so the model can edit the actual answer rather than guess what it wrote.
+- **Visible AI tool activity**: watch skill and document tools start, finish, or fail in a compact, expandable timeline under the reply. The UI shows action names and status only—not private tool arguments or returned contents—and keeps completed activity with the message.
 - **Projects Workspace (`/projects/:id`)**:
   - Custom system instructions configured per project and automatically injected into every conversation started within the project.
   - Knowledge base supporting file uploads (`.txt`, `.md`, `.json`, code files) and text snippets.
@@ -127,7 +128,7 @@ flowchart TB
   subgraph CLIENT["Client SPA — React 19 · TypeScript · Tailwind · Vite"]
     UI["Claude.ai-style UI<br/>chat · artifacts · projects<br/>message versioning · memory · skills"]
     AUI["assistant-ui thread — /assistant"]
-    PARSE["SSEParser<br/>tokens · thinking · sources · [DONE]"]
+    PARSE["SSEParser<br/>tokens · thinking · sources · tool activity · [DONE]"]
   end
   subgraph SERVER["Express 5 gateway — port 3000, same origin"]
     AUTH["requireAuth · guest mode locally<br/>rate-limit 20/min · body 25MB · 100 msgs"]
@@ -183,7 +184,7 @@ All routes are same-origin under `/api`. 🔒 routes require a session (`require
 
 | Method & route | Auth | Purpose |
 | --- | :-: | --- |
-| `POST /api/chat` | 🔒 | SSE chat stream: tokens, thinking, sources, warnings, `[DONE]` |
+| `POST /api/chat` | 🔒 | SSE chat stream: tokens, thinking, sources, tool activity, warnings, `[DONE]` |
 | `POST /api/title` | 🔒 | 3–6 word conversation auto-title |
 | `POST /api/suggest` | 🔒 | Follow-up suggestion chips |
 | `GET /api/models` | 🔒 | Enabled model list for the picker |

@@ -1,10 +1,11 @@
-import type { Conversation, Message } from "../../types/chat";
-import { emptyCompletionReason, getActiveBranch, getMessageSiblings, migrateConversations } from "./conversationsHelpers";
+import type { Conversation, Message, ToolActivityEvent } from "../../types/chat";
+import { emptyCompletionReason, getActiveBranch, getMessageSiblings, migrateConversations, updateMessageToolEvent } from "./conversationsHelpers";
 
 export { getActiveBranch, getMessageSiblings, migrateConversations };
 
 export type ConversationAction =
   | { type: "SET_ALL"; conversations: Conversation[] }
+  | { type: "UPDATE_MESSAGE_TOOL_EVENT"; conversationId: string; messageId: string; event: ToolActivityEvent }
   | {
       type: "SAVE_MESSAGE";
       conversationId: string;
@@ -75,7 +76,6 @@ export function conversationsReducer(
   switch (action.type) {
     case "SET_ALL":
       return action.conversations;
-
     case "SAVE_MESSAGE": {
       const { conversationId, message, projectId, isIncognito } = action;
       const existing = state.find((c) => c.id === conversationId);
@@ -142,6 +142,8 @@ export function conversationsReducer(
           ? { ...c, messages: action.messages, updatedAt: Date.now() }
           : c
       );
+
+    case "UPDATE_MESSAGE_TOOL_EVENT": return updateMessageToolEvent(state, action.conversationId, action.messageId, action.event);
 
     case "UPDATE_MESSAGE_CONTENT": {
       return state.map((c) => {

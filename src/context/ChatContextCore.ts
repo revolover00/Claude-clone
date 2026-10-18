@@ -5,6 +5,7 @@ import type {
   Project,
   ProjectKnowledgeItem,
   Artifact,
+  ToolActivityEvent,
   UserPreferences,
 } from "../types/chat";
 import type { ActiveView } from "./stores/useUIStore";
@@ -33,6 +34,7 @@ export interface ChatContextType {
     finishReason?: string,
     extra?: { extendedThinking?: boolean; thinkingPlan?: { level: "low" | "medium" | "high"; reason?: string } }
   ) => void;
+  updateMessageToolEvent: (conversationId: string, messageId: string, event: ToolActivityEvent) => void;
   deleteConversation: (id: string) => void;
   toggleStar: (id: string) => void;
   renameConversation: (id: string, newTitle: string) => void;

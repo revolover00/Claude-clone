@@ -48,7 +48,7 @@ export function useRetryStream({
   streamerRef,
   lastOptions,
 }: RetryStreamOptions) {
-  const { activeConversation } = useChat();
+  const { activeConversation, updateMessageToolEvent } = useChat();
   const messages = activeBranch;
 
   const handleRetry = (
@@ -177,6 +177,7 @@ export function useRetryStream({
             { thinkingStartedAt: thinkingStartTime }
           );
         },
+        onTool: (event) => updateMessageToolEvent(activeConversationId, newAssistantMsg.id, event),
         onToken: (token) => {
           if (!firstTokenTimestamp) {
             firstTokenTimestamp = Date.now();

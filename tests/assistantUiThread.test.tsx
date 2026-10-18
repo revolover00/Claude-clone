@@ -102,6 +102,27 @@ describe("assistant-ui page (/assistant)", () => {
     expect(screen.getAllByText("Hi there")).toHaveLength(1);
   });
 
+  it("shows streamed tool activity in the assistant-ui reply", async () => {
+    streamMock.calls.length = 0;
+    render(
+      <MemoryRouter>
+        <AssistantUiPage />
+      </MemoryRouter>
+    );
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Use a skill" } });
+    fireEvent.click(screen.getByLabelText("Send message"));
+    await waitFor(() => expect(streamMock.calls).toHaveLength(1));
+
+    act(() => {
+      streamMock.calls[0].cbs.onTool?.({
+        id: "tool-ui-1", name: "load_skill", skill: "translation", status: "executing",
+      });
+    });
+
+    expect(await screen.findByText("Working")).toBeTruthy();
+    expect(screen.getByText("Using skill · translation")).toBeTruthy();
+  });
+
   it("surfaces a failed stream as an error note on the assistant message", async () => {
     streamMock.calls.length = 0;
     render(
