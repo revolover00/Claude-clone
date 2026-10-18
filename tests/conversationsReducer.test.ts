@@ -89,6 +89,18 @@ describe("conversationsReducer", () => {
     expect(nextState[0].messages[0].isStreaming).toBe(true);
   });
 
+  it("stores tool activity by assistant message without changing stream content", () => {
+    const action: ConversationAction = {
+      type: "UPDATE_MESSAGE_TOOL_EVENT",
+      conversationId: "conv-1",
+      messageId: "msg-1",
+      event: { id: "call-1", name: "load_skill", skill: "writing", status: "executing" },
+    };
+    const nextState = conversationsReducer([initialConversation], action);
+    expect(nextState[0].messages[0].toolEvents?.[0].status).toBe("executing");
+    expect(nextState[0].messages[0].content).toBe(mockMessage.content);
+  });
+
   it("handles TOGGLE_STAR", () => {
     const action: ConversationAction = {
       type: "TOGGLE_STAR",

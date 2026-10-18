@@ -50,6 +50,15 @@ export interface DocumentErrorItem {
   error: string;
 }
 
+export type ToolActivityStatus = "executing" | "completed" | "error";
+
+export interface ToolActivityEvent {
+  id?: string;
+  name: string;
+  skill?: string;
+  status: ToolActivityStatus;
+}
+
 export interface Message {
   id: string;
   parentId?: string | null;
@@ -78,6 +87,7 @@ export interface Message {
   thinkingPlan?: { level: "low" | "medium" | "high"; reason?: string };
   documents?: DocumentItem[];
   documentErrors?: DocumentErrorItem[];
+  toolEvents?: ToolActivityEvent[];
 }
 
 export interface Conversation {

@@ -3,6 +3,7 @@ import { SmoothStreamer } from "../../utils/smoothStreamer";
 import { streamRealResponse } from "../../utils/streamResponse";
 import type { Message, Project } from "../../types/chat";
 import { buildContinuationContext } from "./sendStreamHelpers";
+import { useChat } from "../../context/ChatContext";
 
 type UpdateMessageContent = (
   conversationId: string,
@@ -48,6 +49,7 @@ export function useContinueStream({
   registerActiveStream,
   unregisterActiveStream,
 }: ContinueStreamOptions) {
+  const { updateMessageToolEvent } = useChat();
   const continuationRef = useRef<{ messageId: string; prefix: string } | null>(null);
   const getContinuationPrefix = (messageId: string) =>
     continuationRef.current?.messageId === messageId ? continuationRef.current.prefix : null;
@@ -105,6 +107,7 @@ export function useContinueStream({
       onThinkingStart: () => {},
       onThinkingUpdate: () => {},
       onSources: () => {},
+      onTool: (event) => updateMessageToolEvent(conversationId, assistantMsgId, event),
       onToken: (token) => streamer.push(token),
       onFinish: (reason) => { finishReason = reason; },
       onDone: () => streamer.markDone(),

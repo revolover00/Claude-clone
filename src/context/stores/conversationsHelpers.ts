@@ -1,4 +1,5 @@
-import type { Conversation, Message } from "../../types/chat";
+import type { Conversation, Message, ToolActivityEvent } from "../../types/chat";
+import { upsertToolActivityEvent } from "../../utils/toolActivity";
 
 /**
  * Why a completed stream produced no text. The generic "stream ended" line
@@ -17,6 +18,18 @@ export function emptyCompletionReason(finishReason?: string): string {
     return "The model only requested a tool call and produced no text. Try again or adjust the request.";
   }
   return "The stream ended before the model returned a response. Try again.";
+}
+
+export function updateMessageToolEvent(
+  conversations: Conversation[], conversationId: string, messageId: string, event: ToolActivityEvent
+): Conversation[] {
+  return conversations.map((conversation) => conversation.id !== conversationId ? conversation : {
+    ...conversation,
+    updatedAt: Date.now(),
+    messages: conversation.messages.map((message) => message.id !== messageId ? message : {
+      ...message, toolEvents: upsertToolActivityEvent(message.toolEvents, event),
+    }),
+  });
 }
 
 /**

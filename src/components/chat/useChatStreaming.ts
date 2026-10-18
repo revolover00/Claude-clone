@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { SmoothStreamer } from "../../utils/smoothStreamer";
-import type { Message, Project } from "../../types/chat";
+import type { Message, Project, ToolActivityEvent } from "../../types/chat";
 import { useSendStream } from "./useSendStream";
 import { useEditRetryStream } from "./useEditRetryStream";
 import { useContinueStream } from "./useContinueStream";
@@ -24,6 +24,7 @@ interface StreamingOptions {
     isReconnecting?: boolean,
     finishReason?: string
   ) => void;
+  updateMessageToolEvent: (conversationId: string, messageId: string, event: ToolActivityEvent) => void;
   setActiveConversationId: (id: string | null) => void;
   triggerAutoTitle: (conversationId: string, firstUserMsg: string, firstReply: string) => Promise<void>;
   preferences: any;
@@ -44,6 +45,7 @@ export function useChatStreaming({
   activeBranch,
   saveMessage,
   updateMessageContent,
+  updateMessageToolEvent,
   setActiveConversationId,
   triggerAutoTitle,
   preferences,
@@ -95,6 +97,7 @@ export function useChatStreaming({
     activeBranch,
     saveMessage,
     updateMessageContent,
+    updateMessageToolEvent,
     setActiveConversationId,
     triggerAutoTitle,
     preferences,
