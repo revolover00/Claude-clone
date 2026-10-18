@@ -43,7 +43,7 @@ export default function RetryDropdown({
       </button>
 
       {isOpen && !showCustomInstruction && (
-        <div className="absolute bottom-9 left-0 z-30 w-64 rounded-xl border border-line bg-[#1e1c1a] py-1.5 shadow-xl anim-fade-in font-sans text-start animate-scale-up">
+        <div className="absolute bottom-9 left-0 z-30 w-64 rounded-xl border border-line bg-elev-1 py-1.5 shadow-xl anim-fade-in font-sans text-start animate-scale-up">
           <button
             type="button"
             onClick={() => {
@@ -143,7 +143,7 @@ export default function RetryDropdown({
         </div>
       )}
       {isOpen && showCustomInstruction && (
-        <div className="absolute bottom-9 left-0 z-30 w-64 rounded-xl border border-line bg-[#1e1c1a] p-3 shadow-xl anim-fade-in font-sans text-start animate-scale-up">
+        <div className="absolute bottom-9 left-0 z-30 w-64 rounded-xl border border-line bg-elev-1 p-3 shadow-xl anim-fade-in font-sans text-start animate-scale-up">
           <form
             onSubmit={(event) => {
               event.preventDefault();

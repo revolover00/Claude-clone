@@ -22,7 +22,7 @@ function SharedMessage({ role, content }: { role: "user" | "assistant"; content:
       <div className={`min-w-0 max-w-[min(100%,760px)] rounded-2xl px-4 py-3 sm:px-5 ${isUser ? "bg-elev-2 text-ink" : "text-ink"}`}>
         <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{isUser ? "User" : "Assistant"}</p>
         <div
-          className="share-markdown text-[14.5px] leading-7 text-ink/95 [&_a]:text-accent [&_a]:underline [&_blockquote]:border-s-2 [&_blockquote]:border-accent/50 [&_blockquote]:ps-4 [&_code]:rounded [&_code]:bg-elev-2 [&_code]:px-1 [&_h1]:my-4 [&_h1]:text-2xl [&_h1]:font-semibold [&_h2]:my-3 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:my-1 [&_ol]:list-decimal [&_ol]:ps-6 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-[#151412] [&_pre]:p-4 [&_table]:block [&_table]:overflow-x-auto [&_ul]:list-disc [&_ul]:ps-6"
+          className="share-markdown text-[14.5px] leading-7 text-ink/95 [&_a]:text-accent [&_a]:underline [&_blockquote]:border-s-2 [&_blockquote]:border-accent/50 [&_blockquote]:ps-4 [&_code]:rounded [&_code]:bg-elev-2 [&_code]:px-1 [&_h1]:my-4 [&_h1]:text-2xl [&_h1]:font-semibold [&_h2]:my-3 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:my-1 [&_ol]:list-decimal [&_ol]:ps-6 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-code-surface [&_pre]:p-4 [&_table]:block [&_table]:overflow-x-auto [&_ul]:list-disc [&_ul]:ps-6"
           dir="auto"
           dangerouslySetInnerHTML={{ __html: html }}
         />

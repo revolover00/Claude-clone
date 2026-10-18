@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import React from "react";
 import ModelMenu from "../src/components/composer/ModelMenu";
 import * as ChatContextCore from "../src/context/ChatContextCore";
@@ -19,7 +19,7 @@ describe("Composer Model Picker Component Tests", () => {
     } as any);
   });
 
-  it("renders pill with display name and provider label (never raw provider id)", async () => {
+  it("keeps the model pill concise while exposing its provider accessibly", async () => {
     // Mock /api/providers returning groq credentials and /api/providers/groq/models
     vi.spyOn(global, "fetch").mockImplementation(async (url: any) => {
       const urlStr = String(url);
@@ -61,10 +61,11 @@ describe("Composer Model Picker Component Tests", () => {
       />
     );
 
-    // Pill must show provider label "Groq", never raw provider id
+    // Keep the composer clean; provider information remains available to screen readers and on hover.
     await waitFor(() => {
-      expect(screen.getByText(/Groq/)).toBeDefined();
-      expect(screen.getByText(/Llama 3.3 70B · Groq/)).toBeDefined();
+      const pill = screen.getByRole("button", { name: "Model: Llama 3.3 70B. Effort: Medium" });
+      expect(pill.getAttribute("title")).toBe("Groq");
+      expect(screen.queryByText("Llama 3.3 70B · Groq")).toBeNull();
     });
   });
 
@@ -203,16 +204,16 @@ describe("Composer Model Picker Component Tests", () => {
     fireEvent.click(trigger);
 
     await waitFor(() => {
-      expect(screen.getByText("Llama 3.3 70B")).toBeDefined();
-      expect(screen.getByText("Mixtral 8x7B")).toBeDefined();
+      expect(within(screen.getByRole("menu")).getByText("Llama 3.3 70B")).toBeDefined();
+      expect(within(screen.getByRole("menu")).getByText("Mixtral 8x7B")).toBeDefined();
     });
 
     const searchInput = screen.getByPlaceholderText("Search models...");
     fireEvent.change(searchInput, { target: { value: "mixtral" } });
 
     await waitFor(() => {
-      expect(screen.queryByText("Llama 3.3 70B")).toBeNull();
-      expect(screen.getByText("Mixtral 8x7B")).toBeDefined();
+      expect(within(screen.getByRole("menu")).queryByText("Llama 3.3 70B")).toBeNull();
+      expect(within(screen.getByRole("menu")).getByText("Mixtral 8x7B")).toBeDefined();
     });
   });
 

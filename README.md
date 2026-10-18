@@ -4,7 +4,7 @@ A high-fidelity clone of the Claude.ai chat experience — built with **React 19
 
 - **15 providers · 668 models** bundled out of the box (OpenAI, Gemini, Groq, OpenRouter, Cerebras, DeepSeek, xAI, Mistral, Together, Fireworks, NVIDIA, Qwen, Moonshot, Z.ai and more) — switch models from the composer, connect a key, done.
 - **Bring your own key** — the server ships with **zero AI secrets**; every call runs on the API key each user saves in *Settings → Providers*, encrypted at rest with `PROVIDER_KEY_ENCRYPTION_SECRET`.
-- **Claude.ai parity features** — message versioning & branching (`‹ 2/3 ›`), interactive artifacts with live preview, projects + knowledge base, Google-search grounding, extended thinking, personal memory, skills.
+- **Claude.ai parity features** — warm paper/charcoal palettes with Light, System, and Dark modes; message versioning & branching (`‹ 2/3 ›`), interactive artifacts with live preview, projects + knowledge base, Google-search grounding, extended thinking, personal memory, and skills.
 - **assistant-ui thread** embedded at **`/assistant`**, streaming through the same SSE pipeline.
 - **Local testing needs no login** — a bare `npm run dev` boots straight into the app with a guest session (production only ever accepts a real Supabase session).
 
@@ -103,7 +103,7 @@ Every provider is bundled with its **original brand icon** and complete model li
   - Providers without a bespoke adapter are wired through a single OpenAI-compatible factory (`server/lib/providers/openaiCompatible.ts`), so adding a provider is a data change.
   - Refresh the snapshot from the public models.dev dataset (MIT) with `npm run catalog:sync` (optionally `-- --from ./api.json` or `-- --only openai,groq`); the generator rewrites `src/shared/catalog/providers/*.ts` and `snapshot.ts`. Model names excluded by the repository naming policy are filtered out during generation.
 - **Interactive Artifacts**:
-  - Detects React components, HTML/Tailwind, SVGs, and documents with a live right-hand preview panel, version history, copy, and export options.
+  - Detects React components, HTML/Tailwind, SVGs, and documents with a live right-hand preview panel that opens compact and animates between compact and expanded height, plus version history, copy, and export options.
 - **Harden & Secure Server Gateway**:
   - Strict CORS validation (`ALLOWED_ORIGIN`), express-rate-limit (20 req/min), 25MB body limit, 100 messages cap, 100,000 characters per message, and 20MB attachment caps.
   - Live stream cancellation via `AbortController` on client disconnect (`req.on("close")`).

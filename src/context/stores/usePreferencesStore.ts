@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import type { UserPreferences } from "../../types/chat";
 
 import { toCanonicalModelId } from "../../shared/normalizeSlug";
+import { isColorMode, resolveColorMode } from "../../utils/theme";
 
 const STORAGE_KEY_PREFS = "claude_clone_preferences_v3";
 
@@ -9,7 +10,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   userName: "You",
   profileInstructions: "",
   responseStyle: "Normal",
-  theme: "dark",
+  theme: "system",
   language: "en",
   settings: {
     show_thinking: "auto",
@@ -24,6 +25,7 @@ export function usePreferencesStore() {
         localStorage.getItem("claude_clone_preferences_v2");
       if (saved) {
         const parsed = JSON.parse(saved);
+        if (!isColorMode(parsed.theme)) parsed.theme = "system";
         const fallbackShowThinking = localStorage.getItem("claude_show_thinking");
         if (fallbackShowThinking && !parsed.settings?.show_thinking) {
           parsed.settings = { ...(parsed.settings || {}), show_thinking: fallbackShowThinking };
@@ -48,14 +50,18 @@ export function usePreferencesStore() {
     };
   });
 
-  // Apply theme attribute to root
+  // Match Claude's light, system, and dark color modes; listen only in system mode.
   useEffect(() => {
     const root = document.documentElement;
-    if (preferences.theme === "light") {
-      root.setAttribute("data-theme", "light");
-    } else {
-      root.removeAttribute("data-theme");
-    }
+    const media = window.matchMedia("(prefers-color-scheme: light)");
+    const applyTheme = () => {
+      root.setAttribute("data-theme", resolveColorMode(preferences.theme, media.matches));
+    };
+
+    applyTheme();
+    if (preferences.theme !== "system") return;
+    media.addEventListener("change", applyTheme);
+    return () => media.removeEventListener("change", applyTheme);
   }, [preferences.theme]);
 
   // Save to localStorage

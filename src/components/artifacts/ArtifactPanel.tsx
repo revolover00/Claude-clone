@@ -10,6 +10,7 @@ import ArtifactPreview from "./ArtifactPreview";
 import ArtifactCodeView from "./ArtifactCodeView";
 import ArtifactPreviewToolbar from "./ArtifactPreviewToolbar";
 import { usePanelResize } from "./usePanelResize";
+import { getArtifactPanelHeight, useArtifactPanelSize } from "./useArtifactPanelSize";
 
 type Props = {
   artifact: Artifact | null;
@@ -55,6 +56,7 @@ export default function ArtifactPanel({
   }, [artifact]);
 
   const activeArt = artifact || displayedArtifact;
+  const { isExpanded, toggleExpanded } = useArtifactPanelSize(isOpen, activeArt?.id);
   const currentCode = activeArt?.code || "";
   const lang = (activeArt?.language || "").toLowerCase();
   const isSvg = lang === "svg" || currentCode.trim().startsWith("<svg");
@@ -191,19 +193,22 @@ export default function ArtifactPanel({
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden transition-opacity duration-300"
+          className={`fixed inset-0 z-40 backdrop-blur-sm lg:hidden transition-opacity duration-300 ${isExpanded ? "bg-black/60" : "bg-black/30"}`}
           onClick={onClose}
           aria-hidden="true"
         />
       )}
 
       <aside
-        className={`fixed inset-x-0 bottom-0 top-12 z-50 flex flex-col rounded-t-2xl border-t border-line bg-shell shadow-2xl motion-artifact-panel lg:static lg:inset-auto lg:z-10 lg:h-full lg:rounded-none lg:border-t-0 lg:shadow-none font-sans overflow-hidden ${
+        className={`fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-2xl border-t border-line bg-shell shadow-2xl motion-artifact-panel lg:static lg:inset-auto lg:z-10 lg:self-end lg:h-full lg:rounded-none lg:border-t-0 lg:shadow-none font-sans overflow-hidden ${
           isOpen
             ? "translate-y-0 opacity-100 lg:border-l relative"
             : "translate-y-full pointer-events-none lg:translate-y-0 lg:w-0 lg:min-w-0 lg:max-w-0 lg:border-l-0 opacity-0 lg:opacity-0"
         }`}
-        style={isOpen && isLargeScreen ? { width: `${width}px`, minWidth: "360px", maxWidth: "70%" } : undefined}
+        style={{
+          height: getArtifactPanelHeight(isExpanded, isLargeScreen),
+          ...(isOpen && isLargeScreen ? { width: `${width}px`, minWidth: "360px", maxWidth: "70%" } : {}),
+        }}
         aria-label="Artifact viewer"
       >
         {isOpen && isLargeScreen && (
@@ -215,10 +220,7 @@ export default function ArtifactPanel({
         )}
 
         <div className="flex h-full w-full min-w-[320px] lg:min-w-[420px] flex-col overflow-hidden">
-          <div
-            className="flex justify-center pt-2.5 pb-1 lg:hidden cursor-grab active:cursor-grabbing touch-none"
-            onClick={onClose}
-          >
+          <div className="flex justify-center pt-2.5 pb-1 lg:hidden" aria-hidden="true">
             <div className="h-1.5 w-12 rounded-full bg-elev-4" />
           </div>
 
@@ -233,15 +235,17 @@ export default function ArtifactPanel({
             onCopy={handleCopy}
             onDownload={handleDownload}
             onClose={onClose}
+            isExpanded={isExpanded}
+            onToggleExpanded={toggleExpanded}
           />
 
-          <div className={isFullscreen ? "fixed inset-0 z-[100] bg-[#181716] flex flex-col" : "relative min-h-0 flex-1 flex flex-col bg-[#181716] overflow-hidden"}>
+          <div className={isFullscreen ? "fixed inset-0 z-[100] bg-preview-canvas flex flex-col" : "relative min-h-0 flex-1 flex flex-col bg-preview-canvas overflow-hidden"}>
             {isFullscreen && (
               <div className="absolute right-4 top-4 z-[110]">
                 <button
                   type="button"
                   onClick={() => setIsFullscreen(false)}
-                  className="bg-elev-4 border border-line h-8 px-3 rounded-lg text-xs text-white hover:bg-elev-3 transition-colors flex items-center gap-1 cursor-pointer"
+                  className="bg-elev-4 border border-line h-8 px-3 rounded-lg text-xs text-ink hover:bg-elev-3 transition-colors flex items-center gap-1 cursor-pointer"
                 >
                   <Minimize2 size={13} />
                   <span>Exit Fullscreen</span>

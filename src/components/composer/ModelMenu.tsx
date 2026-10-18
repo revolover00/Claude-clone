@@ -166,9 +166,11 @@ export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort
         onClick={toggleOpen}
         aria-haspopup="menu"
         aria-expanded={isOpen}
+        aria-label={activeModelObj?.requiresKey ? `Model: ${pillLabel}, connect ${activeModelObj.providerLabel} to use. Effort: ${effort}` : `Model: ${pillLabel}. Effort: ${effort}`}
+        title={activeModelObj ? `${activeModelObj.providerLabel}${activeModelObj.requiresKey ? " · API key needed" : ""}` : undefined}
         className="flex h-8 items-center gap-1 rounded-md pe-1 ps-2 transition-colors duration-150 hover:bg-elev-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
       >
-        <span className="text-[14px] font-medium text-ink-soft">{pillLabel}</span>
+        <span className="text-[14px] font-medium text-ink-soft">{pillLabel}{activeModelObj?.requiresKey && <Key size={12} aria-hidden="true" className="ms-1 text-accent" />}</span>
         <span className="text-[14px] text-ink-muted">· {effort}</span>
       </button>
 

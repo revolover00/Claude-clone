@@ -158,7 +158,7 @@ export default function ArtifactsView() {
                           <button
                             type="button"
                             onClick={(e) => handleConfirmDelete(e, art.id)}
-                            className="rounded-lg bg-[#a83428] px-3.5 py-1.5 text-[12.5px] font-medium text-white shadow-sm hover:bg-[#bd3d30] transition-colors"
+                            className="rounded-lg bg-danger px-3.5 py-1.5 text-[12.5px] font-medium text-white shadow-sm hover:brightness-110 transition-colors"
                           >
                             Yes, Delete
                           </button>

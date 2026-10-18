@@ -131,7 +131,7 @@ export interface UserPreferences {
   userName?: string;
   profileInstructions: string;
   responseStyle: ResponseStyle;
-  theme: "dark" | "light";
+  theme: "system" | "light" | "dark";
   language: "en" | "ar";
   memory_enabled?: boolean;
   sensitive_memory?: boolean;
