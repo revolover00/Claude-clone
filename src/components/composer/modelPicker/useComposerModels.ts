@@ -198,13 +198,8 @@ export function useComposerModels(selectedModelId: string) {
   }, [allModels, selectedModelId, normalizeSlug]);
 
   const pillLabel = useMemo(() => {
-    if (!activeModelObj) {
-      const defaultName = defaultModel?.display_name || "Gemini 3.8 Flash";
-      return `${defaultName} · Google AI Studio`;
-    }
-    const name = activeModelObj.alias || activeModelObj.displayName;
-    const suffix = activeModelObj.requiresKey ? " · key needed" : "";
-    return `${name} · ${activeModelObj.providerLabel}${suffix}`;
+    if (!activeModelObj) return defaultModel?.display_name || "Gemini 3.8 Flash";
+    return activeModelObj.alias || activeModelObj.displayName;
   }, [activeModelObj, defaultModel]);
 
   return {

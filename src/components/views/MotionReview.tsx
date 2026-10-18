@@ -37,7 +37,7 @@ export default function MotionReview() {
               </button>
             </div>
             <p className="text-xs text-ink-muted mb-4">translateY(8px) + fade, 220ms ease-out</p>
-            <div className="h-28 bg-[#181716] rounded-lg border border-line p-4 flex items-center justify-center relative overflow-hidden">
+            <div className="h-28 bg-code-surface rounded-lg border border-line p-4 flex items-center justify-center relative overflow-hidden">
               <div 
                 key={userMsgKey} 
                 className="motion-user-enter max-w-[80%] rounded-2xl bg-composer border border-composer-line px-4 py-2.5 text-xs text-ink self-end"
@@ -61,7 +61,7 @@ export default function MotionReview() {
               </button>
             </div>
             <p className="text-xs text-ink-muted mb-4">fade, 200ms</p>
-            <div className="h-28 bg-[#181716] rounded-lg border border-line p-4 flex items-center justify-center relative overflow-hidden">
+            <div className="h-28 bg-code-surface rounded-lg border border-line p-4 flex items-center justify-center relative overflow-hidden">
               <div key={assistantRowKey} className="motion-assistant-enter flex gap-3 w-full max-w-[90%] items-start">
                 <div className="h-7 w-7 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
                   <Sparkles size={14} className="text-accent" />
@@ -86,7 +86,7 @@ export default function MotionReview() {
               </button>
             </div>
             <p className="text-xs text-ink-muted mb-4">height 250ms ease-out + chevron rotate 200ms</p>
-            <div className="bg-[#181716] rounded-lg border border-line p-4 min-h-[112px] flex flex-col justify-start">
+            <div className="bg-code-surface rounded-lg border border-line p-4 min-h-[112px] flex flex-col justify-start">
               <button 
                 onClick={() => setThinkingExpanded(!thinkingExpanded)}
                 className="flex items-center gap-2 text-xs font-medium text-ink-muted hover:text-ink transition-colors cursor-pointer"

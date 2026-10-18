@@ -54,7 +54,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
               <Check size={16} className="text-accent" />
             )}
             {toast.type === "error" && (
-              <AlertCircle size={16} className="text-[#f08578]" />
+              <AlertCircle size={16} className="text-danger" />
             )}
             {toast.type === "info" && (
               <Info size={16} className="text-link" />

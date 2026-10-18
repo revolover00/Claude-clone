@@ -127,7 +127,7 @@
 
 /* 9. Artifact panel: width transition 300ms ease-out, chat column reflows without a jump */
 .motion-artifact-panel {
-  transition: width var(--dur-panel) var(--ease-out), transform var(--dur-panel) var(--ease-out), opacity var(--dur-panel) var(--ease-out);
+  transition: width var(--dur-panel) var(--ease-out), height var(--dur-panel) var(--ease-out), transform var(--dur-panel) var(--ease-out), opacity var(--dur-panel) var(--ease-out);
 }
 
 /* 10. Spark: rotate 2.4s linear infinite; shimmer 1.8s linear infinite */

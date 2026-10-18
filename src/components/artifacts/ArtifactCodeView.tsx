@@ -21,9 +21,9 @@ export default function ArtifactCodeView({
   versionsCount,
 }: ArtifactCodeViewProps) {
   return (
-    <div className="relative min-h-0 flex-1 overflow-hidden bg-[#181716] flex flex-col w-full">
+    <div className="relative min-h-0 flex-1 overflow-hidden bg-code-surface flex flex-col w-full">
       {versionsCount > 1 && (
-        <div className="flex shrink-0 items-center justify-between border-b border-line bg-[#1c1a19] px-4 py-2 text-xs select-none">
+        <div className="flex shrink-0 items-center justify-between border-b border-line bg-elev-1 px-4 py-2 text-xs select-none">
           <span className="font-medium text-ink-soft">Compare with previous version</span>
           <label className="flex items-center gap-1.5 cursor-pointer text-ink-muted hover:text-ink transition-colors">
             <input
