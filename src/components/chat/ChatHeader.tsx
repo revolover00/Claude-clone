@@ -103,16 +103,6 @@ export default function ChatHeader({
     setChatMenuOpen(false);
   };
 
-  const handleShareLink = () => {
-    try {
-      navigator.clipboard.writeText(window.location.href);
-      showToast("Link copied to clipboard", "success");
-    } catch {
-      showToast("Failed to copy link", "error");
-    }
-    setChatMenuOpen(false);
-  };
-
   const handleDeleteActiveChat = () => {
     if (!activeConversation) return;
     if (window.confirm("Are you sure you want to delete this conversation?")) {
@@ -270,7 +260,7 @@ export default function ChatHeader({
 
               <button
                 type="button"
-                onClick={handleShareLink}
+                onClick={() => { window.dispatchEvent(new Event("claude:share-current-conversation")); setChatMenuOpen(false); }}
                 className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-start text-[13.5px] text-ink hover:bg-elev-2 transition-colors cursor-pointer"
               >
                 <Share2 size={15} className="text-ink-muted" />

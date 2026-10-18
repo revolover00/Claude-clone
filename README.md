@@ -84,6 +84,7 @@ Every provider is bundled with its **original brand icon** and complete model li
   - Editing any user message or clicking "Retry response" creates a new sibling branch in the conversation tree (`parentId` + `activeChildId`) without destructive overwrites.
   - Interactive `‹ 2/3 ›` switcher under user messages and assistant responses to freely toggle between variants.
   - Switching versions instantly swaps the downstream dialogue branch.
+- **Portable read-only conversation sharing**: creates a compressed link for the active message branch and opens it without an account or server-side share record. The link intentionally excludes attachments, hidden reasoning, and alternate versions; it is an immutable snapshot, cannot be revoked, and anyone with the link can read it.
 - **Projects Workspace (`/projects/:id`)**:
   - Custom system instructions configured per project and automatically injected into every conversation started within the project.
   - Knowledge base supporting file uploads (`.txt`, `.md`, `.json`, code files) and text snippets.
