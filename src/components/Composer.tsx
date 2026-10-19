@@ -197,7 +197,12 @@ export default function Composer({
 
       <DragOverlay isDragging={isDragging} />
 
-      <div className="composer-surface mx-auto flex min-h-[132px] w-full max-w-[720px] flex-col rounded-[24px] border px-5 pb-3 pt-4">
+      <div
+        className={cn(
+          "composer-surface mx-auto flex w-full max-w-full flex-col rounded-[28px] border",
+          inChatView ? "min-h-[132px] px-5 pb-3 pt-4" : "min-h-[180px] px-7 pb-4 pt-8"
+        )}
+      >
         <QuoteBanner activeQuote={activeQuote} onClear={() => setActiveQuote?.(null)} />
 
         <AttachmentChips attachments={attachments} onRemove={removeAttachment} />
@@ -213,7 +218,8 @@ export default function Composer({
           disabled={isOffline}
           aria-label="Message Claude"
           className={cn(
-            "max-h-44 w-full resize-none overflow-y-auto bg-transparent text-[16px] leading-[1.6] text-ink placeholder:text-ink-muted focus:outline-none scroll-slim",
+            "max-h-44 w-full resize-none overflow-y-auto bg-transparent leading-[1.6] text-ink placeholder:text-ink-muted focus:outline-none scroll-slim",
+            inChatView ? "text-[16px]" : "text-[18px]",
             isOffline && "cursor-not-allowed opacity-60"
           )}
         />
@@ -230,14 +236,17 @@ export default function Composer({
           />
 
           <div className="relative flex items-center gap-1.5">
-            <ModelMenu model={model} onSelectModel={setModel} effort={effort} onSelectEffort={setEffort} />
+            <ModelMenu model={model} onSelectModel={setModel} effort={effort} onSelectEffort={setEffort} homeView={!inChatView} />
 
             <IconButton
               label={micOn ? "Stop dictation" : "Dictate"}
               onClick={toggleMic}
-              className={cn("rounded-full", micOn && "anim-mic text-accent hover:text-accent")}
+              className={cn(
+                "h-11 w-11 rounded-xl border border-composer-line bg-panel text-ink-muted hover:bg-elev-2 hover:text-ink",
+                micOn && "anim-mic border-accent/40 bg-accent/10 text-accent hover:text-accent"
+              )}
             >
-              <Mic size={16} strokeWidth={1.9} />
+              <Mic size={20} strokeWidth={1.8} />
             </IconButton>
 
             {isStreaming ? (
@@ -245,7 +254,7 @@ export default function Composer({
                 type="button"
                 onClick={onStop}
                 title="Stop generation"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-accent text-white shadow-sm transition-all duration-150 hover:opacity-90 scale-100"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white shadow-sm transition-all duration-150 hover:opacity-90 scale-100"
               >
                 <Square size={13} fill="currentColor" strokeWidth={0} />
               </button>
@@ -256,7 +265,7 @@ export default function Composer({
                 disabled={!hasContent || isOffline}
                 title={isOffline ? "You are offline." : (hasContent ? "Send message" : "Type a message")}
                 className={cn(
-                  "inline-flex h-9 w-9 items-center justify-center rounded-full transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
+                  "inline-flex h-10 w-10 items-center justify-center rounded-full transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
                   hasContent && !isOffline
                     ? "bg-accent text-white shadow-sm hover:opacity-90 scale-100 opacity-100 cursor-pointer"
                     : "bg-elev-3 text-ink-muted opacity-40 scale-90 cursor-not-allowed pointer-events-none"

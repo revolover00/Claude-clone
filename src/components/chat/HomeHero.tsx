@@ -55,10 +55,10 @@ export const HomeHero: React.FC<Props> = ({
       className={`transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] ${
         inChatView
           ? "max-h-0 opacity-0 overflow-hidden pointer-events-none -translate-y-4"
-          : "flex flex-1 flex-col items-center justify-center pt-8 pb-12 opacity-100 translate-y-0"
+          : "flex flex-1 flex-col items-center justify-start pt-[clamp(64px,7vh,80px)] pb-12 opacity-100 translate-y-0"
       }`}
     >
-      <h1 className="anim-rise flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-3.5 text-center font-serif text-[clamp(28px,4.5vw,48px)] font-normal leading-[1.15] tracking-[-0.01em] text-ink">
+      <h1 className="anim-rise flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-3.5 text-center font-serif text-[clamp(32px,4.8vw,60px)] font-normal leading-[1.12] tracking-[-0.015em] text-ink">
         <ClaudeSpark size={46} className="shrink-0 text-accent mb-1 sm:mb-0" />
         <span className="break-words max-w-[90vw] sm:max-w-none">{greetingText}</span>
       </h1>
@@ -73,7 +73,7 @@ export const HomeHero: React.FC<Props> = ({
 
       {/* Composer centered on Home View */}
       {!inChatView && (
-        <div className="mt-9 w-full max-w-[720px]">
+        <div className="mt-12 w-full max-w-[960px]">
           <Composer
             onSend={onSend}
             onStop={onStop}
@@ -85,7 +85,7 @@ export const HomeHero: React.FC<Props> = ({
 
       {/* First-run Memory Card */}
       {!inChatView && showFirstRunCard && (
-        <div className="mt-8 w-full max-w-[720px] rounded-xl border border-line bg-elev-1 p-4 shadow-sm animate-fade-in font-sans">
+        <div className="mt-8 w-full max-w-[960px] rounded-xl border border-line bg-elev-1 p-4 shadow-sm animate-fade-in font-sans">
           <div className="flex items-start gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
               <ClaudeSpark size={18} />
