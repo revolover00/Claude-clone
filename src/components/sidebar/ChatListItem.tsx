@@ -150,7 +150,7 @@ export default function ChatListItem({
                           onCloseMenu();
                           setIsDeleting(false);
                         }}
-                        className="rounded bg-[#a83428] px-2 py-0.5 text-[11px] font-medium text-white hover:bg-[#bd3d30]"
+                        className="rounded bg-danger px-2 py-0.5 text-[11px] font-medium text-white hover:brightness-110"
                       >
                         Delete
                       </button>
@@ -193,7 +193,7 @@ export default function ChatListItem({
                         e.stopPropagation();
                         setIsDeleting(true);
                       }}
-                      className="flex h-7 w-full items-center gap-2 rounded px-2 text-[12.5px] text-[#f08578] hover:bg-[#68241d]/30"
+                      className="flex h-7 w-full items-center gap-2 rounded px-2 text-[12.5px] text-danger hover:bg-danger/10"
                     >
                       <Trash2 size={13} />
                       <span>Delete</span>

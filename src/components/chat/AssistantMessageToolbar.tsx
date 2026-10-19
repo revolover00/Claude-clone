@@ -96,6 +96,11 @@ export default function AssistantMessageToolbar({
         {timeStr}
       </span>
 
+      {message.finishReason === "INTERRUPTED" && (
+        <span role="status" className="text-[10px] text-ink-muted/80 select-none">
+          {isArabic ? "توقّف الرد، وتم حفظ الجزء المكتوب." : "Response paused; partial reply saved."}
+        </span>
+      )}
       <div className={`flex items-center gap-1 transition-opacity duration-150 relative ${isLastAssistantMessage ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
         <button
           type="button"
@@ -157,14 +162,16 @@ export default function AssistantMessageToolbar({
           />
         )}
 
-        {isLastAssistantMessage && onContinue && message.finishReason === "MAX_TOKENS" && (
+        {isLastAssistantMessage && onContinue &&
+          (message.finishReason === "MAX_TOKENS" || message.finishReason === "INTERRUPTED") && (
           <button
             type="button"
             onClick={() => onContinue(message.id)}
+            title={message.finishReason === "INTERRUPTED" ? (isArabic ? "متابعة الرد المحفوظ" : "Continue the saved partial reply") : undefined}
             className="inline-flex h-7 px-2.5 items-center justify-center rounded-md border border-line bg-elev-1 hover:bg-elev-3 hover:text-ink text-ink-soft font-semibold transition-all duration-150 text-[11.5px] cursor-pointer shadow-xs gap-1.5 select-none"
           >
             <Play size={11} fill="currentColor" strokeWidth={0} />
-            <span>Continue</span>
+            <span>{isArabic ? "متابعة" : "Continue"}</span>
           </button>
         )}
       </div>

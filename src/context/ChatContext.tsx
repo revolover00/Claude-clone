@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import type {
   Message,
+  ToolActivityEvent,
 } from "../types/chat";
 import { conversationsReducer } from "./stores/conversationsReducer";
 import {
@@ -112,6 +113,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
+  const updateMessageToolEvent = useCallback((conversationId: string, messageId: string, event: ToolActivityEvent) => {
+    dispatch({ type: "UPDATE_MESSAGE_TOOL_EVENT", conversationId, messageId, event });
+  }, []);
+
   const switchMessageVersion = useCallback((conversationId: string, messageId: string, targetVersionIndex: number) => {
     dispatch({ type: "SWITCH_VERSION", conversationId, messageId, targetVersionIndex });
   }, []);
@@ -191,6 +196,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     saveMessage,
     setConversationMessages,
     updateMessageContent,
+    updateMessageToolEvent,
     deleteConversation,
     toggleStar,
     renameConversation,
@@ -234,7 +240,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     stopActiveStream,
   }), [
     conversations, ui.activeConversationId, activeConversation, activeBranch, ui.setActiveConversationId,
-    ui.createNewChat, saveMessage, setConversationMessages, updateMessageContent, deleteConversation,
+    ui.createNewChat, saveMessage, setConversationMessages, updateMessageContent, updateMessageToolEvent, deleteConversation,
     toggleStar, renameConversation, triggerAutoTitle, switchMessageVersion, branchEditUserMessage,
     branchRetryAssistantMessage, ui.canGoBack, ui.canGoForward, ui.goBack, ui.goForward, ui.activeView,
     ui.setActiveView, ui.searchModalOpen, ui.setSearchModalOpen, ui.settingsModalOpen, ui.setSettingsModalOpen,

@@ -1,5 +1,6 @@
 import { SSEParser } from "./sseParser";
 import { authFetch } from "./authHeaders";
+import type { ToolActivityEvent } from "../types/chat";
 
 /** Priority-ordered credential ids the Settings UI saved for this model's provider. */
 function keyOrderFor(model: string): string[] | undefined {
@@ -27,6 +28,7 @@ export interface StreamCallbacks {
   onThinkingPlan?: (plan: { level: "low" | "medium" | "high"; reason?: string }) => void;
   onDocument?: (doc: any) => void;
   onDocumentError?: (docErr: any) => void;
+  onTool?: (tool: ToolActivityEvent) => void;
 }
 
 export interface ChatStreamOptions {
@@ -196,6 +198,7 @@ export function streamRealResponse(
         onDocumentError: (docErr) => {
           callbacks.onDocumentError?.(docErr);
         },
+        onTool: (tool) => callbacks.onTool?.(tool),
         onError: (err) => {
           midStreamError = err;
         },

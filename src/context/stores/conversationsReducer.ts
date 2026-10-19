@@ -1,10 +1,11 @@
-import type { Conversation, Message } from "../../types/chat";
-import { emptyCompletionReason, getActiveBranch, getMessageSiblings, migrateConversations } from "./conversationsHelpers";
+import type { Conversation, Message, ToolActivityEvent } from "../../types/chat";
+import { emptyCompletionReason, getActiveBranch, getMessageSiblings, migrateConversations, updateMessageToolEvent } from "./conversationsHelpers";
 
 export { getActiveBranch, getMessageSiblings, migrateConversations };
 
 export type ConversationAction =
   | { type: "SET_ALL"; conversations: Conversation[] }
+  | { type: "UPDATE_MESSAGE_TOOL_EVENT"; conversationId: string; messageId: string; event: ToolActivityEvent }
   | {
       type: "SAVE_MESSAGE";
       conversationId: string;
@@ -75,7 +76,6 @@ export function conversationsReducer(
   switch (action.type) {
     case "SET_ALL":
       return action.conversations;
-
     case "SAVE_MESSAGE": {
       const { conversationId, message, projectId, isIncognito } = action;
       const existing = state.find((c) => c.id === conversationId);
@@ -143,6 +143,8 @@ export function conversationsReducer(
           : c
       );
 
+    case "UPDATE_MESSAGE_TOOL_EVENT": return updateMessageToolEvent(state, action.conversationId, action.messageId, action.event);
+
     case "UPDATE_MESSAGE_CONTENT": {
       return state.map((c) => {
         if (c.id !== action.conversationId) return c;
@@ -172,7 +174,7 @@ export function conversationsReducer(
             ...(action.thinkingStartedAt !== undefined ? { thinkingStartedAt: action.thinkingStartedAt } : {}),
             ...(action.firstTokenAt !== undefined ? { firstTokenAt: action.firstTokenAt } : {}),
             ...(action.thinkingMs !== undefined ? { thinkingMs: action.thinkingMs } : {}),
-            ...(action.finishReason !== undefined ? { finishReason: action.finishReason } : {}),
+            ...(action.finishReason !== undefined ? { finishReason: action.finishReason } : !terminal ? { finishReason: undefined } : {}),
             ...(action.extendedThinking !== undefined ? { extendedThinking: action.extendedThinking } : {}),
             ...(action.thinkingPlan !== undefined ? { thinkingPlan: action.thinkingPlan } : {}),
           };

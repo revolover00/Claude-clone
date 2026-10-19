@@ -12,6 +12,7 @@ import GroundingSourcesView from "./GroundingSourcesView";
 import AssistantErrorStateView from "./AssistantErrorStateView";
 import AssistantMessageToolbar from "./AssistantMessageToolbar";
 import TextSelectionTooltip from "./TextSelectionTooltip";
+import ToolActivityView from "./ToolActivityView";
 import { useArtifactSync } from "./useArtifactSync";
 import { Globe } from "lucide-react";
 
@@ -69,7 +70,7 @@ export default function AssistantMessageView({
   };
 
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const isArabic = isArabicText(message.content);
+  const isArabic = isArabicText(message.content || userPrompt);
 
   useEffect(() => {
     try {
@@ -228,6 +229,7 @@ export default function AssistantMessageView({
           </div>
 
           <div aria-live={message.isStreaming ? "polite" : undefined} className="min-w-0 flex-1 text-start">
+            <ToolActivityView events={message.toolEvents || []} isStreaming={Boolean(message.isStreaming)} isArabic={isArabic} />
             {(message.isSearchingWeb || (message.sources && message.sources.length > 0)) && (
               <div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full border border-line/60 bg-elev-1 px-2.5 py-0.5 text-[12px] text-ink-muted select-none">
                 <Globe size={13} className={`text-accent ${message.isStreaming && !message.content ? "animate-pulse" : ""}`} />

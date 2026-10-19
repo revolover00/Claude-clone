@@ -7,12 +7,15 @@ import type {
 import { streamRealResponse } from "../../utils/streamResponse";
 import { useModels } from "../../hooks/useModels";
 import { useChat } from "../../context/ChatContext";
+import { upsertToolActivityEvent } from "../../utils/toolActivity";
+import type { ToolActivityEvent } from "../../types/chat";
 
 export type UiMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   status: MessageStatus;
+  toolEvents?: ToolActivityEvent[];
 };
 
 type PartLike = { type?: unknown; text?: unknown };
@@ -100,6 +103,10 @@ export function useAssistantUiStore() {
             onToken: (_token, fullText) => {
               patchMessage(assistantId, { content: fullText });
             },
+            onTool: (event) => {
+              const current = messagesRef.current.find((item) => item.id === assistantId);
+              patchMessage(assistantId, { toolEvents: upsertToolActivityEvent(current?.toolEvents, event) });
+            },
             onDone: (fullText) => {
               patchMessage(assistantId, { content: fullText, status: COMPLETE });
               resolve();
@@ -170,5 +177,5 @@ export function useAssistantUiStore() {
     [messages, isRunning, onNew, onCancel, handleSetMessages]
   );
 
-  return { adapter, isRunning, isEmpty: messages.length === 0 };
+  return { adapter, isRunning, isEmpty: messages.length === 0, messages, isArabic: preferences.language === "ar" };
 }

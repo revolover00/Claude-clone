@@ -1,3 +1,5 @@
+import type { ToolActivityEvent } from "../types/chat";
+
 export interface SSEParserOptions {
   onToken?: (token: string) => void;
   onThinking?: (thought: string) => void;
@@ -10,7 +12,7 @@ export interface SSEParserOptions {
   onThinkingPlan?: (plan: { level: "low" | "medium" | "high"; reason?: string }) => void;
   onDocument?: (doc: any) => void;
   onDocumentError?: (docErr: any) => void;
-  onTool?: (tool: any) => void;
+  onTool?: (tool: ToolActivityEvent) => void;
 }
 
 export class SSEParser {
@@ -91,8 +93,14 @@ export class SSEParser {
           this.handlers.onDocumentError?.(data.documentError);
         }
 
-        if (data?.tool) {
-          this.handlers.onTool?.(data.tool);
+        const tool = data?.tool;
+        if (typeof tool?.name === "string" && ["executing", "completed", "error"].includes(tool.status)) {
+          this.handlers.onTool?.({
+            id: typeof tool.id === "string" ? tool.id : undefined,
+            name: tool.name,
+            skill: typeof tool.skill === "string" ? tool.skill : undefined,
+            status: tool.status,
+          });
         }
       }
     }

@@ -13,10 +13,24 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;1,8..60,400&display=swap"
       rel="stylesheet"
     />
+    <script>
+      try {
+        const saved = JSON.parse(
+          localStorage.getItem("claude_clone_preferences_v3") ||
+            localStorage.getItem("claude_clone_preferences_v2") ||
+            "{}",
+        );
+        const mode = ["system", "light", "dark"].includes(saved.theme) ? saved.theme : "system";
+        const useLight = mode === "light" || (mode === "system" && matchMedia("(prefers-color-scheme: light)").matches);
+        document.documentElement.dataset.theme = useLight ? "light" : "dark";
+      } catch {
+        document.documentElement.dataset.theme = "dark";
+      }
+    </script>
     <style>
       html,
       body {
-        background: var(--color-shell, #1c1b19);
+        background: var(--color-shell, #1a1918);
       }
     </style>
   </head>

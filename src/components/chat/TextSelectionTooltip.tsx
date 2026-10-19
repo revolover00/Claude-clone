@@ -22,7 +22,7 @@ export default function TextSelectionTooltip({
         transform: "translate(-50%, -100%)",
         zIndex: 1000,
       }}
-      className="flex items-center gap-1 rounded-lg border border-line bg-[#1e1c1a] p-1 shadow-lg anim-fade-in anim-sheet-up font-sans select-none"
+      className="flex items-center gap-1 rounded-lg border border-line bg-elev-1 p-1 shadow-lg anim-fade-in anim-sheet-up font-sans select-none"
     >
       <button
         type="button"
@@ -30,7 +30,7 @@ export default function TextSelectionTooltip({
           e.stopPropagation();
           onCopy();
         }}
-        className="inline-flex h-7 items-center gap-1.5 rounded px-2 text-[12px] text-white hover:bg-[#2e2b28] transition-colors font-medium cursor-pointer"
+        className="inline-flex h-7 items-center gap-1.5 rounded px-2 text-[12px] text-ink-soft hover:bg-elev-2 transition-colors font-medium cursor-pointer"
       >
         <Copy size={13} />
         <span>Copy</span>
@@ -42,7 +42,7 @@ export default function TextSelectionTooltip({
           e.stopPropagation();
           onQuote();
         }}
-        className="inline-flex h-7 items-center gap-1.5 rounded px-2 text-[12px] text-white hover:bg-[#2e2b28] transition-colors font-medium cursor-pointer"
+        className="inline-flex h-7 items-center gap-1.5 rounded px-2 text-[12px] text-ink-soft hover:bg-elev-2 transition-colors font-medium cursor-pointer"
       >
         <Quote size={13} />
         <span>Quote</span>

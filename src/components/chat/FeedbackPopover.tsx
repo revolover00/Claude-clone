@@ -38,7 +38,7 @@ export default function FeedbackPopover({
 
   return (
     <div
-      className="absolute bottom-9 left-0 z-30 w-64 rounded-xl border border-line bg-[#1e1c1a] p-3 shadow-xl anim-fade-in font-sans text-start animate-scale-up"
+      className="absolute bottom-9 left-0 z-30 w-64 rounded-xl border border-line bg-elev-1 p-3 shadow-xl anim-fade-in font-sans text-start animate-scale-up"
     >
       <form onSubmit={handleFeedbackSubmit} className="flex flex-col gap-2.5">
         <h4 className="text-[12.5px] font-bold text-ink uppercase tracking-wider select-none">

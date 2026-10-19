@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { resolveColorMode } from "../src/utils/theme";
 
 const stylesheet = fs.readFileSync(path.resolve("src/index.css"), "utf8");
 const darkTheme = stylesheet.match(/@theme\s*\{([\s\S]*?)\}/)?.[1] ?? "";
@@ -20,5 +21,18 @@ describe("Claude appearance tokens", () => {
     }
     expect(stylesheet).toContain("color: var(--color-code-ink);");
     expect(stylesheet).toContain("color: var(--color-link-hover);");
+  });
+
+  it("uses Claude's warm paper, charcoal, and terracotta palette", () => {
+    expect(darkTheme).toContain("--color-panel: #141413");
+    expect(lightTheme).toContain("--color-shell: #faf9f5");
+    expect(lightTheme).toContain("--color-accent: #c96442");
+    expect(lightTheme).toContain("--color-preview-canvas:");
+  });
+
+  it("resolves the system color mode from the device preference", () => {
+    expect(resolveColorMode("system", true)).toBe("light");
+    expect(resolveColorMode("system", false)).toBe("dark");
+    expect(resolveColorMode("dark", true)).toBe("dark");
   });
 });

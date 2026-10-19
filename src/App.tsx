@@ -19,6 +19,8 @@ const KeyboardShortcutsModal = lazy(() => import("./components/modals/KeyboardSh
 const MotionReview = lazy(() => import("./components/views/MotionReview"));
 const ResetPasswordView = lazy(() => import("./components/views/ResetPasswordView"));
 const AssistantUiPage = lazy(() => import("./components/assistantUi/AssistantUiPage"));
+const ShareConversationDialog = lazy(() => import("./components/chat/ShareConversationDialog"));
+const SharedConversationView = lazy(() => import("./components/views/SharedConversationView"));
 
 function BackendNotConfiguredPage() {
   return (
@@ -32,9 +34,10 @@ function BackendNotConfiguredPage() {
 
 function AppContent() {
   const {
-    activeArtifact, artifactPanelOpen, closeArtifact, setArtifactVersion,
+    activeArtifact, activeBranch, activeConversation, artifactPanelOpen, closeArtifact, setArtifactVersion,
     searchModalOpen, setSearchModalOpen, settingsModalOpen, setSettingsModalOpen, setActiveView,
   } = useChat();
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     try {
@@ -52,6 +55,7 @@ function AppContent() {
   const dragCounterRef = useRef(0);
 
   useEffect(() => {
+    if (window.location.pathname.replace(/\/$/, "") === "/share") return;
     authFetch("/api/health")
       .then(async (res) => {
         const contentType = res.headers.get("content-type");
@@ -75,6 +79,12 @@ function AppContent() {
         if (res.ok) setIsAdmin(true);
       })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const openShareDialog = () => setShareDialogOpen(true);
+    window.addEventListener("claude:share-current-conversation", openShareDialog);
+    return () => window.removeEventListener("claude:share-current-conversation", openShareDialog);
   }, []);
 
   useEffect(() => {
@@ -167,6 +177,9 @@ function AppContent() {
   const isAssistantUiPage = window.location.pathname === "/assistant";
   if (isAssistantUiPage) return <Suspense fallback={null}><AssistantUiPage /></Suspense>;
 
+  const isSharePage = window.location.pathname.replace(/\/$/, "") === "/share";
+  if (isSharePage) return <Suspense fallback={null}><SharedConversationView /></Suspense>;
+
   if ((import.meta as any)?.env?.PROD && !isRealSupabaseConfigured) {
     return <BackendNotConfiguredPage />;
   }
@@ -203,6 +216,11 @@ function AppContent() {
         <Suspense fallback={null}><SearchModal /></Suspense>
         <Suspense fallback={null}><SettingsModal /></Suspense>
         <Suspense fallback={null}><KeyboardShortcutsModal /></Suspense>
+        {shareDialogOpen && activeConversation && (
+          <Suspense fallback={null}>
+            <ShareConversationDialog conversation={activeConversation} messages={activeBranch} onClose={() => setShareDialogOpen(false)} />
+          </Suspense>
+        )}
 
         <div className={`fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/65 backdrop-blur-[2px] pointer-events-none transition-opacity duration-150 ${windowDragActive ? "opacity-100" : "opacity-0"}`} aria-hidden={!windowDragActive}>
           <div className="flex h-72 w-full max-w-xl flex-col items-center justify-center rounded-2xl border-2 border-dashed border-accent bg-elev-1/95 p-6 shadow-2xl">

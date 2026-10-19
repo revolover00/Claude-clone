@@ -12,22 +12,24 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-serif: "Source Serif 4", "Iowan Old Style", "Georgia", "Times New Roman", serif;
 
-  --color-shell: #1c1b19;
-  --color-panel: #191816;
-  --color-line: #33312d;
-  --color-line-soft: #292724;
+  --color-shell: #1a1918;
+  --color-panel: #141413;
+  --color-line: #30302e;
+  --color-line-soft: #242321;
 
-  --color-elev-1: #232220;
-  --color-elev-2: #2c2a27;
-  --color-elev-3: #373430;
-  --color-elev-4: #403d39;
-  --color-composer: #252421;
-  --color-composer-line: #3d3a35;
+  --color-elev-1: #1f1f1d;
+  --color-elev-2: #282826;
+  --color-elev-3: #323230;
+  --color-elev-4: #3d3b38;
+  --color-composer: #201f1d;
+  --color-composer-line: #393733;
+  --color-preview-canvas: #141413;
+  --color-code-surface: #171715;
 
-  --color-ink: #f0eee9;
-  --color-ink-soft: #d0cbc2;
-  --color-ink-muted: #99948a;
-  --color-ink-faint: #746f66;
+  --color-ink: #f5f3ec;
+  --color-ink-soft: #d5d2cb;
+  --color-ink-muted: #a5a29a;
+  --color-ink-faint: #79766f;
 
   --color-accent: #d97757;
   --color-accent-hover: #e38261;
@@ -46,10 +48,10 @@
   --color-code-string: #b8ce9c;
   --color-code-number: #edb07f;
   --color-code-built-in: #98bfef;
-  --color-code-params: #d0cbc2;
+  --color-code-params: #d5d2cb;
   --color-code-tag: #e48a6b;
   --color-code-attribute: #d5c9a5;
-  --color-line-number: #746f66;
+  --color-line-number: #79766f;
 
   --color-danger: #f08578;
   --color-danger-bg: rgb(240 133 120 / 12%);
@@ -57,30 +59,32 @@
   --color-danger-hover: #fa9a8f;
 }
 
-/* Warm paper surfaces and tuned ink contrast in the light appearance. */
+/* Claude's paper surfaces, low-contrast dividers and terracotta light-mode accent. */
 [data-theme="light"] {
-  --color-shell: #faf9f6;
-  --color-panel: #f4f2ed;
-  --color-line: #e4e0d8;
-  --color-line-soft: #ece9e2;
+  --color-shell: #faf9f5;
+  --color-panel: #f2f0ea;
+  --color-line: #e8e6e0;
+  --color-line-soft: #f0eee8;
 
-  --color-elev-1: #f0eee8;
-  --color-elev-2: #eae7df;
-  --color-elev-3: #ddd9d0;
-  --color-elev-4: #d4cec2;
+  --color-elev-1: #ffffff;
+  --color-elev-2: #f4f2ec;
+  --color-elev-3: #eae7df;
+  --color-elev-4: #dedad0;
   --color-composer: #ffffff;
-  --color-composer-line: #d9d4ca;
+  --color-composer-line: #e5e0d6;
+  --color-preview-canvas: #f2f0ea;
+  --color-code-surface: #f6f4ef;
 
-  --color-ink: #262521;
+  --color-ink: #262522;
   --color-ink-soft: #55514a;
   --color-ink-muted: #77736b;
   --color-ink-faint: #99938a;
 
-  --color-accent: #c76547;
-  --color-accent-hover: #b85639;
-  --color-accent-soft: rgb(199 101 71 / 10%);
-  --color-accent-border: rgb(183 83 56 / 30%);
-  --color-accent-ring: rgb(183 83 56 / 14%);
+  --color-accent: #c96442;
+  --color-accent-hover: #b95735;
+  --color-accent-soft: rgb(201 100 66 / 10%);
+  --color-accent-border: rgb(185 83 53 / 30%);
+  --color-accent-ring: rgb(185 83 53 / 14%);
   --color-link: #306eb5;
   --color-link-hover: #24588e;
   --color-selection: rgb(194 95 62 / 18%);
@@ -98,10 +102,18 @@
   --color-code-attribute: #7a6026;
   --color-line-number: #928d83;
 
-  --color-danger: #c5382a;
-  --color-danger-bg: rgb(197 56 42 / 8%);
-  --color-danger-border: rgb(197 56 42 / 25%);
-  --color-danger-hover: #a82e22;
+  --color-danger: #b53333;
+  --color-danger-bg: rgb(181 51 51 / 8%);
+  --color-danger-border: rgb(181 51 51 / 25%);
+  --color-danger-hover: #982b2b;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
 }
 
 html,

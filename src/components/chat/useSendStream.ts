@@ -29,7 +29,7 @@ export function useSendStream({
   streamerRef,
   setComposerInitial,
   onDocument,
-  onDocumentError,
+  onDocumentError, updateMessageToolEvent,
 }: SendStreamOptions) {
   const { showToast } = useToast();
   const { defaultModel } = useModels();
@@ -213,6 +213,7 @@ export function useSendStream({
           },
           onDocument: (doc) => { onDocument?.(doc); },
           onDocumentError: (docErr) => { onDocumentError?.(docErr); },
+          onTool: (event) => updateMessageToolEvent(convId, aMsgId, event),
           onToken: (token) => {
             if (!firstTokenTimestamp) {
               firstTokenTimestamp = Date.now();
