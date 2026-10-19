@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { mockSupabase } from "./supabaseMock";
+import { authStorage } from "./authStorage";
 
 const env = (import.meta as any)?.env || (typeof process !== "undefined" ? process.env : {}) || {};
 const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL || "";
@@ -13,5 +14,12 @@ export const isRealSupabaseConfigured = Boolean(
 );
 
 export const supabase = isRealSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        persistSession: true,
+        storage: authStorage,
+      },
+    })
   : (mockSupabase as any);
