@@ -29,6 +29,8 @@ export interface UnifiedModel {
   isFree?: boolean;
   /** The provider has no API key yet, so this model cannot run until one is connected. */
   requiresKey?: boolean;
+  /** Whether a saved active provider key has passed a live verification check. */
+  isProviderVerified?: boolean;
   [key: string]: any;
 }
 

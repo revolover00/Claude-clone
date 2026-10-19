@@ -5,7 +5,8 @@ import { ModelBadges } from "../shared/ModelBadges";
 import { SyncPanel } from "./catalog/SyncPanel";
 import { formatContext } from "../providers/ModelRow";
 import { PricingBadge } from "../shared/PricingBadge";
-import { hasFreeTier } from "../../shared/catalog/freeTier";
+import { hasFreeTier } from "../../shared/providerTraits";
+import { CATALOG_SNAPSHOT } from "../../shared/catalog";
 import { SettingsErrorCard } from "../shared/SettingsErrorCard";
 import { safeFetchJson, authFetch } from "../../utils/safeFetch";
 import { cn } from "../../utils/cn";
@@ -30,6 +31,7 @@ export default function ModelsTab() {
   const [syncable, setSyncable] = useState<string[]>([]);
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [catalogHealth, setCatalogHealth] = useState<{ db: string; missing: string[] } | null>(null);
   const [source, setSource] = useState("catalog");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<any>(null);
@@ -48,6 +50,12 @@ export default function ModelsTab() {
       setIsAdmin(admin);
       if (admin) {
         try {
+          const health = await safeFetchJson<any>("/api/health");
+          setCatalogHealth(health.catalog || { db: "unreachable", missing: [] });
+        } catch {
+          setCatalogHealth({ db: "unreachable", missing: [] });
+        }
+        try {
           const res = await authFetch("/api/catalog/overrides");
           if (res.ok) {
             const body = await res.json();
@@ -56,6 +64,9 @@ export default function ModelsTab() {
         } catch {
           /* curation list is best-effort */
         }
+      } else {
+        setCatalogHealth(null);
+        setOverrides([]);
       }
     } catch (err: any) {
       setError(err);
@@ -158,11 +169,21 @@ export default function ModelsTab() {
       <div>
         <h3 className="text-[16px] font-medium text-ink">Model Catalog</h3>
         <p className="text-[11.5px] text-ink-muted">
+          Bundled catalog: models.dev snapshot {CATALOG_SNAPSHOT.generatedAt} · live sync adds newer models
+        </p>
+        <p className="text-[11.5px] text-ink-muted">
           Read-only {source === "bundled" ? "bundled snapshot (the synced catalog is still empty)" : "synced catalog"} —
           models are discovered automatically, never added by hand.
           {isAdmin ? " Curation below writes catalog_overrides." : " Admins can curate and sync here."}
         </p>
       </div>
+
+      {isAdmin && catalogHealth && catalogHealth.db !== "ok" && (
+        <div role="alert" className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] font-medium text-red-400">
+          Catalog database {catalogHealth.db === "schema_mismatch" ? "schema mismatch" : "unreachable"}
+          {catalogHealth.missing.length > 0 ? ` · missing: ${catalogHealth.missing.join(", ")}` : " · check the database connection"}
+        </div>
+      )}
 
       {isAdmin && <SyncPanel providers={providers} syncable={syncable} onChanged={() => void load()} />}
 

@@ -5,6 +5,8 @@ import { useToast } from "../../context/ToastContext";
 import { Mail, Lock, UserPlus, Eye, EyeOff, RefreshCw, Clock, X } from "lucide-react";
 import BrandLogo from "../brand/BrandLogo";
 import IframeBanner from "../shared/IframeBanner";
+const showDevGuestButton = (import.meta as any).env.DEV &&
+  (import.meta as any).env.VITE_ALLOW_LOCAL_MODE === "true";
 
 interface LoginViewProps {
   /** Page to return to after signing in (path + search + hash). */
@@ -133,6 +135,19 @@ export default function LoginView({ from = "/", notice = null, onDismissNotice }
     }
   };
 
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    try {
+      const { error } = await (supabase.auth as any).signInAsGuest();
+      if (error) throw error;
+      returnToPage();
+    } catch (err: any) {
+      showToast(mapAuthError(err), "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (checkEmail) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-shell p-4 text-center">
@@ -215,6 +230,12 @@ export default function LoginView({ from = "/", notice = null, onDismissNotice }
             </svg>
             <span>Continue with Google</span>
           </button>
+
+          {showDevGuestButton && (
+            <button type="button" onClick={handleGuestLogin} disabled={loading} className="mt-3 w-full h-10 rounded-xl border border-accent/30 bg-accent/5 text-[13px] font-medium text-accent hover:bg-accent/10 disabled:opacity-50">
+              Continue as guest (dev only)
+            </button>
+          )}
 
           <div className="flex flex-col gap-2.5 items-center mt-6 text-[12.5px] text-ink-muted">
             {mode === "login" && (

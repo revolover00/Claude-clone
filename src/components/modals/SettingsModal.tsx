@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, Suspense, lazy } from "react";
 import { X, Sun, Moon, Monitor, Download, Trash2, Check } from "lucide-react";
 import { useChat } from "../../context/ChatContext";
 import { useFocusTrap } from "../../utils/useFocusTrap";
-import ModelsTab from "./ModelsTab";
 import { SETTINGS_TAB_EVENT } from "../../utils/settingsTab";
 import MemoryTab from "./MemoryTab";
 import SkillsTab from "./SkillsTab";
@@ -10,6 +9,7 @@ import AboutTab from "./AboutTab";
 
 const SETTINGS_TABS = ["general", "appearance", "data", "models", "memory", "skills", "providers", "about"] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
+const ModelsTab = lazy(() => import("./ModelsTab"));
 
 const ProvidersSettingsView = lazy(() =>
   import("../views/ProvidersSettingsView").then((m) => ({ default: m.ProvidersSettingsView }))
@@ -219,7 +219,7 @@ export default function SettingsModal() {
             </div>
           )}
 
-          {activeTab === "models" && <ModelsTab />}
+          {activeTab === "models" && <Suspense fallback={<div className="p-4 text-xs text-ink-muted">Loading model catalog...</div>}><ModelsTab /></Suspense>}
           {activeTab === "memory" && <MemoryTab />}
           {activeTab === "skills" && <SkillsTab />}
           {activeTab === "providers" && (

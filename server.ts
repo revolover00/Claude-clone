@@ -37,6 +37,7 @@ import catalogAdminRouter from "./server/routes/catalogAdmin";
 import authDebugRouter from "./server/routes/authDebug";
 import { requireAuth } from "./server/middleware/auth";
 import { startCatalogScheduler } from "./server/lib/catalog/scheduler";
+import { initializeCatalogStore } from "./server/lib/catalog/store";
 
 if (process.env.NODE_ENV === "production") {
   const missing = [];
@@ -120,6 +121,13 @@ if (!isProd && !isVercel) {
 
 // Vitest imports this module (tests/errorHandling.test.ts): binding the port there
 // would collide with a dev server already running on :3000.
+if (isVercel && !process.env.VITEST) {
+  // Serverless workers have no listen callback; probe as the module starts.
+  void initializeCatalogStore().catch((error) =>
+    console.error("[Catalog] store initialization failed:", error?.message || error)
+  );
+}
+
 if (!isVercel && !process.env.VITEST) {
   const args = process.argv.slice(2);
   const portIndex = args.indexOf("--port");
@@ -127,9 +135,10 @@ if (!isVercel && !process.env.VITEST) {
   const port = cliPort || (!isProd ? 3000 : (Number(process.env.PORT) || 3000));
   httpServer.listen(port, "0.0.0.0", () => {
     console.log(`Server is running at http://0.0.0.0:${port}`);
-    // Sync each provider's model list into provider_catalog once at startup
-    // and every 6 hours afterwards (database-locked across instances).
-    startCatalogScheduler();
+    // Validate the live schema read-only before starting scheduled catalog work.
+    void initializeCatalogStore()
+      .catch((error) => console.error("[Catalog] store initialization failed:", error?.message || error))
+      .finally(() => startCatalogScheduler());
   });
 }
 export default app;

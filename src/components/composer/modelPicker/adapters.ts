@@ -10,6 +10,18 @@ export const PROVIDER_LABELS: Record<string, string> = {
   google: "Google AI Studio",
   groq: "Groq",
   openrouter: "OpenRouter",
+  openai: "OpenAI",
+  xai: "xAI",
+  mistral: "Mistral",
+  deepseek: "DeepSeek",
+  cerebras: "Cerebras",
+  togetherai: "Together AI",
+  fireworks: "Fireworks AI",
+  nvidia: "NVIDIA NIM",
+  qwen: "Qwen (Model Studio)",
+  moonshotai: "Moonshot AI (Kimi)",
+  zai: "Z.AI (GLM)",
+  perplexity: "Perplexity",
   app: "App models",
 };
 
@@ -27,6 +39,12 @@ export function pushUnique(list: UnifiedModel[], seen: Set<string>, model: Unifi
   if (seen.has(model.uniqueKey)) return;
   seen.add(model.uniqueKey);
   list.push(model);
+}
+
+/** Temporary pill label while the picker is closed and its lazy catalog has not loaded. */
+export function displayNameFromId(id: string): string {
+  const acronyms: Record<string, string> = { gpt: "GPT", glm: "GLM", qwen: "Qwen", xai: "xAI" };
+  return id.split("-").map((part) => acronyms[part.toLowerCase()] || part.charAt(0).toUpperCase() + part.slice(1)).join("-");
 }
 
 /** Flat GET /api/catalog row -> UnifiedModel (connected flag drives requiresKey). */
