@@ -27,9 +27,10 @@ interface Props {
   effort: Effort;
   onSelectEffort: (e: Effort) => void;
   onOpenStateChange?: (open: boolean) => void;
+  homeView?: boolean;
 }
 
-export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort, onOpenStateChange }: Props) {
+export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort, onOpenStateChange, homeView = false }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [scrollTop, setScrollTop] = useState(0);
@@ -41,7 +42,6 @@ export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort
     allModels, sections, activeModelObj, pillLabel, searchQuery, setSearchQuery,
     vendorFilter, setVendorFilter, freeOnly, setFreeOnly, availableVendors, loading, refresh,
   } = useComposerModels(model);
-
 
   useProviderConnectAutoSelect({
     allModels,
@@ -170,8 +170,8 @@ export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort
         title={activeModelObj ? `${activeModelObj.providerLabel}${activeModelObj.requiresKey ? " · API key needed" : ""}` : undefined}
         className="flex h-8 items-center gap-1 rounded-md pe-1 ps-2 transition-colors duration-150 hover:bg-elev-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
       >
-        <span className="text-[14px] font-medium text-ink-soft">{pillLabel}{activeModelObj?.requiresKey && <Key size={12} aria-hidden="true" className="ms-1 text-accent" />}</span>
-        <span className="text-[14px] text-ink-muted">· {effort}</span>
+        <span className="whitespace-nowrap text-[14px] font-medium text-ink-soft">{pillLabel}{activeModelObj?.requiresKey && <Key size={12} aria-hidden="true" className="ms-1 inline-block text-accent" />}</span>
+        <span className="whitespace-nowrap text-[14px] text-ink-muted">· {effort}</span>
       </button>
 
       <button
@@ -187,7 +187,7 @@ export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort
         <div
           role="menu"
           onKeyDown={handleKeyDown}
-          className="anim-popover-in absolute bottom-full right-0 z-45 mb-2 w-80 max-h-[min(520px,calc(100vh-140px))] flex flex-col rounded-xl border border-line bg-elev-1 shadow-[0_16px_36px_rgba(0,0,0,0.5)] overflow-hidden"
+          className={cn("anim-popover-in absolute right-0 z-45 w-80 flex flex-col rounded-xl border border-line bg-elev-1 shadow-[0_16px_36px_rgba(0,0,0,0.5)] overflow-hidden", homeView ? "top-full mt-7 max-h-[min(372px,calc(100vh-420px))]" : "bottom-full mb-2 max-h-[min(520px,calc(100vh-140px))]")}
         >
           <div className="p-2 border-b border-line shrink-0 bg-elev-1">
             <div className="relative">

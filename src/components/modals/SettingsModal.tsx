@@ -130,7 +130,7 @@ export default function SettingsModal() {
                   {[
                     { id: "light", label: "Light", desc: "Warm paper", bg: "bg-[#faf9f5]", icon: <Sun size={18} /> },
                     { id: "system", label: "System", desc: "Match device", bg: "bg-elev-2", icon: <Monitor size={18} /> },
-                    { id: "dark", label: "Dark", desc: "Warm charcoal", bg: "bg-[#141413]", icon: <Moon size={18} /> },
+                    { id: "dark", label: "Dark", desc: "Warm charcoal", bg: "bg-[#262624]", icon: <Moon size={18} /> },
                   ].map(t => (
                     <button key={t.id} type="button" onClick={() => updatePreferences({ theme: t.id as "system" | "light" | "dark" })} className={`flex flex-col items-start rounded-xl border p-3 text-start transition-all cursor-pointer ${preferences.theme === t.id ? "border-accent bg-elev-2 ring-1 ring-accent" : "border-line bg-elev-1 hover:border-line-soft"}`}>
                       <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${t.bg} text-accent mb-3 border border-line`}>{t.icon}</div>

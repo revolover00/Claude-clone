@@ -57,6 +57,7 @@ async function main() {
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 900 });
+  await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }]);
 
   await page.setRequestInterception(true);
   page.on("request", (req) => {
