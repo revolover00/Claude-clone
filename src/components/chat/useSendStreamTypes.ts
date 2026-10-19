@@ -1,4 +1,4 @@
-import type { Message, Project, DocumentItem, DocumentErrorItem } from "../../types/chat";
+import type { Message, Project, DocumentItem, DocumentErrorItem, ToolActivityEvent } from "../../types/chat";
 import type { SmoothStreamer } from "../../utils/smoothStreamer";
 
 export interface SendStreamOptions {
@@ -21,6 +21,7 @@ export interface SendStreamOptions {
     finishReason?: string,
     extra?: { extendedThinking?: boolean; thinkingPlan?: { level: "low" | "medium" | "high"; reason?: string } }
   ) => void;
+  updateMessageToolEvent: (conversationId: string, messageId: string, event: ToolActivityEvent) => void;
   setActiveConversationId: (id: string | null) => void;
   triggerAutoTitle: (conversationId: string, firstUserMsg: string, firstReply: string) => Promise<void>;
   preferences: any;

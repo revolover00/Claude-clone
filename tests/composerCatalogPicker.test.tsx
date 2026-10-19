@@ -166,14 +166,14 @@ describe("Composer picker without connected keys", () => {
       />
     );
 
-    // The pill states that the selected model still needs a provider key.
-    await waitFor(() => expect(screen.getByText("GPT-5 · OpenAI · key needed")).toBeTruthy());
+    // Keep the composer pill concise while exposing provider/key status accessibly.
+    await waitFor(() => expect(screen.getByRole("button", { name: /Model: GPT-5, connect OpenAI to use/i })).toBeTruthy());
 
     fireEvent.click(screen.getByRole("button", { name: /model options/i }));
 
     // Groups follow Recommended -> provider/vendor sections; unconnected rows
     // stay visible but carry a "Connect <provider> to use" hint.
-    await waitFor(() => expect(screen.getByText("GPT-5")).toBeTruthy());
+    await waitFor(() => expect(within(screen.getByRole("menu")).getByText("GPT-5")).toBeTruthy());
     expect(screen.getByText("Grok 4")).toBeTruthy();
     expect(screen.getByText("Connect OpenAI to use")).toBeTruthy();
     expect(screen.getAllByText("Connect xAI to use").length).toBeGreaterThanOrEqual(1);
@@ -209,7 +209,7 @@ describe("Composer picker without connected keys", () => {
       />
     );
 
-    await waitFor(() => expect(screen.getByText("GPT-5 · OpenAI · key needed")).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: /Model: GPT-5, connect OpenAI to use/i })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: /model options/i }));
 
     // One chip per vendor present in the catalog, plus "All".
@@ -221,12 +221,12 @@ describe("Composer picker without connected keys", () => {
 
     // Picking a vendor hides every model that does not belong to it.
     fireEvent.click(within(group).getByRole("button", { name: "xAI" }));
-    await waitFor(() => expect(screen.queryByText("GPT-5")).toBeNull());
+    await waitFor(() => expect(within(screen.getByRole("menu")).queryByText("GPT-5")).toBeNull());
     expect(screen.getByText("Grok 4")).toBeTruthy();
 
     // "All" restores the full list.
     fireEvent.click(within(group).getByRole("button", { name: "All" }));
-    await waitFor(() => expect(screen.getByText("GPT-5")).toBeTruthy());
+    await waitFor(() => expect(within(screen.getByRole("menu")).getByText("GPT-5")).toBeTruthy());
     expect(screen.getByText("Grok 4")).toBeTruthy();
   });
 
@@ -240,7 +240,7 @@ describe("Composer picker without connected keys", () => {
       />
     );
 
-    await waitFor(() => expect(screen.getByText("GPT-5 · OpenAI · key needed")).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: /Model: GPT-5, connect OpenAI to use/i })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: /model options/i }));
 
     // Every row carries its free/paid label: Free pill, paid price, or free tier.
@@ -251,11 +251,11 @@ describe("Composer picker without connected keys", () => {
     // The Free chip keeps price-zero rows AND free-tier providers only.
     const group = await screen.findByRole("group", { name: "Filter by vendor" });
     fireEvent.click(within(group).getByRole("button", { name: "Free" }));
-    await waitFor(() => expect(screen.queryByText("GPT-5")).toBeNull());
+    await waitFor(() => expect(within(screen.getByRole("menu")).queryByText("GPT-5")).toBeNull());
     expect(screen.getByText("Grok 4.1 Mini")).toBeTruthy();
     expect(screen.getByText("Gemini 3 Flash")).toBeTruthy();
 
     fireEvent.click(within(group).getByRole("button", { name: "Free" }));
-    await waitFor(() => expect(screen.getByText("GPT-5")).toBeTruthy());
+    await waitFor(() => expect(within(screen.getByRole("menu")).getByText("GPT-5")).toBeTruthy());
   });
 });

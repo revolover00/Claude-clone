@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Check, Eye, CodeXml, Copy, Download, X } from "lucide-react";
+import { ChevronDown, Check, Eye, CodeXml, Copy, Download, Maximize2, Minimize2, X } from "lucide-react";
 
 interface ArtifactHeaderProps {
   title: string;
@@ -12,6 +12,8 @@ interface ArtifactHeaderProps {
   onCopy: () => void;
   onDownload: () => void;
   onClose: () => void;
+  isExpanded: boolean;
+  onToggleExpanded: () => void;
 }
 
 export default function ArtifactHeader({
@@ -25,6 +27,8 @@ export default function ArtifactHeader({
   onCopy,
   onDownload,
   onClose,
+  isExpanded,
+  onToggleExpanded,
 }: ArtifactHeaderProps) {
   const [versionMenuOpen, setVersionMenuOpen] = useState(false);
 
@@ -136,8 +140,19 @@ export default function ArtifactHeader({
 
         <button
           type="button"
+          onClick={onToggleExpanded}
+          title={isExpanded ? "Collapse sandbox" : "Expand sandbox"}
+          aria-label={isExpanded ? "Collapse sandbox" : "Expand sandbox"}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-elev-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
+        >
+          {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+        </button>
+
+        <button
+          type="button"
           onClick={onClose}
           title="Close artifact"
+          aria-label="Close sandbox"
           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-elev-2 hover:text-ink ml-0.5 cursor-pointer"
         >
           <X size={16} />

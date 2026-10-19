@@ -1,4 +1,5 @@
-import type { Conversation, Message } from "../../types/chat";
+import type { Conversation, Message, ToolActivityEvent } from "../../types/chat";
+import { upsertToolActivityEvent } from "../../utils/toolActivity";
 
 /**
  * Why a completed stream produced no text. The generic "stream ended" line
@@ -17,6 +18,18 @@ export function emptyCompletionReason(finishReason?: string): string {
     return "The model only requested a tool call and produced no text. Try again or adjust the request.";
   }
   return "The stream ended before the model returned a response. Try again.";
+}
+
+export function updateMessageToolEvent(
+  conversations: Conversation[], conversationId: string, messageId: string, event: ToolActivityEvent
+): Conversation[] {
+  return conversations.map((conversation) => conversation.id !== conversationId ? conversation : {
+    ...conversation,
+    updatedAt: Date.now(),
+    messages: conversation.messages.map((message) => message.id !== messageId ? message : {
+      ...message, toolEvents: upsertToolActivityEvent(message.toolEvents, event),
+    }),
+  });
 }
 
 /**
@@ -85,8 +98,33 @@ export function getMessageSiblings(
 
 import { toCanonicalModelId } from "../../shared/normalizeSlug";
 
+function normalizeSavedMessage(message: any): any {
+  const wasInFlight = message.role === "assistant" &&
+    (message.isStreaming || message.isThinking || message.isReconnecting);
+  const hasPartialText = typeof message.content === "string" && message.content.trim().length > 0;
+  const normalized = {
+    ...message,
+    ...(message.model_id ? { model_id: toCanonicalModelId(message.model_id) } : {}),
+  };
+  if (!wasInFlight) return normalized;
+
+  return {
+    ...normalized,
+    isStreaming: false,
+    isThinking: false,
+    isReconnecting: false,
+    isSearchingWeb: false,
+    finishReason: "INTERRUPTED",
+    isError: !hasPartialText,
+    errorText: hasPartialText
+      ? undefined
+      : "This response was interrupted by a page reload. Retry to generate a new response.",
+    errorDetails: undefined,
+  };
+}
+
 /**
- * Automatically migrates existing legacy flat message arrays to linked tree nodes and normalizes model slugs.
+ * Automatically migrates saved messages and recovers replies left in flight by a page reload.
  */
 export function migrateConversations(savedRaw: any[]): Conversation[] {
   if (!Array.isArray(savedRaw)) return [];
@@ -107,10 +145,7 @@ export function migrateConversations(savedRaw: any[]): Conversation[] {
       return {
         ...c,
         model_id: convModelId,
-        messages: c.messages.map((m: any) => ({
-          ...m,
-          ...(m.model_id ? { model_id: toCanonicalModelId(m.model_id) } : {}),
-        })),
+        messages: c.messages.map((m: any) => normalizeSavedMessage(m)),
       };
     }
 
@@ -118,13 +153,12 @@ export function migrateConversations(savedRaw: any[]): Conversation[] {
     const messages: Message[] = c.messages.map((m: any, idx: number) => {
       const prevId = idx > 0 ? c.messages[idx - 1].id : null;
       const nextId = idx < c.messages.length - 1 ? c.messages[idx + 1].id : null;
-      return {
+      return normalizeSavedMessage({
         ...m,
-        ...(m.model_id ? { model_id: toCanonicalModelId(m.model_id) } : {}),
         parentId: prevId,
         activeChildId: nextId,
         childrenIds: nextId ? [nextId] : [],
-      };
+      });
     });
 
     return {

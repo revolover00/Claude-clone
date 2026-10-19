@@ -4,7 +4,7 @@ A high-fidelity clone of the Claude.ai chat experience — built with **React 19
 
 - **15 providers · 668 models** bundled out of the box (OpenAI, Gemini, Groq, OpenRouter, Cerebras, DeepSeek, xAI, Mistral, Together, Fireworks, NVIDIA, Qwen, Moonshot, Z.ai and more) — switch models from the composer, connect a key, done.
 - **Bring your own key** — the server ships with **zero AI secrets**; every call runs on the API key each user saves in *Settings → Providers*, encrypted at rest with `PROVIDER_KEY_ENCRYPTION_SECRET`.
-- **Claude.ai parity features** — message versioning & branching (`‹ 2/3 ›`), interactive artifacts with live preview, projects + knowledge base, Google-search grounding, extended thinking, personal memory, skills.
+- **Claude.ai parity features** — warm paper/charcoal palettes with Light, System, and Dark modes; message versioning & branching (`‹ 2/3 ›`), interactive artifacts with live preview, projects + knowledge base, Google-search grounding, extended thinking, personal memory, and skills.
 - **assistant-ui thread** embedded at **`/assistant`**, streaming through the same SSE pipeline.
 - **Local testing needs no login** — a bare `npm run dev` boots straight into the app with a guest session (production only ever accepts a real Supabase session).
 
@@ -84,6 +84,10 @@ Every provider is bundled with its **original brand icon** and complete model li
   - Editing any user message or clicking "Retry response" creates a new sibling branch in the conversation tree (`parentId` + `activeChildId`) without destructive overwrites.
   - Interactive `‹ 2/3 ›` switcher under user messages and assistant responses to freely toggle between variants.
   - Switching versions instantly swaps the downstream dialogue branch.
+- **Portable read-only conversation sharing**: creates a compressed link for the active message branch and opens it without an account or server-side share record. The link intentionally excludes attachments, hidden reasoning, and alternate versions; it is an immutable snapshot, cannot be revoked, and anyone with the link can read it.
+- **Interrupted reply recovery**: after a page reload, stale streaming state is cleared while any generated text is preserved; partial replies offer Continue and empty replies can be retried. Continuation includes the saved assistant text in model context. This is client-side recovery, not durable server-side resumption of the original SSE stream.
+- **Custom AI retry directives**: revise an answer with a natural-language instruction (for example, change its language, tone, or level of detail); the previous assistant response is included in context so the model can edit the actual answer rather than guess what it wrote.
+- **Visible AI tool activity**: watch skill and document tools start, finish, or fail in a compact, expandable timeline under the reply. The UI shows action names and status only—not private tool arguments or returned contents—and keeps completed activity with the message.
 - **Projects Workspace (`/projects/:id`)**:
   - Custom system instructions configured per project and automatically injected into every conversation started within the project.
   - Knowledge base supporting file uploads (`.txt`, `.md`, `.json`, code files) and text snippets.
@@ -99,7 +103,7 @@ Every provider is bundled with its **original brand icon** and complete model li
   - Providers without a bespoke adapter are wired through a single OpenAI-compatible factory (`server/lib/providers/openaiCompatible.ts`), so adding a provider is a data change.
   - Refresh the snapshot from the public models.dev dataset (MIT) with `npm run catalog:sync` (optionally `-- --from ./api.json` or `-- --only openai,groq`); the generator rewrites `src/shared/catalog/providers/*.ts` and `snapshot.ts`. Model names excluded by the repository naming policy are filtered out during generation.
 - **Interactive Artifacts**:
-  - Detects React components, HTML/Tailwind, SVGs, and documents with a live right-hand preview panel, version history, copy, and export options.
+  - Detects React components, HTML/Tailwind, SVGs, and documents with a live right-hand preview panel that opens compact and animates between compact and expanded height, plus version history, copy, and export options.
 - **Harden & Secure Server Gateway**:
   - Strict CORS validation (`ALLOWED_ORIGIN`), express-rate-limit (20 req/min), 25MB body limit, 100 messages cap, 100,000 characters per message, and 20MB attachment caps.
   - Live stream cancellation via `AbortController` on client disconnect (`req.on("close")`).
@@ -124,7 +128,7 @@ flowchart TB
   subgraph CLIENT["Client SPA — React 19 · TypeScript · Tailwind · Vite"]
     UI["Claude.ai-style UI<br/>chat · artifacts · projects<br/>message versioning · memory · skills"]
     AUI["assistant-ui thread — /assistant"]
-    PARSE["SSEParser<br/>tokens · thinking · sources · [DONE]"]
+    PARSE["SSEParser<br/>tokens · thinking · sources · tool activity · [DONE]"]
   end
   subgraph SERVER["Express 5 gateway — port 3000, same origin"]
     AUTH["requireAuth · guest mode locally<br/>rate-limit 20/min · body 25MB · 100 msgs"]
@@ -180,7 +184,7 @@ All routes are same-origin under `/api`. 🔒 routes require a session (`require
 
 | Method & route | Auth | Purpose |
 | --- | :-: | --- |
-| `POST /api/chat` | 🔒 | SSE chat stream: tokens, thinking, sources, warnings, `[DONE]` |
+| `POST /api/chat` | 🔒 | SSE chat stream: tokens, thinking, sources, tool activity, warnings, `[DONE]` |
 | `POST /api/title` | 🔒 | 3–6 word conversation auto-title |
 | `POST /api/suggest` | 🔒 | Follow-up suggestion chips |
 | `GET /api/models` | 🔒 | Enabled model list for the picker |

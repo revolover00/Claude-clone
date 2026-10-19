@@ -9,6 +9,8 @@ import { ArrowUp, Square } from "lucide-react";
 import MarkdownView from "../chat/MarkdownView";
 import { useAssistantUiStore, messageText } from "./useAssistantUiStore";
 import { cn } from "../../utils/cn";
+import ToolActivityView from "../chat/ToolActivityView";
+import type { ToolActivityEvent } from "../../types/chat";
 
 function UserRow({ message }: { message: MessageState }) {
   return (
@@ -34,7 +36,7 @@ function ThinkingDots() {
   );
 }
 
-function AssistantRow({ message }: { message: MessageState }) {
+function AssistantRow({ message, toolEvents, isArabic }: { message: MessageState; toolEvents?: ToolActivityEvent[]; isArabic: boolean }) {
   const text = messageText(message.content);
   const status = message.status;
   const running = status?.type === "running";
@@ -45,6 +47,7 @@ function AssistantRow({ message }: { message: MessageState }) {
   return (
     <div className="px-4 py-2.5">
       <div className="max-w-[48rem]">
+        <ToolActivityView events={toolEvents || []} isStreaming={running} isArabic={isArabic} />
         {text ? (
           <MarkdownView
             content={text}
@@ -81,7 +84,7 @@ function Greeting() {
 }
 
 export function AssistantUiThread() {
-  const { adapter, isRunning, isEmpty } = useAssistantUiStore();
+  const { adapter, isRunning, isEmpty, messages, isArabic } = useAssistantUiStore();
   const runtime = useExternalStoreRuntime(adapter);
 
   return (
@@ -94,7 +97,11 @@ export function AssistantUiThread() {
               message.role === "user" ? (
                 <UserRow message={message} />
               ) : (
-                <AssistantRow message={message} />
+                <AssistantRow
+                  message={message}
+                  toolEvents={messages.find((item) => item.id === message.id)?.toolEvents}
+                  isArabic={isArabic}
+                />
               )
             }
           </ThreadPrimitive.Messages>

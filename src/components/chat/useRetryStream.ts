@@ -3,6 +3,7 @@ import { streamRealResponse } from "../../utils/streamResponse";
 import { authFetch } from "../../utils/safeFetch";
 import type { Message, Project } from "../../types/chat";
 import { useChat } from "../../context/ChatContext";
+import { buildRetryContext, buildRetryPrompt } from "./retryStreamHelpers";
 
 interface RetryStreamOptions {
   activeConversationId: string | null;
@@ -47,7 +48,7 @@ export function useRetryStream({
   streamerRef,
   lastOptions,
 }: RetryStreamOptions) {
-  const { activeConversation } = useChat();
+  const { activeConversation, updateMessageToolEvent } = useChat();
   const messages = activeBranch;
 
   const handleRetry = (
@@ -75,8 +76,7 @@ export function useRetryStream({
     setTimeout(() => scrollToBottom(true), 80);
     scrollToUserMessage(parentUserMsg.id);
 
-    const userMsgIdx = messages.findIndex((m) => m.id === parentUserMsg.id);
-    const contextBranch = messages.slice(0, userMsgIdx >= 0 ? userMsgIdx : undefined);
+    const contextBranch = buildRetryContext(messages, parentUserMsg.id, assistantMsgId, Boolean(modifierText));
 
     const projInstructions = currentProject?.instructions || undefined;
     const projKnowledge = currentProject?.knowledge?.map((k) => ({
@@ -114,9 +114,7 @@ export function useRetryStream({
     (streamerRef as any).current = streamer;
     streamer.start();
 
-    const promptToSend = modifierText
-      ? `${parentUserMsg.content}\n\nPlease update your previous response based on this directive: ${modifierText}`
-      : parentUserMsg.content;
+    const promptToSend = buildRetryPrompt(parentUserMsg.content, modifierText);
 
     streamRealResponse(
       promptToSend,
@@ -179,6 +177,7 @@ export function useRetryStream({
             { thinkingStartedAt: thinkingStartTime }
           );
         },
+        onTool: (event) => updateMessageToolEvent(activeConversationId, newAssistantMsg.id, event),
         onToken: (token) => {
           if (!firstTokenTimestamp) {
             firstTokenTimestamp = Date.now();

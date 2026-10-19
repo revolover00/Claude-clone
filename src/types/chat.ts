@@ -50,6 +50,15 @@ export interface DocumentErrorItem {
   error: string;
 }
 
+export type ToolActivityStatus = "executing" | "completed" | "error";
+
+export interface ToolActivityEvent {
+  id?: string;
+  name: string;
+  skill?: string;
+  status: ToolActivityStatus;
+}
+
 export interface Message {
   id: string;
   parentId?: string | null;
@@ -78,6 +87,7 @@ export interface Message {
   thinkingPlan?: { level: "low" | "medium" | "high"; reason?: string };
   documents?: DocumentItem[];
   documentErrors?: DocumentErrorItem[];
+  toolEvents?: ToolActivityEvent[];
 }
 
 export interface Conversation {
@@ -121,7 +131,7 @@ export interface UserPreferences {
   userName?: string;
   profileInstructions: string;
   responseStyle: ResponseStyle;
-  theme: "dark" | "light";
+  theme: "system" | "light" | "dark";
   language: "en" | "ar";
   memory_enabled?: boolean;
   sensitive_memory?: boolean;

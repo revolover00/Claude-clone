@@ -74,10 +74,10 @@ export default function CodeBlock({ language = "", code }: Props) {
   return (
     <div 
       dir="ltr" 
-      className="my-4 overflow-hidden rounded-lg border border-line bg-[#161514] font-sans text-start relative"
+      className="my-4 overflow-hidden rounded-lg border border-line bg-code-surface font-sans text-start relative"
     >
       {/* code block header bar */}
-      <div className="flex h-9 items-center justify-between border-b border-line/70 bg-[#1e1c1a] px-3.5 text-[12px] text-ink-muted">
+      <div className="flex h-9 items-center justify-between border-b border-line/70 bg-elev-1 px-3.5 text-[12px] text-ink-muted">
         <span className="font-mono text-[12px] uppercase tracking-wider text-ink-soft select-none">
           {cleanLang || "code"}
         </span>
@@ -153,7 +153,7 @@ export default function CodeBlock({ language = "", code }: Props) {
           {displayedLines.map((lineHtml, i) => (
             <div key={i} className="flex hover:bg-white/5 px-4 group/line min-w-0">
               {showLineNumbers && (
-                <span className="w-8 select-none text-right text-[#4a4744] pr-3 font-mono text-[11px] shrink-0 border-r border-[#262422] mr-3 select-none">
+                <span className="w-8 select-none text-right text-ink-faint pr-3 font-mono text-[11px] shrink-0 border-r border-line mr-3 select-none">
                   {i + 1}
                 </span>
               )}
@@ -171,12 +171,12 @@ export default function CodeBlock({ language = "", code }: Props) {
         <div className={`flex flex-col items-center justify-end ${
           isCollapsed 
             ? "absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#161514] via-[#161514]/90 to-transparent pt-8 pb-3" 
-            : "border-t border-line/40 bg-[#1e1c1a]/50 py-2"
+            : "border-t border-line/40 bg-elev-1/50 py-2"
         }`}>
           <button
             type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#1e1c1a] hover:bg-elev-3 text-ink-soft hover:text-ink border border-line/60 px-4 py-1.5 text-[12px] font-medium transition-all shadow-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent/50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-full bg-elev-1 hover:bg-elev-3 text-ink-soft hover:text-ink border border-line/60 px-4 py-1.5 text-[12px] font-medium transition-all shadow-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent/50 cursor-pointer"
           >
             {isCollapsed ? (
               <>

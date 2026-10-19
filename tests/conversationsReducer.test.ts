@@ -89,6 +89,18 @@ describe("conversationsReducer", () => {
     expect(nextState[0].messages[0].isStreaming).toBe(true);
   });
 
+  it("stores tool activity by assistant message without changing stream content", () => {
+    const action: ConversationAction = {
+      type: "UPDATE_MESSAGE_TOOL_EVENT",
+      conversationId: "conv-1",
+      messageId: "msg-1",
+      event: { id: "call-1", name: "load_skill", skill: "writing", status: "executing" },
+    };
+    const nextState = conversationsReducer([initialConversation], action);
+    expect(nextState[0].messages[0].toolEvents?.[0].status).toBe("executing");
+    expect(nextState[0].messages[0].content).toBe(mockMessage.content);
+  });
+
   it("handles TOGGLE_STAR", () => {
     const action: ConversationAction = {
       type: "TOGGLE_STAR",
@@ -229,5 +241,15 @@ describe("emptyCompletionReason variants", () => {
     const m = conversationsReducer([prev], action)[0].messages[0];
     expect(m.isError).toBe(false);
     expect(m.errorText).toBeUndefined();
+  });
+
+  it("clears the interrupted marker when continuing a saved reply", () => {
+    const prev = base();
+    prev.messages[0] = { ...prev.messages[0], finishReason: "INTERRUPTED" } as Message;
+    const m = conversationsReducer([prev], {
+      type: "UPDATE_MESSAGE_CONTENT", conversationId: "c", messageId: "a",
+      content: "partial answer", isStreaming: true, isThinking: false,
+    } as ConversationAction)[0].messages[0];
+    expect(m.finishReason).toBeUndefined();
   });
 });
