@@ -155,7 +155,7 @@ describe("session-expired flow", () => {
     await waitFor(() => expect(mocks.signOut).toHaveBeenCalledWith({ scope: "local" }));
   });
 
-  it("treats an unexpected SIGNED_OUT (failed background refresh) as an expired session", async () => {
+  it("treats an unexpected SIGNED_OUT after a rejected refresh token as expired", async () => {
     renderApp();
     await screen.findByText("App content for user-1");
 

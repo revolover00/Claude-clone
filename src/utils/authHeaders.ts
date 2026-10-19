@@ -1,4 +1,4 @@
-import type { Session } from "@supabase/supabase-js";
+import { isAuthRetryableFetchError, type Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 import { notifySessionExpired, readAuthErrorCode } from "./authErrors";
 
@@ -7,28 +7,46 @@ export const REFRESH_MARGIN_MS = 60 * 1000;
 
 type UsableSession = Pick<Session, "access_token"> & { expires_at?: number };
 
-let refreshInFlight: Promise<UsableSession | null> | null = null;
+interface RefreshOutcome {
+  session: UsableSession | null;
+  error: unknown | null;
+}
 
-/**
- * Refreshes the Supabase session. Concurrent callers share one in-flight
- * promise, so at most one `refreshSession()` call runs at any time.
- * Resolves to null when the session could not be refreshed.
- */
-export function refreshSessionShared(): Promise<UsableSession | null> {
+let refreshInFlight: Promise<RefreshOutcome> | null = null;
+
+/** Concurrent callers share one refresh while retaining its error classification. */
+async function refreshSessionOutcomeShared(): Promise<RefreshOutcome> {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
         const { data, error } = await supabase.auth.refreshSession();
-        if (error) return null;
-        return data?.session?.access_token ? (data.session as UsableSession) : null;
-      } catch {
-        return null;
+        return {
+          session: data?.session?.access_token ? (data.session as UsableSession) : null,
+          error: error ?? null,
+        };
+      } catch (error) {
+        return { session: null, error };
       }
     })().finally(() => {
       refreshInFlight = null;
     });
   }
   return refreshInFlight;
+}
+
+/** Resolves to null when the session could not be refreshed. */
+export async function refreshSessionShared(): Promise<UsableSession | null> {
+  return (await refreshSessionOutcomeShared()).session;
+}
+
+function isTransientRefreshError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  if (isAuthRetryableFetchError(error)) return true;
+  const details = error as { name?: unknown; status?: unknown; message?: unknown };
+  const status = typeof details.status === "number" ? details.status : null;
+  if (status === 0 || status === 408 || status === 429 || (status !== null && status >= 500)) return true;
+  return details.name === "AbortError" ||
+    (typeof details.message === "string" && /network|fetch|offline|timeout|timed out|temporar/i.test(details.message));
 }
 
 function expiresWithin(session: UsableSession | null, ms: number): boolean {
@@ -92,9 +110,9 @@ function canReplayBody(init?: RequestInit): boolean {
  * `fetch` with the session's bearer token that heals auth failures itself:
  *  1. refreshes first when there is no session or it expires within 60s;
  *  2. on a 401 carrying an AUTH_* code, refreshes once (shared) and retries once;
- *  3. if that still fails, dispatches "claude:session-expired".
- * AUTH_UNAVAILABLE (the server could not reach Supabase) is retried once without
- * a refresh and never signs the user out: the session itself may be fine.
+ *  3. signs out only after a definitive refresh failure, not a network outage.
+ * AUTH_UNAVAILABLE is retried once without refresh; transient refresh errors
+ * preserve the stored session so a later request can recover it.
  */
 export async function authFetch(
   input: string | URL | Request,
@@ -116,9 +134,12 @@ export async function authFetch(
     return send(retryInput, session?.access_token);
   }
 
-  const refreshed = await refreshSessionShared();
+  const refreshOutcome = await refreshSessionOutcomeShared();
+  const refreshed = refreshOutcome.session;
   if (!refreshed?.access_token) {
-    notifySessionExpired({ code, source: "authFetch" });
+    if (!isTransientRefreshError(refreshOutcome.error)) {
+      notifySessionExpired({ code, source: "authFetch" });
+    }
     return first;
   }
 
