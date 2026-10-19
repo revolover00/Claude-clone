@@ -163,7 +163,22 @@ describe("session-expired flow", () => {
     expect(expiredEvents[0].detail).toEqual({ code: "AUTH_TOKEN_INVALID", source: "authFetch" });
   });
 
-  it("dispatches claude:session-expired without retrying when the refresh fails", async () => {
+  it("does not sign out when refresh fails because the auth service is temporarily unavailable", async () => {
+    fetchSpy.mockImplementation(async () => unauthorized("AUTH_TOKEN_EXPIRED"));
+    mocks.refreshSession.mockResolvedValue({
+      data: { session: null, user: null },
+      error: { name: "AuthRetryableFetchError", status: 503, message: "Service unavailable" },
+    });
+
+    const res = await authFetch("/api/skills");
+
+    expect(res.status).toBe(401);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshSession).toHaveBeenCalledTimes(1);
+    expect(expiredEvents).toHaveLength(0);
+  });
+
+  it("dispatches claude:session-expired when the refresh token is definitively rejected", async () => {
     fetchSpy.mockImplementation(async () => unauthorized("AUTH_TOKEN_EXPIRED"));
 
     const res = await authFetch("/api/skills");
