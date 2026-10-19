@@ -24,7 +24,9 @@ describe("Claude appearance tokens", () => {
   });
 
   it("uses Claude's warm paper, charcoal, and terracotta palette", () => {
-    expect(darkTheme).toContain("--color-panel: #141413");
+    expect(darkTheme).toContain("--color-shell: #262624");
+    expect(darkTheme).toContain("--color-panel: #232321");
+    expect(darkTheme).toContain("--color-composer: #30302e");
     expect(lightTheme).toContain("--color-shell: #faf9f5");
     expect(lightTheme).toContain("--color-accent: #c96442");
     expect(lightTheme).toContain("--color-preview-canvas:");
