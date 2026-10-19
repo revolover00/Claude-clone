@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { AuthenticatedRequest } from "../middleware/auth";
 import { getCatalogStore } from "../lib/catalog/store";
 import { bundledCatalogRecords } from "../lib/catalog/bundled";
+import { mergeCatalogRows } from "../lib/catalog/merge";
 import {
   computeFacets,
   filterRecords,
@@ -48,12 +49,9 @@ function readQuery(req: AuthenticatedRequest): CatalogQuery {
 async function loadContext(req: AuthenticatedRequest) {
   const store = getCatalogStore();
   const isAdmin = await checkIsAdmin(req.user?.id || "");
-  let records = await store.list();
-  let source: "catalog" | "bundled" = "catalog";
-  if (records.length === 0) {
-    records = bundledCatalogRecords();
-    source = "bundled";
-  }
+  const liveRecords = await store.list();
+  const source: "catalog" | "bundled" = liveRecords.length > 0 ? "catalog" : "bundled";
+  const records = mergeCatalogRows(bundledCatalogRecords(), liveRecords);
   const overrides = await store.getOverrides();
   const merged = mergeOverrides(records, overrides, isAdmin);
 

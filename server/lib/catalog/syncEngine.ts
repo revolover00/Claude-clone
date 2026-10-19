@@ -51,6 +51,14 @@ async function successfulRunsSince(store: CatalogStore, provider: string, since:
   return runs.filter((r) => r.status === "success" && r.started_at > since).length;
 }
 
+async function persistFailedRun(store: CatalogStore, run: SyncRun): Promise<void> {
+  try {
+    await store.insertRun(run);
+  } catch (error: any) {
+    console.error(`[Catalog] failed to persist sync error for ${run.provider}:`, error?.message || error);
+  }
+}
+
 export interface SyncProviderOptions {
   trigger: string;
   /** Injection point for deterministic tests. */
@@ -146,7 +154,7 @@ export async function syncProviderFetching(
       error: failure || (provider === "openrouter" ? "fetch returned nothing" : "skipped: catalog key not configured"),
     };
     if (failure || provider === "openrouter") {
-      await store.insertRun({
+      await persistFailedRun(store, {
         provider,
         trigger: options.trigger,
         status: "failed",
@@ -166,7 +174,7 @@ export async function syncProviderFetching(
     return await syncProviderWithModels(store, provider, fetched.source, fetched.models, options);
   } catch (err: any) {
     const message = err?.message || String(err);
-    await store.insertRun({
+    await persistFailedRun(store, {
       provider,
       trigger: options.trigger,
       status: "failed",

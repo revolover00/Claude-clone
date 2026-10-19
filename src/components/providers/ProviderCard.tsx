@@ -6,6 +6,11 @@ import { Badge } from "@/components/shared/Badge";
 import { authFetch } from "../../utils/safeFetch";
 import { CredentialList, type CredentialRow } from "./CredentialList";
 import { Package, CheckCircle2, Sparkles } from "lucide-react";
+import { isExperimentalProvider } from "../../shared/providerTraits";
+
+type ConnectionTestResult =
+  | { ok: true; latencyMs: number; tokens: number | null; model: string }
+  | { ok: false; error: string };
 
 export interface ProviderCardProps {
   id: string;
@@ -39,6 +44,11 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [connectedMsg, setConnectedMsg] = useState<string | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
+  const [testResult, setTestResult] = useState<ConnectionTestResult | null>(null);
+  const [testVerified, setTestVerified] = useState<boolean | null>(null);
+  const hasVerifiedCredential = (credentials || []).some((item) => item.status === "active" && Boolean(item.last_verified_at));
+  const showExperimental = isExperimentalProvider(id) && !(testVerified ?? hasVerifiedCredential);
 
   const getBadgeVariant = (s: string) => {
     switch (s) {
@@ -81,6 +91,8 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
       } else {
         setKey("");
         setErrorMsg(null);
+        setTestResult(null);
+        setTestVerified(null);
         const unlocked = typeof data.modelCount === "number" && data.modelCount > 0 ? data.modelCount : modelCount;
         setConnectedMsg(
           unlocked
@@ -102,15 +114,38 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
     }
   };
 
+  const handleTestConnection = async () => {
+    setTestLoading(true);
+    setTestResult(null);
+    try {
+      const res = await authFetch(`/api/providers/${id}/test-connection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(key.trim() ? { key: key.trim() } : {}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Test failed (HTTP ${res.status})`);
+      setTestVerified(true);
+      window.dispatchEvent(new CustomEvent("claude:provider-verified", { detail: { provider: id } }));
+      setTestResult({ ok: true, latencyMs: data.latencyMs, tokens: data.tokens ?? null, model: data.model });
+    } catch (error: any) {
+      setTestVerified(false);
+      setTestResult({ ok: false, error: error?.message || "Provider connection test failed" });
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
   return (
     <Card className="w-full overflow-hidden border border-line bg-elev-1 font-sans">
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 px-4 py-3 border-b border-line/60">
         <h4 className="text-[14px] font-semibold text-ink whitespace-nowrap truncate min-w-0">
           {name}
         </h4>
-        <Badge variant={getBadgeVariant(status)} className="shrink-0 text-[11px] capitalize">
-          {status}
-        </Badge>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {showExperimental && <Badge variant="warning" className="text-[9px]">Experimental</Badge>}
+          <Badge variant={getBadgeVariant(status)} className="text-[11px] capitalize">{status}</Badge>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3.5 p-4">
         <div className="flex flex-wrap items-center gap-2 text-[11.5px] text-ink-muted">
@@ -138,7 +173,11 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
               type={showKey ? "text" : "password"}
               placeholder={status === "disconnected" ? "Paste your API key" : "Add another API key"}
               value={key}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKey(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                setKey(e.target.value);
+                setTestResult(null);
+                setTestVerified(null);
+              }}
               disabled={loading}
               className="w-full pr-14"
             />
@@ -151,13 +190,18 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
               {showKey ? "Hide" : "Show"}
             </button>
           </div>
-          <div className="w-full pt-0.5">
-            <Button
-              onClick={handleConnect}
-              disabled={loading || !key.trim()}
-              className="w-full sm:w-auto cursor-pointer"
-            >
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            <Button onClick={handleConnect} disabled={loading || !key.trim()} className="cursor-pointer">
               {loading ? "Connecting..." : status === "disconnected" ? "Connect" : "Add key"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleTestConnection}
+              disabled={testLoading || loading || (!key.trim() && !(credentials || []).some((item) => item.status === "active"))}
+            >
+              {testLoading ? "Testing..." : "Test connection"}
             </Button>
           </div>
         </div>
@@ -165,6 +209,13 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
         <CredentialList providerId={id} credentials={credentials || []} onChange={onRefresh} />
 
         {errorMsg && <p className="text-xs text-danger font-medium break-words">{errorMsg}</p>}
+        {testResult && (
+          <p role={testResult.ok ? "status" : "alert"} className={`text-xs font-medium break-words ${testResult.ok ? "text-emerald-400" : "text-danger"}`}>
+            {testResult.ok
+              ? `Connection succeeded · ${testResult.latencyMs} ms · ${testResult.tokens === null ? "token count unavailable" : `${testResult.tokens} tokens`} · ${testResult.model}`
+              : testResult.error}
+          </p>
+        )}
 
         <div className="pt-1 flex flex-wrap items-center gap-3">
           <a

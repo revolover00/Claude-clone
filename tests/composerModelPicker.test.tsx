@@ -61,7 +61,10 @@ describe("Composer Model Picker Component Tests", () => {
       />
     );
 
-    // Keep the composer clean; provider information remains available to screen readers and on hover.
+    // The closed picker only formats the saved ID; opening loads the catalog label lazily.
+    const savedModelPill = screen.getByRole("button", { name: "Model: Llama-3.3-70b-Versatile. Effort: Medium" });
+    expect(savedModelPill.getAttribute("title")).toBe("Groq");
+    fireEvent.click(screen.getByRole("button", { name: /model options/i }));
     await waitFor(() => {
       const pill = screen.getByRole("button", { name: "Model: Llama 3.3 70B. Effort: Medium" });
       expect(pill.getAttribute("title")).toBe("Groq");

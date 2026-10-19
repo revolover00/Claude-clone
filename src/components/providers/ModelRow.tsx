@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Pin, Brain, Wrench, Eye, Check, X, KeyRound } from "lucide-react";
 import { cn } from "../../utils/cn";
 import { PricingBadge } from "../shared/PricingBadge";
-import { hasFreeTier } from "../../shared/catalog/freeTier";
+import { hasFreeTier } from "../../shared/providerTraits";
 import { ModelBadges } from "../shared/ModelBadges";
 import { requestSettingsTab } from "../../utils/settingsTab";
 import { kindLabel, type CatalogBrowserModel } from "./types";
