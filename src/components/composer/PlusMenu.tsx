@@ -79,9 +79,9 @@ export default function PlusMenu({
       <IconButton
         label="Add content"
         onClick={toggleMenu}
-        className="h-8 w-8 text-ink-muted hover:text-ink"
+        className="h-11 w-11 rounded-xl border border-composer-line bg-panel text-ink-muted hover:bg-elev-2 hover:text-ink"
       >
-        <Plus size={18} strokeWidth={2} />
+        <Plus size={20} strokeWidth={1.9} />
       </IconButton>
 
       {isOpen && (

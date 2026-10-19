@@ -123,7 +123,7 @@ export const SuggestionPanel: React.FC<Props> = ({
       {/* Suggestion chips (only on Home view) */}
       {!inChatView && (
         <div
-          className="anim-rise mx-auto mt-10 flex max-w-[720px] flex-wrap items-center justify-center gap-2.5 px-4 font-sans"
+          className="anim-rise mx-auto mt-6 flex max-w-[960px] flex-wrap items-center justify-center gap-2.5 px-4 font-sans"
           style={{ animationDelay: "220ms" }}
         >
           {SUGGESTIONS.map(({ label, icon: Icon, starter, examples }) => (

@@ -12,24 +12,24 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-serif: "Source Serif 4", "Iowan Old Style", "Georgia", "Times New Roman", serif;
 
-  --color-shell: #1a1918;
-  --color-panel: #141413;
-  --color-line: #30302e;
-  --color-line-soft: #242321;
+  --color-shell: #262624;
+  --color-panel: #232321;
+  --color-line: #3b3b38;
+  --color-line-soft: #30302e;
 
-  --color-elev-1: #1f1f1d;
-  --color-elev-2: #282826;
-  --color-elev-3: #323230;
-  --color-elev-4: #3d3b38;
-  --color-composer: #201f1d;
-  --color-composer-line: #393733;
-  --color-preview-canvas: #141413;
-  --color-code-surface: #171715;
+  --color-elev-1: #2c2c2a;
+  --color-elev-2: #343431;
+  --color-elev-3: #3c3b38;
+  --color-elev-4: #474540;
+  --color-composer: #30302e;
+  --color-composer-line: #41413e;
+  --color-preview-canvas: #20201e;
+  --color-code-surface: #222220;
 
-  --color-ink: #f5f3ec;
+  --color-ink: #e9e7df;
   --color-ink-soft: #d5d2cb;
-  --color-ink-muted: #a5a29a;
-  --color-ink-faint: #79766f;
+  --color-ink-muted: #a7a49c;
+  --color-ink-faint: #7f7c74;
 
   --color-accent: #d97757;
   --color-accent-hover: #e38261;
