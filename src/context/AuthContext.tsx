@@ -143,8 +143,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (event === "TOKEN_REFRESHED" && !next?.access_token) {
         expireSession("TOKEN_REFRESH_FAILED");
       } else if (!next?.access_token) {
-        // supabase-js reports a failed background refresh as an unexpected SIGNED_OUT
-        // (the refresh token was rejected and the stored session removed).
+        // A definitive refresh failure may clear stored auth and emit SIGNED_OUT;
+        // transient network failures are retained by the Supabase auth client.
         const unexpected = event === "SIGNED_OUT" && sessionRef.current && !userSignOutRef.current;
         if (unexpected) expireSession("SIGNED_OUT_UNEXPECTEDLY");
         else if (!expiringRef.current) applySession(null);
