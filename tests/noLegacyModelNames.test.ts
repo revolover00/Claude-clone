@@ -78,14 +78,16 @@ describe("Zero Fake Model Names Policy", () => {
   });
 
   it("has exactly one minimal offline fallback with real Gemini models and correct default", () => {
-    expect(FALLBACK_MODELS).toHaveLength(3);
+    expect(FALLBACK_MODELS).toHaveLength(4);
 
     const displayNames = FALLBACK_MODELS.map((m) => m.display_name);
     expect(displayNames).toEqual([
       "Gemini 3.8 Flash",
-      "Gemini 3.1 Pro (Preview)",
-      "Gemini 3.1 Flash-Lite",
+      "Gemini 3.1 Pro Preview",
+      "Gemini 3.1 Flash Lite",
+      "Gemini Embedding 2",
     ]);
+    expect(FALLBACK_MODELS[3]).toMatchObject({ kind: "embedding", api_model_id: "gemini-embedding-2", provider: "google" });
 
     const defaultModel = FALLBACK_MODELS.find((m) => m.is_default);
     expect(defaultModel).toBeDefined();

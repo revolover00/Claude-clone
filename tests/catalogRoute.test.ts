@@ -96,11 +96,13 @@ describe("GET /api/catalog", () => {
     });
 
     expect(payload.source).toBe("catalog");
-    expect(payload.models.length).toBe(2);
+    expect(payload.models.length).toBeGreaterThan(CATALOG_MODELS.length);
+    expect(new Set(payload.models.map((m: any) => `${m.provider}:${m.model_id}`)).size).toBe(payload.models.length);
     const gemini = payload.models.find((m: any) => m.model_id === "gemini-3.8-flash");
     expect(gemini.connected).toBe(false);
     expect(gemini.requires_key).toBe(true);
     expect(gemini.recommended).toBe(true);
+    expect(gemini.source).toBe("groq-key");
     expect(payload.sync.newest).toBe(recent);
     expect(payload.sync.stale).toBe(false);
   });
@@ -110,10 +112,10 @@ describe("GET /api/catalog", () => {
     for (let i = 0; i < 7; i++) {
       rows.push(
         record({
-          provider: i % 2 === 0 ? "groq" : "gemini",
+          provider: i % 2 === 0 ? "unit-a" : "unit-b",
           model_id: `m-${i}`,
           name: `Model ${i}`,
-          vendor: i % 2 === 0 ? "Meta" : "google",
+          vendor: "Synthetic",
           kind: i === 3 ? "embedding" : "chat",
           context_length: 8192 * (i + 1),
           released_at: `2025-01-0${i + 1}`,
@@ -125,36 +127,36 @@ describe("GET /api/catalog", () => {
     await store.upsert(rows);
     const handler = getHandler(catalogRouter, "/", "get");
 
-    const byProvider = await callRoute(handler, { query: { provider: "groq", all: "1" } });
-    expect(byProvider.payload.models.every((m: any) => m.provider === "groq")).toBe(true);
+    const byProvider = await callRoute(handler, { query: { provider: "unit-a", all: "1" } });
+    expect(byProvider.payload.models.every((m: any) => m.provider === "unit-a")).toBe(true);
     expect(byProvider.payload.models.length).toBe(4);
 
-    const byKind = await callRoute(handler, { query: { kind: "embedding", all: "1" } });
+    const byKind = await callRoute(handler, { query: { vendor: "Synthetic", kind: "embedding", all: "1" } });
     expect(byKind.payload.models.length).toBe(1);
     expect(byKind.payload.models[0].kind).toBe("embedding");
 
-    const byCapability = await callRoute(handler, { query: { capability: "reasoning", all: "1" } });
+    const byCapability = await callRoute(handler, { query: { vendor: "Synthetic", capability: "reasoning", all: "1" } });
     expect(byCapability.payload.models.every((m: any) => m.supports_reasoning)).toBe(true);
     expect(byCapability.payload.models.length).toBe(3);
 
-    const freeOnly = await callRoute(handler, { query: { free: "1", all: "1" } });
+    const freeOnly = await callRoute(handler, { query: { vendor: "Synthetic", free: "1", all: "1" } });
     expect(freeOnly.payload.models.length).toBe(1);
     expect(freeOnly.payload.models[0].is_free).toBe(true);
 
-    const byQuery = await callRoute(handler, { query: { q: "Model 6" } });
+    const byQuery = await callRoute(handler, { query: { q: "Model 6", vendor: "Synthetic" } });
     expect(byQuery.payload.total).toBe(1);
 
-    const newest = await callRoute(handler, { query: { sort: "newest", all: "1" } });
+    const newest = await callRoute(handler, { query: { vendor: "Synthetic", sort: "newest", all: "1" } });
     expect(newest.payload.models[0].model_id).toBe("m-6");
 
-    const oldest = await callRoute(handler, { query: { sort: "context", all: "1" } });
+    const oldest = await callRoute(handler, { query: { vendor: "Synthetic", sort: "context", all: "1" } });
     expect(oldest.payload.models[0].model_id).toBe("m-6");
 
-    const page1 = await callRoute(handler, { query: { limit: "3" } });
+    const page1 = await callRoute(handler, { query: { vendor: "Synthetic", limit: "3" } });
     expect(page1.payload.models.length).toBe(3);
     expect(page1.payload.total).toBe(7);
     expect(page1.payload.nextCursor).toBeTruthy();
-    const page2 = await callRoute(handler, { query: { limit: "3", cursor: page1.payload.nextCursor } });
+    const page2 = await callRoute(handler, { query: { vendor: "Synthetic", limit: "3", cursor: page1.payload.nextCursor } });
     expect(page2.payload.models.length).toBe(3);
     const ids1 = page1.payload.models.map((m: any) => m.model_id);
     const ids2 = page2.payload.models.map((m: any) => m.model_id);
@@ -192,26 +194,22 @@ describe("GET /api/catalog", () => {
 describe("GET /api/catalog/facets", () => {
   it("returns counts by provider, vendor, family, kind, capability and status", async () => {
     await store.upsert([
-      record({ model_id: "a", supports_reasoning: true, status: "active" }),
-      record({ model_id: "b", family: "Llama 4", status: "preview", context_length: 1000000 }),
-      record({ model_id: "c", kind: "embedding", supports_tools: false }),
-      record({ provider: "gemini", model_id: "d", vendor: "google", family: "Gemini 3.8 Flash", status: "deprecated" }),
+      record({ provider: "unit-facets", model_id: "a", vendor: "Unit Vendor", family: "Unit Family", supports_reasoning: true, status: "active" }),
+      record({ provider: "unit-facets", model_id: "b", vendor: "Unit Vendor", family: "Unit Family", status: "preview", context_length: 1000000 }),
+      record({ provider: "unit-facets", model_id: "c", vendor: "Unit Vendor", family: "Unit Family", kind: "embedding", supports_tools: false }),
+      record({ provider: "unit-facets", model_id: "d", vendor: "Unit Vendor", family: "Unit Family", status: "deprecated" }),
     ]);
     const handler = getHandler(catalogRouter, "/facets", "get");
     const { payload } = await callRoute(handler, { user: { id: "u1" } });
 
-    expect(payload.total).toBe(4);
-    expect(payload.facets.provider.groq).toBe(3);
-    expect(payload.facets.provider.gemini).toBe(1);
-    expect(payload.facets.vendor.Meta).toBe(3);
-    expect(payload.facets.family["Llama 4"]).toBe(1);
-    expect(payload.facets.kind.embedding).toBe(1);
-    expect(payload.facets.kind.chat).toBe(3);
-    expect(payload.facets.capability.reasoning).toBe(1);
-    expect(payload.facets.capability.tools).toBe(3);
-    expect(payload.facets.status.preview).toBe(1);
-    expect(payload.facets.status.deprecated).toBe(1);
-    expect(payload.providers.find((p: any) => p.id === "gemini").connected).toBe(false);
+    expect(payload.total).toBeGreaterThan(CATALOG_MODELS.length);
+    expect(payload.facets.provider["unit-facets"]).toBe(4);
+    expect(payload.facets.vendor["Unit Vendor"]).toBe(4);
+    expect(payload.facets.family["Unit Family"]).toBe(4);
+    expect(payload.facets.kind.embedding).toBeGreaterThan(0);
+    expect(payload.facets.status.preview).toBeGreaterThan(0);
+    expect(payload.facets.status.deprecated).toBeGreaterThan(0);
+    expect(payload.providers.find((p: any) => p.id === "unit-facets").connected).toBe(false);
   });
 });
 

@@ -1,8 +1,8 @@
 /**
  * Types for the automatic model catalog layer.
  *
- * The three tables (provider_catalog, catalog_sync_runs, catalog_overrides)
- * already exist in the database. All access goes through `CatalogStore` so the
+ * The catalog tables and app_settings already exist in the database. All
+ * access goes through `CatalogStore` so the
  * sync engine, routes and tests share one shape. Column assumptions are
  * documented on the Supabase store implementation.
  */
@@ -67,6 +67,8 @@ export interface SyncedModel {
 }
 
 export type SyncStatus = "success" | "partial" | "failed";
+
+export type CatalogDbStatus = "ok" | "schema_mismatch" | "unreachable";
 
 export interface SyncRun {
   id?: string;

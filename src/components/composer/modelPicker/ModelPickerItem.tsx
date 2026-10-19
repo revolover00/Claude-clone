@@ -2,7 +2,7 @@ import React from "react";
 import { Check, Brain, Layers, Globe, Eye, Pin, KeyRound } from "lucide-react";
 import { cn } from "../../../utils/cn";
 import { PricingBadge } from "../../shared/PricingBadge";
-import { hasFreeTier } from "../../../shared/catalog/freeTier";
+import { hasFreeTier, isExperimentalProvider } from "../../../shared/providerTraits";
 import type { UnifiedModel } from "./types";
 
 interface Props {
@@ -48,6 +48,11 @@ export const ModelPickerItem: React.FC<Props> = ({ model, isSelected, onSelect }
           {model.recommended && (
             <span className="rounded px-1 py-0.2 text-[9.5px] font-medium bg-accent/15 text-accent border border-accent/25">
               Recommended
+            </span>
+          )}
+          {!model.isProviderVerified && isExperimentalProvider(model.provider) && (
+            <span className="rounded px-1 py-0.2 text-[9.5px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25">
+              Experimental
             </span>
           )}
           {model.status === "preview" && (

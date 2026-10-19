@@ -12,7 +12,6 @@ import {
   rowHeights,
 } from "./modelPicker/pickerRows";
 import { computeVirtualWindow } from "../../utils/virtualWindow";
-import { closestRecommendedModel } from "../../shared/catalog/grouping";
 import { requestSettingsTab } from "../../utils/settingsTab";
 import { useProviderConnectAutoSelect } from "./modelPicker/useProviderConnectAutoSelect";
 import { VendorFilterChips } from "./modelPicker/VendorFilterChips";
@@ -39,9 +38,9 @@ export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort
   const { setSettingsModalOpen } = useChat();
 
   const {
-    allModels, sections, activeModelObj, pillLabel, searchQuery, setSearchQuery,
+    allModels, sections, activeModelObj, closestRecommendedModel, pillLabel, searchQuery, setSearchQuery,
     vendorFilter, setVendorFilter, freeOnly, setFreeOnly, availableVendors, loading, refresh,
-  } = useComposerModels(model);
+  } = useComposerModels(model, isOpen);
 
   useProviderConnectAutoSelect({
     allModels,
@@ -143,7 +142,7 @@ export default function ModelMenu({ model, onSelectModel, effort, onSelectEffort
   const replacement = useMemo(() => {
     if (!unavailable || !activeModelObj) return null;
     return closestRecommendedModel(activeModelObj, allModels.filter((m) => !m.requiresKey && m.isEnabled));
-  }, [unavailable, activeModelObj, allModels]);
+  }, [unavailable, activeModelObj, allModels, closestRecommendedModel]);
 
   return (
     <div className="relative flex items-center gap-1 font-sans" ref={menuRef}>

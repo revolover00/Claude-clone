@@ -15,6 +15,7 @@ import { mergeCatalogAndLive, providerCatalogInfo, catalogTotalsFromBundle } fro
 import { CATALOG_SNAPSHOT, CATALOG_PROVIDERS } from "../../src/shared/catalog";
 import { runProviderSync, catalogSyncEnabled } from "../lib/catalog/scheduler";
 import type { ModelInfo } from "../lib/providers/types";
+import { testProviderConnection } from "../lib/providers/connectionTest";
 
 const router = Router();
 
@@ -157,6 +158,36 @@ router.post("/:provider/credentials/:id/verify", async (req: AuthenticatedReques
     res.json(result);
   } catch (err: any) {
     res.status(400).json({ error: `Verification failed: ${redact(err.message)}` });
+  }
+});
+
+// POST /api/providers/:provider/test-connection — tiny, non-streaming live chat probe.
+router.post("/:provider/test-connection", async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const providerId = req.params.provider;
+  if (!getProvider(providerId)) {
+    res.status(404).json({ error: `Provider '${providerId}' not found` });
+    return;
+  }
+  try {
+    const suppliedKey = typeof req.body?.key === "string" ? req.body.key.trim() : "";
+    if (suppliedKey && (suppliedKey.length < 8 || suppliedKey.length > 512 || /\s/.test(suppliedKey))) {
+      res.status(400).json({ error: "API key must be 8–512 characters with no whitespace" });
+      return;
+    }
+    const apiKey = suppliedKey || await getUserDecryptedKey(userId, providerId);
+    if (!apiKey) {
+      res.status(400).json({ error: "Add an API key before testing this provider" });
+      return;
+    }
+    const result = await testProviderConnection(providerId, apiKey);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    res.status(502).json({ error: redact(error?.message || String(error)) });
   }
 });
 

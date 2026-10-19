@@ -170,6 +170,21 @@ describe("partial-failure guard", () => {
     expect(runs[0]).toMatchObject({ status: "failed", error: "network down", added: 0, updated: 0, removed: 0 });
   });
 
+  it("records the database write error in sync history when a catalog upsert fails", async () => {
+    const failingStore = new Proxy(store, {
+      get(target, property) {
+        if (property === "upsert") return async () => { throw new Error("provider_catalog write denied"); };
+        const value = (target as any)[property];
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const outcome = await syncProviderFetching(failingStore, "groq", async () => ({
+      source: "groq-key", models: models(["a-1"]),
+    }), { trigger: "test", now: "2026-10-16T12:00:00.000Z" });
+    expect(outcome).toMatchObject({ status: "failed", error: "provider_catalog write denied" });
+    expect(await store.listRuns("groq")).toMatchObject([{ status: "failed", error: "provider_catalog write denied" }]);
+  });
+
   it("skips providers without a catalog key (gemini/groq) without writing a run row", async () => {
     const outcome = await syncProviderFetching(
       store,

@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useModels } from "../../../hooks/useModels";
 import { authFetch } from "../../../utils/safeFetch";
-import { composerSections, type PickerSection } from "../../../shared/catalog/grouping";
+import { hasFreeTier } from "../../../shared/providerTraits";
+import type { PickerSection } from "../../../shared/catalog/grouping";
 import type { UnifiedModel } from "./types";
 
-import { hasFreeTier } from "../../../shared/catalog/freeTier";
+type CatalogGrouping = typeof import("../../../shared/catalog/grouping");
 import {
   PROVIDER_LABELS,
   getProviderLabel,
   labelFor,
+  displayNameFromId,
   pushUnique,
   fromCatalogRow,
   fromLegacyRow,
@@ -16,11 +18,13 @@ import {
 
 export { PROVIDER_LABELS, getProviderLabel };
 
-export function useComposerModels(selectedModelId: string) {
+export function useComposerModels(selectedModelId: string, enabled = true) {
   const { models: appModels, defaultModel, normalizeSlug } = useModels();
+  const [catalogGrouping, setCatalogGrouping] = useState<Pick<CatalogGrouping, "composerSections" | "closestRecommendedModel"> | null>(null);
   const [liveModels, setLiveModels] = useState<UnifiedModel[]>([]);
   const [catalogModels, setCatalogModels] = useState<UnifiedModel[]>([]);
   const [labels, setLabels] = useState<Record<string, string>>({});
+  const [verifiedProviderIds, setVerifiedProviderIds] = useState<string[]>([]);
   const labelsRef = useRef<Record<string, string>>({});
   const [order, setOrder] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +39,8 @@ export function useComposerModels(selectedModelId: string) {
       if (res.ok) {
         const data = await res.json();
         const credentials: any[] = Array.isArray(data.credentials) ? data.credentials : [];
+        const verified = credentials.filter((c) => (!c.status || c.status === "active") && c.last_verified_at).map((c) => c.provider);
+        setVerifiedProviderIds([...new Set(verified)]);
         const registry: any[] = Array.isArray(data.providers) ? data.providers : [];
         const nextLabels: Record<string, string> = {};
         registry.forEach((p) => {
@@ -91,31 +97,51 @@ export function useComposerModels(selectedModelId: string) {
       }
     } catch {
       setLiveModels([]);
+      setVerifiedProviderIds([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchAllProviderModels();
-  }, [fetchAllProviderModels]);
+    if (!enabled) return;
+    let active = true;
+    void import("../../../shared/catalog/grouping").then((grouping) => {
+      if (!active) return;
+      setCatalogGrouping({
+        composerSections: grouping.composerSections,
+        closestRecommendedModel: grouping.closestRecommendedModel,
+      });
+    }).catch(() => undefined);
+    void fetchAllProviderModels();
+    return () => { active = false; };
+  }, [enabled, fetchAllProviderModels]);
 
-  // A provider key was saved: refetch catalogs so its models unlock live.
+  // A provider key was saved: refresh only while the picker is open.
   useEffect(() => {
-    const onProvidersChanged = () => void fetchAllProviderModels();
+    const onProvidersChanged = () => { if (enabled) void fetchAllProviderModels(); };
+    const onProviderVerified = (event: Event) => {
+      const provider = String((event as CustomEvent).detail?.provider || "");
+      if (provider) setVerifiedProviderIds((current) => current.includes(provider) ? current : [...current, provider]);
+    };
     window.addEventListener("claude:provider-connected", onProvidersChanged);
     window.addEventListener("claude:providers-changed", onProvidersChanged);
+    window.addEventListener("claude:provider-verified", onProviderVerified);
     return () => {
       window.removeEventListener("claude:provider-connected", onProvidersChanged);
       window.removeEventListener("claude:providers-changed", onProvidersChanged);
+      window.removeEventListener("claude:provider-verified", onProviderVerified);
     };
-  }, [fetchAllProviderModels]);
+  }, [enabled, fetchAllProviderModels]);
 
   const allModels = useMemo<UnifiedModel[]>(() => {
     const list: UnifiedModel[] = [];
     const seen = new Set<string>();
-    liveModels.forEach((m) => pushUnique(list, seen, m));
-    catalogModels.forEach((m) => pushUnique(list, seen, { ...m, providerLabel: labelFor(labels, m.provider) }));
+    const verified = new Set(verifiedProviderIds);
+    liveModels.forEach((m) => pushUnique(list, seen, { ...m, isProviderVerified: verified.has(m.provider) }));
+    catalogModels.forEach((m) => pushUnique(list, seen, {
+      ...m, providerLabel: labelFor(labels, m.provider), isProviderVerified: verified.has(m.provider),
+    }));
 
     appModels
       .filter((m) => m.enabled && m.kind === "chat")
@@ -143,13 +169,14 @@ export function useComposerModels(selectedModelId: string) {
           isEnabled: true,
           isPinned: false,
           isDefault: Boolean(m.is_default),
+          isProviderVerified: verified.has(pKey),
           kind: m.kind,
           requiresKey: false,
         });
       });
 
     return list;
-  }, [liveModels, catalogModels, appModels, labels]);
+  }, [liveModels, catalogModels, appModels, labels, verifiedProviderIds]);
 
   const vendorOf = (m: UnifiedModel) => m.vendor || m.providerLabel;
 
@@ -177,35 +204,47 @@ export function useComposerModels(selectedModelId: string) {
   }, [allModels, searchQuery, vendorFilter, freeOnly]);
 
   const sections = useMemo<PickerSection[]>(
-    () => composerSections(filteredModels, (p) => labelFor(labels, p), order),
-    [filteredModels, labels, order]
+    () => catalogGrouping?.composerSections(filteredModels, (p) => labelFor(labels, p), order) || [],
+    [catalogGrouping, filteredModels, labels, order]
   );
 
   const activeModelObj = useMemo<UnifiedModel | null>(() => {
-    if (!selectedModelId) {
-      return allModels.find((m) => m.isDefault) || allModels[0] || null;
-    }
+    if (!selectedModelId) return allModels.find((m) => m.isDefault) || allModels[0] || null;
     const norm = normalizeSlug(selectedModelId);
-    return (
-      allModels.find((m) => m.uniqueKey === selectedModelId) ||
+    const match = allModels.find((m) => m.uniqueKey === selectedModelId) ||
       allModels.find((m) => m.uniqueKey === norm) ||
       allModels.find((m) => m.id === selectedModelId || m.id === norm) ||
-      allModels.find((m) => m.uniqueKey.endsWith(`:${norm}`)) ||
-      allModels.find((m) => m.isDefault) ||
-      allModels[0] ||
-      null
-    );
-  }, [allModels, selectedModelId, normalizeSlug]);
+      allModels.find((m) => m.uniqueKey.endsWith(`:${norm}`));
+    if (match) return match;
+    const separator = selectedModelId.indexOf(":");
+    if (separator > 0 && separator < selectedModelId.length - 1) {
+      const provider = selectedModelId.slice(0, separator);
+      const id = selectedModelId.slice(separator + 1);
+      return {
+        id, uniqueKey: selectedModelId, provider, providerLabel: labelFor(labels, provider),
+        displayName: displayNameFromId(id), supportsThinking: false, supportsTools: false,
+        supportsVision: false, supportsSearch: false, isEnabled: true, isPinned: false,
+        isProviderVerified: verifiedProviderIds.includes(provider),
+      };
+    }
+    return allModels.find((m) => m.isDefault) || allModels[0] || null;
+  }, [allModels, selectedModelId, normalizeSlug, labels, verifiedProviderIds]);
 
   const pillLabel = useMemo(() => {
     if (!activeModelObj) return defaultModel?.display_name || "Gemini 3.8 Flash";
     return activeModelObj.alias || activeModelObj.displayName;
   }, [activeModelObj, defaultModel]);
+  const chooseClosestRecommended = useCallback(
+    (target: UnifiedModel | null, candidates: UnifiedModel[]) =>
+      (catalogGrouping?.closestRecommendedModel(target as any, candidates as any) as UnifiedModel | null) || null,
+    [catalogGrouping]
+  );
 
   return {
     allModels,
     sections,
     activeModelObj,
+    closestRecommendedModel: chooseClosestRecommended,
     pillLabel,
     searchQuery,
     setSearchQuery,
