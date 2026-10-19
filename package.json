@@ -13,7 +13,7 @@
     "eval:skills": "tsx evals/skills.eval.ts",
     "catalog:sync": "node scripts/generate-model-catalog.mjs",
     "lint": "tsc --noEmit",
-    "check": "tsc --noEmit && eslint src server --max-warnings=0 && vitest run && vite build"
+    "check": "tsc --noEmit && eslint src server --max-warnings=0 && vitest run && vite build && node scripts/assert-production-guest-button.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.29",

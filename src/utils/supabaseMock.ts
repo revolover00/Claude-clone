@@ -1,43 +1,6 @@
-import { FALLBACK_MODELS, normalizeSlug } from "../hooks/useModels";
-
-const env = (import.meta as any)?.env || (typeof process !== "undefined" ? process.env : {}) || {};
-const isDev = Boolean(env.DEV ?? (env.NODE_ENV !== "production"));
-// Dev defaults to local mode so a bare `npm run dev` needs no login; an
-// explicit "false" on either flag turns it off, production stays explicit-only.
-const localExplicitOn = env.VITE_ALLOW_LOCAL_MODE === "true" || env.ALLOW_GUEST === "true";
-const localExplicitOff = env.VITE_ALLOW_LOCAL_MODE === "false" || env.ALLOW_GUEST === "false";
-const allowLocalMode = localExplicitOn || (isDev && !localExplicitOff);
-
-function getMockSession() {
-  if (isDev && allowLocalMode) {
-    try {
-      const saved = localStorage.getItem("claude_clone_mock_session");
-      if (saved) return JSON.parse(saved);
-    } catch { /* ignored */ }
-    
-    // Default logged-in guest session using a non-shared unique ID
-    const guestId = crypto.randomUUID();
-    const defaultSession = {
-      access_token: `mock-jwt-token-${guestId}`,
-      token_type: "bearer",
-      expires_in: 3600,
-      refresh_token: "mock-refresh-token",
-      user: {
-        id: guestId,
-        email: "guest@example.com",
-        user_metadata: { name: "Guest User" },
-        role: "authenticated",
-      },
-    };
-    try {
-      localStorage.setItem("claude_clone_mock_session", JSON.stringify(defaultSession));
-    } catch { /* ignored */ }
-    return defaultSession;
-  }
-  return null;
-}
-
-const authListeners = new Set<(event: string, session: any) => void>();
+import { FALLBACK_MODELS } from "../shared/fallbackModels";
+import { normalizeSlug } from "../shared/normalizeSlug";
+import { getMockSession, mockAuth } from "./supabaseMockAuth";
 
 function getMockModels() {
   try {
@@ -65,64 +28,7 @@ function saveMockModels(models: any[]) {
 }
 
 export const mockSupabase = {
-  auth: {
-    getSession: async () => {
-      const session = getMockSession();
-      return { data: { session }, error: null };
-    },
-    onAuthStateChange: (callback: any) => {
-      authListeners.add(callback);
-      const session = getMockSession();
-      // Initially trigger
-      setTimeout(() => {
-        callback(session ? "SIGNED_IN" : "SIGNED_OUT", session);
-      }, 0);
-      return {
-        data: {
-          subscription: {
-            unsubscribe: () => {
-              authListeners.delete(callback);
-            },
-          },
-        },
-      };
-    },
-    signInWithPassword: async ({ email }: { email: string }) => {
-      const s = getMockSession();
-      if (email) {
-        s.user.email = email;
-        s.user.user_metadata = { name: email.split("@")[0] };
-      }
-      localStorage.setItem("claude_clone_mock_session", JSON.stringify(s));
-      authListeners.forEach((cb) => cb("SIGNED_IN", s));
-      return { data: { session: s, user: s.user }, error: null };
-    },
-    signUp: async ({ email }: { email: string }) => {
-      const s = getMockSession();
-      if (email) {
-        s.user.email = email;
-        s.user.user_metadata = { name: email.split("@")[0] };
-      }
-      localStorage.setItem("claude_clone_mock_session", JSON.stringify(s));
-      authListeners.forEach((cb) => cb("SIGNED_IN", s));
-      return { data: { session: s, user: s.user }, error: null };
-    },
-    signOut: async () => {
-      localStorage.removeItem("claude_clone_mock_session");
-      authListeners.forEach((cb) => cb("SIGNED_OUT", null));
-      return { error: null };
-    },
-    refreshSession: async () => {
-      const s = getMockSession();
-      return { data: { session: s, user: s?.user ?? null }, error: s ? null : { message: "Auth session missing!" } };
-    },
-    resetPasswordForEmail: async () => ({ error: null }),
-    signInWithOAuth: async () => {
-      const session = getMockSession();
-      authListeners.forEach((cb) => cb("SIGNED_IN", session));
-      return { error: null };
-    },
-  },
+  auth: mockAuth,
   from: (table: string) => {
     let list: any[] = [];
     if (table === "models") {

@@ -4,6 +4,7 @@
  */
 import type { CatalogRecord, OverrideRecord, SyncRun, CatalogStore } from "./types";
 import { createSupabaseCatalogStore, isSupabaseCatalogAvailable } from "./supabaseStore";
+import { getCatalogSchemaHealth } from "./schemaProbe";
 
 function recordKey(provider: string, modelId: string): string {
   return `${provider}:${modelId}`;
@@ -139,6 +140,12 @@ export function getCatalogStore(): CatalogStore {
     resolved = isSupabaseCatalogAvailable() ? createSupabaseCatalogStore() : memoryCatalogStore;
   }
   return resolved;
+}
+
+/** Initializes the selected store and awaits its read-only startup schema probe. */
+export async function initializeCatalogStore(): Promise<void> {
+  getCatalogStore();
+  await getCatalogSchemaHealth();
 }
 
 /** Test hook: replace or reset the resolved store. */

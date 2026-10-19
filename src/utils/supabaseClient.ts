@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { mockSupabase } from "./supabaseMock";
 import { authStorage } from "./authStorage";
+import { isDevGuestEnabled } from "./devGuestMode";
 
 const env = (import.meta as any)?.env || (typeof process !== "undefined" ? process.env : {}) || {};
 const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL || "";
@@ -13,7 +14,8 @@ export const isRealSupabaseConfigured = Boolean(
   !supabaseAnonKey.includes("YOUR_")
 );
 
-export const supabase = isRealSupabaseConfigured
+const useExplicitDevGuestMode = isDevGuestEnabled(env);
+export const supabase = isRealSupabaseConfigured && !useExplicitDevGuestMode
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,

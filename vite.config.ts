@@ -10,7 +10,20 @@ const __dirname = path.dirname(__filename);
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), viteSingleFile()],
+  base: "./",
+  plugins: [react(), tailwindcss(), viteSingleFile({
+    useRecommendedBuildConfig: false,
+    inlinePattern: ["assets/app-*.js", "assets/*.css"],
+  })],
+  build: {
+    assetsDir: "assets",
+    cssCodeSplit: false,
+    rollupOptions: { output: {
+      inlineDynamicImports: false,
+      entryFileNames: "assets/app-[hash].js",
+      chunkFileNames: "assets/[name]-[hash].js",
+    } },
+  },
   server: {
     port: 3000,
     host: true,
