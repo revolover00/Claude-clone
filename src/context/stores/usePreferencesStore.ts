@@ -53,15 +53,21 @@ export function usePreferencesStore() {
   // Match Claude's light, system, and dark color modes; listen only in system mode.
   useEffect(() => {
     const root = document.documentElement;
-    const media = window.matchMedia("(prefers-color-scheme: light)");
+    const media = typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-color-scheme: light)")
+      : null;
     const applyTheme = () => {
-      root.setAttribute("data-theme", resolveColorMode(preferences.theme, media.matches));
+      root.setAttribute("data-theme", resolveColorMode(preferences.theme, Boolean(media?.matches)));
     };
 
     applyTheme();
-    if (preferences.theme !== "system") return;
-    media.addEventListener("change", applyTheme);
-    return () => media.removeEventListener("change", applyTheme);
+    if (preferences.theme !== "system" || !media) return;
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", applyTheme);
+      return () => media.removeEventListener("change", applyTheme);
+    }
+    media.addListener?.(applyTheme);
+    return () => media.removeListener?.(applyTheme);
   }, [preferences.theme]);
 
   // Save to localStorage
