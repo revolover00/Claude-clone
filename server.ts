@@ -1,0 +1,144 @@
+import express from "express";
+import cors from "cors";
+import http from "http";
+import path from "path";
+import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+
+// Polyfill localStorage for Node.js server environment in dev/test fallback modes
+if (typeof global.localStorage === "undefined") {
+  const mockLocalStorage: Record<string, string> = {};
+  (global as any).localStorage = {
+    getItem: (key: string) => mockLocalStorage[key] || null,
+    setItem: (key: string, value: string) => { mockLocalStorage[key] = value; },
+    removeItem: (key: string) => { delete mockLocalStorage[key]; },
+    clear: () => { Object.keys(mockLocalStorage).forEach(key => delete mockLocalStorage[key]); },
+    length: 0,
+    key: () => null,
+  };
+}
+
+dotenv.config();
+
+// Import route handlers & middleware
+import healthRouter from "./server/routes/health";
+import chatRouter from "./server/routes/chat";
+import titleRouter from "./server/routes/title";
+import suggestRouter from "./server/routes/suggest";
+import modelsRouter from "./server/routes/models";
+import modelsPrefsRouter from "./server/routes/modelsPrefs";
+import memoryRouter from "./server/routes/memory";
+import skillsRouter from "./server/routes/skills";
+import documentsRouter from "./server/routes/documents";
+import providersRouter from "./server/routes/providers";
+import catalogRouter from "./server/routes/catalog";
+import catalogAdminRouter from "./server/routes/catalogAdmin";
+import authDebugRouter from "./server/routes/authDebug";
+import { requireAuth } from "./server/middleware/auth";
+import { startCatalogScheduler } from "./server/lib/catalog/scheduler";
+import { initializeCatalogStore } from "./server/lib/catalog/store";
+
+if (process.env.NODE_ENV === "production") {
+  const missing = [];
+  if (!process.env.SUPABASE_URL) missing.push("SUPABASE_URL");
+  if (!process.env.SUPABASE_ANON_KEY) missing.push("SUPABASE_ANON_KEY");
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+  if (missing.length > 0) {
+    console.warn(`WARNING: Missing production environment variables: ${missing.join(", ")}. Running in fallback mode.`);
+  }
+}
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+
+// Trust proxy settings for secure rate limiting behind load balancers/proxies
+app.set("trust proxy", 1);
+
+// Restrict cors to ALLOWED_ORIGIN env var (default same-origin only)
+const allowedOrigin = process.env.ALLOWED_ORIGIN;
+app.use(cors(allowedOrigin ? { origin: allowedOrigin } : { origin: false }));
+
+// Body parser with 25mb limit
+app.use(express.json({ limit: "25mb" }));
+
+// Rate limiter for AI endpoints: 30 req/min per Supabase user ID or IP
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: any) => {
+    return req.user?.id || ipKeyGenerator(req.ip || "unknown");
+  },
+  handler: (_req, res) => {
+    res.status(429).json({ error: "Rate limit reached, try again in a minute", code: 429 });
+  },
+});
+
+// Protect secure AI endpoints with requireAuth and rate limiter
+app.use("/api/chat", requireAuth, apiLimiter, chatRouter);
+app.use("/api/title", requireAuth, apiLimiter, titleRouter);
+app.use("/api/suggest", requireAuth, apiLimiter, suggestRouter);
+app.use("/api/models/prefs", requireAuth, apiLimiter, modelsPrefsRouter);
+app.use("/api/models", modelsRouter);
+app.use("/api/providers", requireAuth, apiLimiter, providersRouter);
+app.use("/api/catalog", requireAuth, apiLimiter, catalogRouter);
+app.use("/api/catalog", requireAuth, apiLimiter, catalogAdminRouter);
+app.use("/api/memory", memoryRouter);
+app.use("/api/skills", skillsRouter);
+app.use("/api/documents", documentsRouter);
+
+// Auth diagnostics: no auth required (it must answer when auth is broken), rate-limited
+app.use("/api/auth", authDebugRouter);
+
+// Open healthcheck route
+app.use("/api", healthRouter);
+
+// Serve frontend with Vite middlewares in dev or static files in production
+const isProd = process.env.NODE_ENV === "production";
+const isVercel = !!process.env.VERCEL;
+
+// One HTTP server carries the API, the frontend and Vite's HMR websocket, so live
+// reload works through a single forwarded port (e.g. an embedded preview proxy).
+const httpServer = http.createServer(app);
+
+if (!isProd && !isVercel) {
+  const { createServer: createViteServer } = await import("vite");
+  const vite = await createViteServer({
+    server: { middlewareMode: true, host: "0.0.0.0", port: 3000, hmr: { server: httpServer } },
+    appType: "spa",
+  });
+  app.use(vite.middlewares);
+} else if (!isVercel) {
+  app.use(express.static(path.join(__dirname, "dist")));
+  app.get(/.*/, (_req, res) => {
+    res.sendFile(path.join(__dirname, "dist", "index.html"));
+  });
+}
+
+// Vitest imports this module (tests/errorHandling.test.ts): binding the port there
+// would collide with a dev server already running on :3000.
+if (isVercel && !process.env.VITEST) {
+  // Serverless workers have no listen callback; probe as the module starts.
+  void initializeCatalogStore().catch((error) =>
+    console.error("[Catalog] store initialization failed:", error?.message || error)
+  );
+}
+
+if (!isVercel && !process.env.VITEST) {
+  const args = process.argv.slice(2);
+  const portIndex = args.indexOf("--port");
+  const cliPort = portIndex !== -1 && args[portIndex + 1] ? Number(args[portIndex + 1]) : null;
+  const port = cliPort || (!isProd ? 3000 : (Number(process.env.PORT) || 3000));
+  httpServer.listen(port, "0.0.0.0", () => {
+    console.log(`Server is running at http://0.0.0.0:${port}`);
+    // Validate the live schema read-only before starting scheduled catalog work.
+    void initializeCatalogStore()
+      .catch((error) => console.error("[Catalog] store initialization failed:", error?.message || error))
+      .finally(() => startCatalogScheduler());
+  });
+}
+export default app;

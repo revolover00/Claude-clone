@@ -1,0 +1,447 @@
+@import "tailwindcss";
+@import "./styles/motion.css";
+
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Source Serif 4", "Iowan Old Style", "Georgia", "Times New Roman", serif;
+
+  --color-shell: #262624;
+  --color-panel: #232321;
+  --color-line: #3b3b38;
+  --color-line-soft: #30302e;
+
+  --color-elev-1: #2c2c2a;
+  --color-elev-2: #343431;
+  --color-elev-3: #3c3b38;
+  --color-elev-4: #474540;
+  --color-composer: #30302e;
+  --color-composer-line: #41413e;
+  --color-preview-canvas: #20201e;
+  --color-code-surface: #222220;
+
+  --color-ink: #e9e7df;
+  --color-ink-soft: #d5d2cb;
+  --color-ink-muted: #a7a49c;
+  --color-ink-faint: #7f7c74;
+
+  --color-accent: #d97757;
+  --color-accent-hover: #e38261;
+  --color-accent-soft: rgb(217 119 87 / 12%);
+  --color-accent-border: rgb(217 119 87 / 35%);
+  --color-accent-ring: rgb(217 119 87 / 13%);
+  --color-link: #8fb9ef;
+  --color-link-hover: #b5d2f7;
+  --color-selection: rgb(217 119 87 / 34%);
+  --color-selection-ink: #fffaf3;
+  --color-scrollbar: #403d39;
+
+  --color-code-ink: #e9e6e0;
+  --color-code-comment: #918b80;
+  --color-code-keyword: #e48a6b;
+  --color-code-string: #b8ce9c;
+  --color-code-number: #edb07f;
+  --color-code-built-in: #98bfef;
+  --color-code-params: #d5d2cb;
+  --color-code-tag: #e48a6b;
+  --color-code-attribute: #d5c9a5;
+  --color-line-number: #79766f;
+
+  --color-danger: #f08578;
+  --color-danger-bg: rgb(240 133 120 / 12%);
+  --color-danger-border: rgb(240 133 120 / 35%);
+  --color-danger-hover: #fa9a8f;
+}
+
+/* Claude's paper surfaces, low-contrast dividers and terracotta light-mode accent. */
+[data-theme="light"] {
+  --color-shell: #faf9f5;
+  --color-panel: #f2f0ea;
+  --color-line: #e8e6e0;
+  --color-line-soft: #f0eee8;
+
+  --color-elev-1: #ffffff;
+  --color-elev-2: #f4f2ec;
+  --color-elev-3: #eae7df;
+  --color-elev-4: #dedad0;
+  --color-composer: #ffffff;
+  --color-composer-line: #e5e0d6;
+  --color-preview-canvas: #f2f0ea;
+  --color-code-surface: #f6f4ef;
+
+  --color-ink: #262522;
+  --color-ink-soft: #55514a;
+  --color-ink-muted: #77736b;
+  --color-ink-faint: #99938a;
+
+  --color-accent: #c96442;
+  --color-accent-hover: #b95735;
+  --color-accent-soft: rgb(201 100 66 / 10%);
+  --color-accent-border: rgb(185 83 53 / 30%);
+  --color-accent-ring: rgb(185 83 53 / 14%);
+  --color-link: #306eb5;
+  --color-link-hover: #24588e;
+  --color-selection: rgb(194 95 62 / 18%);
+  --color-selection-ink: #2a2520;
+  --color-scrollbar: #d0cbc1;
+
+  --color-code-ink: #282621;
+  --color-code-comment: #79756c;
+  --color-code-keyword: #ad4e35;
+  --color-code-string: #47753f;
+  --color-code-number: #b85e25;
+  --color-code-built-in: #306eb5;
+  --color-code-params: #55514a;
+  --color-code-tag: #ad4e35;
+  --color-code-attribute: #7a6026;
+  --color-line-number: #928d83;
+
+  --color-danger: #b53333;
+  --color-danger-bg: rgb(181 51 51 / 8%);
+  --color-danger-border: rgb(181 51 51 / 25%);
+  --color-danger-hover: #982b2b;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100dvh;
+  min-height: 100dvh;
+}
+
+body {
+  background: var(--color-shell);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+::selection {
+  background: var(--color-selection);
+  color: var(--color-selection-ink);
+}
+
+/* Slim, low-contrast scrollbars stay legible in both theme variants. */
+.scroll-slim {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar) transparent;
+}
+.scroll-slim::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar);
+  border-radius: 8px;
+}
+.scroll-slim::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* gentle entrance for the centered stack */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.anim-rise {
+  animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* soft pulse for the active mic */
+@keyframes micpulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--color-accent-ring);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+.anim-mic {
+  animation: micpulse 1.6s ease-out infinite;
+}
+
+textarea {
+  field-sizing: content;
+}
+
+/* Claude thinking & streaming spark animations */
+@keyframes think-rotate-pulse {
+  0% {
+    transform: rotate(0deg) scale(0.92);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.06);
+  }
+  100% {
+    transform: rotate(360deg) scale(0.92);
+  }
+}
+.anim-thinking-spark {
+  animation: think-rotate-pulse 2.4s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes text-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.anim-thinking-text {
+  background: linear-gradient(90deg, var(--color-ink-muted) 0%, var(--color-ink) 50%, var(--color-ink-muted) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-shimmer 1.8s infinite linear;
+}
+
+/* Newly revealed streaming words in the last paragraph fade in (opacity 0.35 -> 1, 140ms) */
+@keyframes chunk-fade {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.anim-chunk {
+  animation: chunk-fade 140ms var(--ease-out) both;
+}
+
+/* Live stream spark indicator fade out in 150ms when stream ends */
+@keyframes spark-fade-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+.anim-spark-exit {
+  animation: spark-fade-out 150ms var(--ease-out) forwards;
+}
+
+/* Modal and popover animations */
+@keyframes modal-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.anim-modal-in {
+  animation: modal-scale-in 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes popover-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.anim-popover-in {
+  animation: popover-scale-in 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes chat-item-in {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    max-height: 48px;
+    transform: translateY(0);
+  }
+}
+.anim-chat-item-in {
+  animation: chat-item-in 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Markdown links and code blocks inherit the active Claude palette. */
+.font-serif a {
+  color: var(--color-link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 150ms ease;
+}
+.font-serif a:hover {
+  color: var(--color-link-hover);
+}
+
+pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 1rem 1.15rem;
+  background: transparent;
+  color: var(--color-code-ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.hljs-comment,
+.hljs-quote {
+  color: var(--color-code-comment);
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst {
+  color: var(--color-code-keyword);
+  font-weight: 500;
+}
+.hljs-string,
+.hljs-title,
+.hljs-section,
+.hljs-attribute,
+.hljs-literal,
+.hljs-template-tag,
+.hljs-template-variable,
+.hljs-type,
+.hljs-addition {
+  color: var(--color-code-string);
+}
+.hljs-number,
+.hljs-variable,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--color-code-number);
+}
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-selector-id,
+.hljs-selector-attr,
+.hljs-selector-pseudo,
+.hljs-function .hljs-title,
+.hljs-title.function_ {
+  color: var(--color-code-built-in);
+}
+.hljs-params {
+  color: var(--color-code-params);
+}
+.hljs-tag,
+.hljs-name {
+  color: var(--color-code-tag);
+}
+.hljs-attr {
+  color: var(--color-code-attribute);
+}
+
+.composer-surface {
+  background: var(--color-composer);
+  border-color: var(--color-composer-line);
+  transition: border-color var(--dur-base) ease, box-shadow var(--dur-base) ease;
+}
+.composer-surface:focus-within {
+  border-color: var(--color-accent-border);
+  box-shadow: 0 0 0 3px var(--color-accent-ring);
+}
+
+/* Menu & Dropdown entrance (140ms scale 0.96->1 + fade) */
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.anim-dropdown {
+  animation: dropdown-in 140ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Mobile sheet slide up (300ms ease-out) */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.anim-sheet-up {
+  animation: sheet-up 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Button tactile press */
+button:active:not(:disabled) {
+  transform: scale(0.97);
+  transition: transform 70ms ease-out;
+}
+
+/* Line numbers for code viewer */
+.code-with-lines {
+  counter-reset: line;
+}
+.code-line {
+  counter-increment: line;
+  display: block;
+}
+.code-line::before {
+  content: counter(line);
+  display: inline-block;
+  width: 2.4rem;
+  padding-right: 1rem;
+  color: var(--color-line-number);
+  text-align: right;
+  user-select: none;
+}
+
+/* Accessibility: respect user prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .anim-rise,
+  .anim-mic,
+  .anim-thinking-spark,
+  .anim-thinking-text,
+  .anim-chunk,
+  .anim-modal-in,
+  .anim-popover-in,
+  .anim-chat-item-in,
+  .anim-dropdown,
+  .anim-sheet-up,
+  .anim-spark-exit {
+    animation: none !important;
+    transition: none !important;
+  }
+  button:active:not(:disabled) {
+    transform: none !important;
+  }
+}
+
+

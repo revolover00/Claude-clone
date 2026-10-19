@@ -1,0 +1,236 @@
+import type { Conversation, Message, ToolActivityEvent } from "../../types/chat";
+import { upsertToolActivityEvent } from "../../utils/toolActivity";
+
+/**
+ * Why a completed stream produced no text. The generic "stream ended" line
+ * hid actionable causes (token cap, safety filter, tool-only reply), so the
+ * card now names the real reason whenever the provider told us one.
+ */
+export function emptyCompletionReason(finishReason?: string): string {
+  const reason = String(finishReason || "").toLowerCase();
+  if (reason.includes("length") || reason.includes("max_tokens")) {
+    return "The model hit its output limit before writing any text. Shorten the request or raise the max-token setting.";
+  }
+  if (reason.includes("content_filter") || reason.includes("safety") || reason.includes("blocklist")) {
+    return "The provider's safety filter blocked this reply before any text was produced. Rephrase the request and try again.";
+  }
+  if (reason.includes("tool") || reason.includes("function")) {
+    return "The model only requested a tool call and produced no text. Try again or adjust the request.";
+  }
+  return "The stream ended before the model returned a response. Try again.";
+}
+
+export function updateMessageToolEvent(
+  conversations: Conversation[], conversationId: string, messageId: string, event: ToolActivityEvent
+): Conversation[] {
+  return conversations.map((conversation) => conversation.id !== conversationId ? conversation : {
+    ...conversation,
+    updatedAt: Date.now(),
+    messages: conversation.messages.map((message) => message.id !== messageId ? message : {
+      ...message, toolEvents: upsertToolActivityEvent(message.toolEvents, event),
+    }),
+  });
+}
+
+/**
+ * Traverses the conversation tree from root to leaf following activeChildId.
+ */
+export function getActiveBranch(
+  messages: Message[],
+  rootMessageId?: string | null
+): Message[] {
+  if (!messages || messages.length === 0) return [];
+
+  const map = new Map<string, Message>();
+  const childrenMap = new Map<string | null, Message[]>();
+
+  for (const m of messages) {
+    map.set(m.id, m);
+    const pId = m.parentId || null;
+    const list = childrenMap.get(pId) || [];
+    list.push(m);
+    childrenMap.set(pId, list);
+  }
+
+  let current: Message | undefined;
+  if (rootMessageId && map.has(rootMessageId)) {
+    current = map.get(rootMessageId);
+  } else {
+    const roots = childrenMap.get(null) || [];
+    current = roots[roots.length - 1] || messages[0];
+  }
+
+  const branch: Message[] = [];
+  const visited = new Set<string>();
+
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    branch.push(current);
+
+    if (current.activeChildId && map.has(current.activeChildId)) {
+      current = map.get(current.activeChildId);
+    } else {
+      const children = childrenMap.get(current.id) || [];
+      current = children.length > 0 ? children[children.length - 1] : undefined;
+    }
+  }
+
+  return branch;
+}
+
+/**
+ * Gets all sibling message nodes sharing the same parent and returns current index.
+ */
+export function getMessageSiblings(
+  messages: Message[],
+  messageId: string
+): { siblings: Message[]; currentIndex: number } {
+  const target = messages.find((m) => m.id === messageId);
+  if (!target) return { siblings: [], currentIndex: 0 };
+  const parentId = target.parentId || null;
+  const siblings = messages.filter((m) => (m.parentId || null) === parentId);
+  const currentIndex = siblings.findIndex((s) => s.id === messageId);
+  return {
+    siblings,
+    currentIndex: currentIndex === -1 ? 0 : currentIndex,
+  };
+}
+
+import { toCanonicalModelId } from "../../shared/normalizeSlug";
+
+function normalizeSavedMessage(message: any): any {
+  const wasInFlight = message.role === "assistant" &&
+    (message.isStreaming || message.isThinking || message.isReconnecting);
+  const hasPartialText = typeof message.content === "string" && message.content.trim().length > 0;
+  const normalized = {
+    ...message,
+    ...(message.model_id ? { model_id: toCanonicalModelId(message.model_id) } : {}),
+  };
+  if (!wasInFlight) return normalized;
+
+  return {
+    ...normalized,
+    isStreaming: false,
+    isThinking: false,
+    isReconnecting: false,
+    isSearchingWeb: false,
+    finishReason: "INTERRUPTED",
+    isError: !hasPartialText,
+    errorText: hasPartialText
+      ? undefined
+      : "This response was interrupted by a page reload. Retry to generate a new response.",
+    errorDetails: undefined,
+  };
+}
+
+/**
+ * Automatically migrates saved messages and recovers replies left in flight by a page reload.
+ */
+export function migrateConversations(savedRaw: any[]): Conversation[] {
+  if (!Array.isArray(savedRaw)) return [];
+  return savedRaw.map((c) => {
+    const convModelId = toCanonicalModelId(c.model_id);
+
+    if (!c.messages || !Array.isArray(c.messages) || c.messages.length === 0) {
+      return {
+        ...c,
+        model_id: convModelId,
+        messages: [],
+        rootMessageId: null,
+      };
+    }
+
+    const hasTreeStructure = c.messages.some((m: any) => "parentId" in m);
+    if (hasTreeStructure) {
+      return {
+        ...c,
+        model_id: convModelId,
+        messages: c.messages.map((m: any) => normalizeSavedMessage(m)),
+      };
+    }
+
+    // Convert sequential flat messages to linked tree nodes
+    const messages: Message[] = c.messages.map((m: any, idx: number) => {
+      const prevId = idx > 0 ? c.messages[idx - 1].id : null;
+      const nextId = idx < c.messages.length - 1 ? c.messages[idx + 1].id : null;
+      return normalizeSavedMessage({
+        ...m,
+        parentId: prevId,
+        activeChildId: nextId,
+        childrenIds: nextId ? [nextId] : [],
+      });
+    });
+
+    return {
+      ...c,
+      model_id: convModelId,
+      messages,
+      rootMessageId: messages[0]?.id || null,
+    };
+  });
+}
+
+export function createEditUserBranch(
+  conversations: Conversation[],
+  conversationId: string,
+  targetMessageId: string,
+  newContent: string
+) {
+  const conv = conversations.find((c) => c.id === conversationId);
+  if (!conv) return null;
+  const targetMsg = conv.messages.find((m) => m.id === targetMessageId);
+  if (!targetMsg) return null;
+
+  const parentId = targetMsg.parentId || null;
+  const newUserMsgId = `u-${Date.now()}`;
+  const newAssistantMsgId = `a-${Date.now()}`;
+
+  const newUserMsg: Message = {
+    id: newUserMsgId,
+    parentId,
+    activeChildId: newAssistantMsgId,
+    childrenIds: [newAssistantMsgId],
+    role: "user",
+    content: newContent,
+    attachments: targetMsg.attachments,
+    createdAt: Date.now(),
+  };
+
+  const newAssistantMsg: Message = {
+    id: newAssistantMsgId,
+    parentId: newUserMsgId,
+    role: "assistant",
+    content: "",
+    isStreaming: true,
+    createdAt: Date.now(),
+  };
+
+  return { newUserMsg, newAssistantMsg, parentId };
+}
+
+export function createRetryAssistantBranch(
+  conversations: Conversation[],
+  conversationId: string,
+  assistantMessageId: string
+) {
+  const conv = conversations.find((c) => c.id === conversationId);
+  if (!conv) return null;
+  const targetAssistant = conv.messages.find((m) => m.id === assistantMessageId);
+  if (!targetAssistant || !targetAssistant.parentId) return null;
+
+  const parentUserMsgId = targetAssistant.parentId;
+  const parentUserMsg = conv.messages.find((m) => m.id === parentUserMsgId);
+  if (!parentUserMsg) return null;
+
+  const newAssistantMsgId = `a-${Date.now()}`;
+  const newAssistantMsg: Message = {
+    id: newAssistantMsgId,
+    parentId: parentUserMsgId,
+    role: "assistant",
+    content: "",
+    isStreaming: true,
+    createdAt: Date.now(),
+  };
+
+  return { parentUserMsg, newAssistantMsg, parentUserMsgId };
+}

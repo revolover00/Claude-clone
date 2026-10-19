@@ -1,0 +1,262 @@
+import { SSEParser } from "./sseParser";
+import { authFetch } from "./authHeaders";
+import type { ToolActivityEvent } from "../types/chat";
+
+/** Priority-ordered credential ids the Settings UI saved for this model's provider. */
+function keyOrderFor(model: string): string[] | undefined {
+  try {
+    const raw = localStorage.getItem("claude_clone_key_order");
+    if (!raw) return undefined;
+    const map = JSON.parse(raw) as Record<string, string[]>;
+    const provider = model && model.includes(":") ? model.split(":")[0] : "gemini";
+    const order = map[provider];
+    return Array.isArray(order) && order.length > 0 ? order : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export interface StreamCallbacks {
+  onThinkingStart?: () => void;
+  onThinkingUpdate?: (thought: string) => void;
+  onToken?: (token: string, fullText: string) => void;
+  onSources?: (sources: Array<{ title: string; url: string }>) => void;
+  onDone?: (fullText: string) => void;
+  onError?: (err: Error & { details?: string; code?: number }) => void;
+  onFinish?: (finish: string) => void;
+  onThoughtsTokenCount?: (count: number) => void;
+  onThinkingPlan?: (plan: { level: "low" | "medium" | "high"; reason?: string }) => void;
+  onDocument?: (doc: any) => void;
+  onDocumentError?: (docErr: any) => void;
+  onTool?: (tool: ToolActivityEvent) => void;
+}
+
+export interface ChatStreamOptions {
+  messages: any[];
+  style: string;
+  profileInstructions: string;
+  projectInstructions?: string;
+  projectKnowledge?: Array<{ title: string; content: string }>;
+  model: string;
+  effort: string;
+  webSearch: boolean;
+  extendedThinking: boolean;
+  language: string;
+  memoryEnabled?: boolean;
+}
+
+export function streamRealResponse(
+  prompt: string,
+  signal: AbortSignal,
+  options: ChatStreamOptions,
+  callbacks: StreamCallbacks,
+  runtime: { idleTimeoutMs?: number } = {}
+): () => void {
+  let isCancelled = false;
+
+  // Liveness watchdog: the server prep (fetch) and the provider stream (read)
+  // are both raced against an inactivity timer, so a wedged socket can never
+  // leave the composer spinning forever — it becomes an onError (code 504)
+  // which the auto-retry policy treats as a transient 5xx.
+  const idleMs = runtime.idleTimeoutMs ?? 120_000;
+  const SERVER_IDLE_LABEL = "The server did not respond within 2 minutes. Check the backend and try again.";
+  const PROVIDER_IDLE_LABEL =
+    "The provider stopped responding mid-stream. Try again or split the task into smaller parts.";
+  const withIdle = <T,>(promise: Promise<T>, label: string): Promise<T> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const idle = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(Object.assign(new Error(label), { code: 504 })), idleMs);
+    });
+    return Promise.race([promise, idle]).finally(() => {
+      if (timer) clearTimeout(timer);
+    }) as Promise<T>;
+  };
+
+  const onAbort = () => {
+    isCancelled = true;
+  };
+  signal.addEventListener("abort", onAbort);
+
+  (async () => {
+    try {
+      callbacks.onThinkingStart?.();
+
+      // authFetch attaches the live session token, refreshes it when it is about to
+      // expire (sharing one in-flight refresh with every other request), retries once
+      // on an AUTH_* 401 and raises "claude:session-expired" when recovery fails.
+      const response = await withIdle(
+        authFetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            ...options.messages.map((m) => ({
+              role: m.role,
+              content: m.content,
+              attachments: m.attachments,
+            })),
+            { role: "user", content: prompt },
+          ],
+          style: options.style,
+          profileInstructions: options.profileInstructions,
+          projectInstructions: options.projectInstructions,
+          projectKnowledge: options.projectKnowledge,
+          model: options.model,
+          effort: options.effort,
+          webSearch: options.webSearch,
+          extendedThinking: options.extendedThinking,
+          language: options.language,
+          memoryEnabled: options.memoryEnabled !== false,
+          keyOrder: keyOrderFor(options.model),
+        }),
+        signal,
+        }),
+        SERVER_IDLE_LABEL
+      );
+
+      if (!response.ok) {
+        const contentType = response.headers.get("content-type");
+        let serverErrorMsg = "";
+        let serverDetails = "";
+        let serverCode: number | string = response.status;
+        let isJson = false;
+
+        if (contentType && contentType.includes("application/json")) {
+          try {
+            const errData = await response.json();
+            isJson = true;
+            if (errData?.error) serverErrorMsg = errData.error;
+            if (errData?.details) serverDetails = errData.details;
+            if (errData?.code) serverCode = errData.code;
+          } catch {
+            // Failed to parse JSON even though content-type was application/json
+          }
+        }
+
+        let friendlyMsg = "";
+        if (isJson) {
+          if (serverCode === "MODEL_NOT_FOUND") {
+            friendlyMsg = "Selected model is unavailable";
+          } else {
+            friendlyMsg = serverErrorMsg || `HTTP Error ${response.status}: ${response.statusText}`;
+          }
+        } else {
+          friendlyMsg = `The AI endpoint returned HTTP ${response.status} (not an API response). The backend may not be deployed.`;
+          serverDetails = `Method: ${response.type}, URL: ${response.url}, Status: ${response.status}, Content-Type: ${contentType || "none"}`;
+        }
+
+        const httpErr = new Error(friendlyMsg);
+        (httpErr as any).details = serverDetails;
+        (httpErr as any).code = serverCode;
+        throw httpErr;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("No response body received from server.");
+      }
+
+      const decoder = new TextDecoder();
+      let accumulatedContent = "";
+      let accumulatedThinking = "";
+      let midStreamError: (Error & { details?: string; code?: number }) | null = null;
+      // `data: [DONE]` is the protocol-level end of the stream. Some responses
+      // (and misbehaving proxies) keep the socket open afterwards, so waiting
+      // for reader `done` would hang forever and leave the send button stuck
+      // on "stop": complete as soon as [DONE] is parsed.
+      let sawDone = false;
+
+      callbacks.onThinkingUpdate?.(""); // Initialize thinking process state
+
+      const parser = new SSEParser({
+        onThinking: (thought) => {
+          accumulatedThinking += thought;
+          callbacks.onThinkingUpdate?.(accumulatedThinking);
+        },
+        onSources: (sources) => {
+          callbacks.onSources?.(sources);
+        },
+        onToken: (token) => {
+           accumulatedContent += token;
+           callbacks.onToken?.(token, accumulatedContent);
+        },
+        onFinish: (finish) => {
+           callbacks.onFinish?.(finish);
+        },
+        onThoughtsTokenCount: (count) => {
+          callbacks.onThoughtsTokenCount?.(count);
+        },
+        onWarning: (warning) => {
+          window.dispatchEvent(new CustomEvent("claude:toast", { detail: { message: warning, type: "info" } }));
+        },
+        onThinkingPlan: (plan) => {
+          callbacks.onThinkingPlan?.(plan);
+        },
+        onDocument: (doc) => {
+          callbacks.onDocument?.(doc);
+        },
+        onDocumentError: (docErr) => {
+          callbacks.onDocumentError?.(docErr);
+        },
+        onTool: (tool) => callbacks.onTool?.(tool),
+        onError: (err) => {
+          midStreamError = err;
+        },
+        onDone: () => {
+          sawDone = true;
+        },
+      });
+
+      while (!isCancelled) {
+        const { value, done } = await withIdle(reader.read(), PROVIDER_IDLE_LABEL);
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        parser.feed(chunk);
+
+        // Error wins over [DONE] (an error event may be followed by [DONE]).
+        if (midStreamError) {
+          throw midStreamError;
+        }
+        if (sawDone) {
+          break;
+        }
+      }
+      parser.flush();
+
+      if (midStreamError) {
+        throw midStreamError;
+      }
+
+      if (!isCancelled) {
+        callbacks.onDone?.(accumulatedContent);
+      }
+    } catch (err: any) {
+      if (isCancelled || err.name === "AbortError") {
+        return;
+      }
+      console.error("Stream response error:", err);
+      let message = err.message || "An unexpected error occurred.";
+      if (
+        err.name === "TypeError" ||
+        (err.message &&
+          (err.message.includes("Failed to fetch") ||
+            err.message.includes("NetworkError") ||
+            err.message.includes("fetch failed") ||
+            err.message.includes("Load failed")))
+      ) {
+        message = "Backend unreachable";
+      }
+
+      const finalErr = new Error(message);
+      (finalErr as any).details = err.details || (err.stack ? String(err.stack) : undefined);
+      (finalErr as any).code = err.code;
+      callbacks.onError?.(finalErr as any);
+    }
+  })();
+
+  return () => {
+    isCancelled = true;
+    signal.removeEventListener("abort", onAbort);
+  };
+}
