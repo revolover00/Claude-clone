@@ -87,7 +87,8 @@ Every provider is bundled with its **original brand icon** and complete model li
 - **Portable read-only conversation sharing**: creates a compressed link for the active message branch and opens it without an account or server-side share record. The link intentionally excludes attachments, hidden reasoning, and alternate versions; it is an immutable snapshot, cannot be revoked, and anyone with the link can read it.
 - **Interrupted reply recovery**: after a page reload, stale streaming state is cleared while any generated text is preserved; partial replies offer Continue and empty replies can be retried. Continuation includes the saved assistant text in model context. This is client-side recovery, not durable server-side resumption of the original SSE stream.
 - **Custom AI retry directives**: revise an answer with a natural-language instruction (for example, change its language, tone, or level of detail); the previous assistant response is included in context so the model can edit the actual answer rather than guess what it wrote.
-- **Visible AI tool activity**: watch skill and document tools start, finish, or fail in a compact, expandable timeline under the reply. The UI shows action names and status only—not private tool arguments or returned contents—and keeps completed activity with the message.
+- **Visible AI tool activity**: watch skill, document, and connected MCP tools start, finish, or fail in a compact, expandable timeline under the reply. The UI shows action names and status only—not private tool arguments or returned contents—and keeps completed activity with the message.
+- **Database-backed Connectors**: browse and search the Supabase connector catalog in Settings → Connectors, connect OAuth accounts, add remote Streamable HTTP MCP servers, and make discovered MCP tools available to supported chat models. OAuth client secrets and user access tokens are kept out of the catalog; connection tokens are encrypted at rest.
 - **Projects Workspace (`/projects/:id`)**:
   - Custom system instructions configured per project and automatically injected into every conversation started within the project.
   - Knowledge base supporting file uploads (`.txt`, `.md`, `.json`, code files) and text snippets.
@@ -217,6 +218,10 @@ Create a `.env` file in the root directory (based on `.env.example`).
 | `NODE_ENV` | No | `development` | Set to `production` when building for deployment. |
 | `PROVIDER_KEY_ENCRYPTION_SECRET` | **Yes (production)** | unset | secret used to encrypt saved provider API keys at rest — any strong **non-empty** value works (it is normalized to a 32-byte key via SHA-256). Recommended: `openssl rand -base64 32` (or `openssl rand -hex 32`). The server **exits on boot** in production only when it is missing or empty. |
 | `PROVIDER_KEY_ENCRYPTION_SECRET_PREV` | No | unset | Previous secret, only needed during key rotation (old ciphertexts decrypt with it and re-encrypt with the primary). |
+| `CONNECTORS_APP_URL` | For production OAuth | unset | Public HTTPS origin of the app. OAuth returns to `/api/connectors/oauth/callback`; required before enabling OAuth in production. |
+| `CONNECTORS_REDIRECT_URI` | No | `{CONNECTORS_APP_URL}/api/connectors/oauth/callback` | Optional exact OAuth callback URI; must use the same app origin and callback path. |
+| `CONNECTOR_OAUTH_<SLUG>_CLIENT_ID` | Per OAuth connector | unset | OAuth app client ID for a catalog connector (GitHub, Notion, Linear, Google Drive, or Slack). |
+| `CONNECTOR_OAUTH_<SLUG>_CLIENT_SECRET` | Per OAuth connector | unset | OAuth app client secret; configure only in the hosting platform's server environment, never in the database catalog or frontend. |
 
 ---
 

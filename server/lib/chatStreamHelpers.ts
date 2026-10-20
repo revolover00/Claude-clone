@@ -90,6 +90,7 @@ export interface PumpGeminiStreamParams {
   formattedMessages: any[];
   config: any;
   executeSkillFunctionCall: any;
+  executeToolCall?: any;
   runSkillToolStream: any;
   /** Idle-watchdog override in ms (tests use a tiny value). */
   idleTimeoutMs?: number;
@@ -104,6 +105,7 @@ export async function pumpGeminiStream({
   formattedMessages,
   config,
   executeSkillFunctionCall,
+  executeToolCall,
   runSkillToolStream,
   idleTimeoutMs,
 }: PumpGeminiStreamParams): Promise<void> {
@@ -114,6 +116,57 @@ export async function pumpGeminiStream({
   const skillExecutionState = { skillLoadsCount: 0, totalBytesLoaded: 0 };
   const collectedSources: Array<{ title: string; url: string }> = [];
   const seenUrls = new Set<string>();
+  let toolCallCount = 0;
+  const maxToolCalls = 5;
+
+  const consumeContinuation = async (continuationStream: any, history: any[], depth: number): Promise<void> => {
+    for await (const continuationChunk of continuationStream) {
+      if (abortCtrl.signal.aborted) return;
+      const continuationCandidate = continuationChunk.candidates?.[0];
+      const continuationParts = continuationCandidate?.content?.parts || [];
+      for (const part of continuationParts) {
+        if ((part as any).functionCall) {
+          await executeAndContinue((part as any).functionCall, history, depth);
+        } else if ((part as any).thought) {
+          res.write(`data: ${JSON.stringify({ thinking: part.text || "" })}\n\n`);
+        } else if (part.text) {
+          res.write(`data: ${JSON.stringify({ token: part.text })}\n\n`);
+        }
+      }
+    }
+  };
+
+  const executeAndContinue = async (call: any, history: any[], depth: number): Promise<void> => {
+    const toolEventId = randomUUID();
+    const skillTarget = call.args?.name || call.args?.skill || call.name;
+    res.write(`data: ${JSON.stringify({ tool: { id: toolEventId, name: call.name, skill: skillTarget, status: "executing" } })}\n\n`);
+    if (toolCallCount >= maxToolCalls || depth > maxToolCalls) {
+      res.write(`data: ${JSON.stringify({ tool: { id: toolEventId, name: call.name, skill: skillTarget, status: "error" } })}\n\n`);
+      return;
+    }
+    toolCallCount++;
+
+    const execRes = executeToolCall
+      ? await executeToolCall(call, skillExecutionState)
+      : await executeSkillFunctionCall(userId, call, skillExecutionState);
+    if (execRes.document) res.write(`data: ${JSON.stringify({ document: execRes.document })}\n\n`);
+    if (execRes.documentError) res.write(`data: ${JSON.stringify({ documentError: execRes.documentError })}\n\n`);
+    const toolStatus = execRes.documentError || execRes.toolError ? "error" : "completed";
+    res.write(`data: ${JSON.stringify({ tool: { id: toolEventId, name: call.name, skill: execRes.skillName || skillTarget, status: toolStatus } })}\n\n`);
+
+    try {
+      const continuationStream = await runSkillToolStream(modelId, history, config, call, execRes.result);
+      const nextHistory = [
+        ...history,
+        { role: "model", parts: [{ functionCall: call }] },
+        { role: "user", parts: [{ functionResponse: { name: call.name, response: { output: execRes.result } } }] },
+      ];
+      await consumeContinuation(continuationStream, nextHistory, depth + 1);
+    } catch (continuationError) {
+      if (!abortCtrl.signal.aborted) console.error("Continuation stream error:", continuationError);
+    }
+  };
+
   const iterator = (stream as AsyncIterable<any>)[Symbol.asyncIterator]();
   try {
     while (true) {
@@ -134,39 +187,7 @@ export async function pumpGeminiStream({
     if (candidate?.content?.parts) {
       for (const part of candidate.content.parts) {
         if ((part as any).functionCall) {
-          const call = (part as any).functionCall;
-          const toolEventId = randomUUID();
-          const skillTarget = call.args?.name || call.args?.skill;
-          res.write(`data: ${JSON.stringify({ tool: { id: toolEventId, name: call.name, skill: skillTarget, status: "executing" } })}\n\n`);
-
-          const execRes = await executeSkillFunctionCall(userId, call, skillExecutionState);
-          if (execRes.document) {
-            res.write(`data: ${JSON.stringify({ document: execRes.document })}\n\n`);
-          }
-          if (execRes.documentError) {
-            res.write(`data: ${JSON.stringify({ documentError: execRes.documentError })}\n\n`);
-          }
-
-          const toolStatus = execRes.documentError ? "error" : "completed";
-          res.write(`data: ${JSON.stringify({ tool: { id: toolEventId, name: call.name, skill: execRes.skillName || skillTarget, status: toolStatus } })}\n\n`);
-
-          try {
-            const contStream = await runSkillToolStream(modelId, formattedMessages, config, call, execRes.result);
-            for await (const contChunk of contStream) {
-              if (abortCtrl.signal.aborted) break;
-              const contCandidate = contChunk.candidates?.[0];
-              const contParts = contCandidate?.content?.parts || [];
-              for (const cp of contParts) {
-                if ((cp as any).thought) {
-                  res.write(`data: ${JSON.stringify({ thinking: cp.text || "" })}\n\n`);
-                } else if (cp.text) {
-                  res.write(`data: ${JSON.stringify({ token: cp.text })}\n\n`);
-                }
-              }
-            }
-          } catch (contErr) {
-            console.error("Continuation stream error:", contErr);
-          }
+          await executeAndContinue((part as any).functionCall, formattedMessages, 1);
           continue;
         }
       }

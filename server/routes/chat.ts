@@ -1,13 +1,14 @@
 import { Router } from "express";
 import { mapGeminiError, formatMessage, buildSystemInstruction, startGeminiStream } from "../lib/gemini";
-import { getAvailableSkillsSummary } from "../lib/skills/db";
-import { executeSkillFunctionCall, runSkillToolStream } from "../lib/skills/toolLoop";
+import { buildSkillsPromptSection } from "../lib/skills/chatPrompt";
+import { runSkillToolStream } from "../lib/skills/toolLoop";
+import { prepareChatToolSupport } from "../lib/connectors/chatTools";
 import { getThinkingPlanAndConfig, modelSupportsReasoning, type RegisteredProviderId } from "../lib/thinkingRouter";
 import { getModelsFromDB } from "../lib/modelsStore";
 import { normalizeSlug } from "../../src/shared/normalizeSlug";
 import { retrieveUserMemoryPrompt } from "../lib/chatMemory";
 import { createClient } from "@supabase/supabase-js";
-import { validateChatMessages, DEFAULT_CHAT_TOOLS, pumpGeminiStream } from "../lib/chatStreamHelpers";
+import { validateChatMessages, pumpGeminiStream } from "../lib/chatStreamHelpers";
 import { getProvider, isKnownProvider } from "../lib/providers";
 import { listKeyCandidates, markCredentialStatus, sanitizeKeyOrder } from "../lib/providers/keyRotation";
 import { geminiKeyFor } from "../lib/userAiKey";
@@ -113,16 +114,10 @@ router.post("/", async (req, res) => {
       userId, messages, req.body.projectId, supabaseServer, isRealSupabaseConfigured, memoryKey
     );
 
-    const availableSkills = await getAvailableSkillsSummary((req as any).user?.id);
-    let skillsPromptSection = "";
-    if (availableSkills.length > 0) {
-      skillsPromptSection = `\n\n## Available skills\n` +
-        availableSkills.map((s) => `- ${s.name}: ${s.description}`).join("\n") +
-        `\n\nWhen a user request matches an available skill, call load_skill({ name }) to retrieve its complete instructions before responding. To read referenced files within the skill, call read_skill_file({ skill, path }).`;
-    }
-    if (req.body.forcedSkill) {
-      skillsPromptSection += `\n\nCRITICAL: The user has explicitly selected the skill "${req.body.forcedSkill}". You MUST call load_skill({ name: "${req.body.forcedSkill}" }) immediately.`;
-    }
+    const skillsPromptSection = await buildSkillsPromptSection(userId, req.body.forcedSkill);
+
+    const supportsTools = resolvedModel?.supports_tools !== false;
+    const chatToolSupport = await prepareChatToolSupport(userId, abortCtrl.signal, supportsTools);
 
     const config: any = {
       systemInstruction: buildSystemInstruction(
@@ -130,7 +125,7 @@ router.post("/", async (req, res) => {
         resolvedModel?.display_name || modelId
       ) + memoryPromptSection + skillsPromptSection,
       abortSignal: abortCtrl.signal,
-      tools: DEFAULT_CHAT_TOOLS,
+      tools: chatToolSupport.geminiTools,
     };
 
     let searchGroundingDisabledNotice = false;
@@ -183,6 +178,8 @@ router.post("/", async (req, res) => {
         idleTimeoutMs: timeoutOverride,
         connectTimeoutMs: timeoutOverride,
         apiKeys: keyCandidates,
+        externalTools: chatToolSupport.externalTools,
+        executeToolCall: (call: any) => chatToolSupport.executeToolCall(call),
         onKeyFailure: async (
           credId: string,
           code: "KEY_INVALID" | "CREDITS_EXHAUSTED" | "RATE_LIMITED"
@@ -269,7 +266,8 @@ router.post("/", async (req, res) => {
       formattedMessages,
       config,
       idleTimeoutMs: timeoutOverride,
-      executeSkillFunctionCall,
+      executeSkillFunctionCall: chatToolSupport.executeSkillFunctionCall,
+      executeToolCall: chatToolSupport.executeToolCall,
       runSkillToolStream: (mId: string, msgs: any[], cfg: any, call: any, result: string) =>
         runSkillToolStream(memoryKey || userKey, mId, msgs, cfg, call, result),
     });

@@ -28,4 +28,10 @@ describe("API authorization coverage", () => {
 
     expect(findings).toEqual([]);
   });
+
+  it("protects connector APIs while leaving only the one-time OAuth callback public", () => {
+    const server = fs.readFileSync(path.resolve("server.ts"), "utf8");
+    expect(server).toContain('app.use("/api/connectors", requireAuth, apiLimiter, connectorsRouter);');
+    expect(server.indexOf('app.use("/api/connectors/oauth/callback"')).toBeLessThan(server.indexOf('app.use("/api/connectors", requireAuth'));
+  });
 });

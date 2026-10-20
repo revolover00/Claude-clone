@@ -88,6 +88,19 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
+    const url = new URL(window.location.href);
+    const result = url.searchParams.get("connector_oauth");
+    if (result !== "success" && result !== "error") return;
+    try {
+      localStorage.setItem("claude_clone_connector_oauth_result", result);
+      localStorage.setItem("claude_clone_settings_tab", "connectors");
+    } catch { /* storage can be unavailable in private browsing */ }
+    setSettingsModalOpen(true);
+    url.searchParams.delete("connector_oauth");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [setSettingsModalOpen]);
+
+  useEffect(() => {
     try {
       localStorage.setItem("claude_sidebar_open", JSON.stringify(sidebarOpen));
     } catch { /* ignore */ }
