@@ -1,4 +1,5 @@
-import { TextEncoder, TextDecoder } from 'text-encoding';
+import { TextEncoder } from 'text-encoding';
+import { TextDecoder } from 'node:util';
 import { cleanup } from '@testing-library/react';
 import { afterEach } from 'vitest';
 

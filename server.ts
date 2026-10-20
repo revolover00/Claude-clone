@@ -32,6 +32,8 @@ import memoryRouter from "./server/routes/memory";
 import skillsRouter from "./server/routes/skills";
 import documentsRouter from "./server/routes/documents";
 import providersRouter from "./server/routes/providers";
+import connectorsRouter from "./server/routes/connectors";
+import connectorsOAuthCallbackRouter from "./server/routes/connectorOAuthCallback";
 import catalogRouter from "./server/routes/catalog";
 import catalogAdminRouter from "./server/routes/catalogAdmin";
 import authDebugRouter from "./server/routes/authDebug";
@@ -85,6 +87,9 @@ app.use("/api/suggest", requireAuth, apiLimiter, suggestRouter);
 app.use("/api/models/prefs", requireAuth, apiLimiter, modelsPrefsRouter);
 app.use("/api/models", modelsRouter);
 app.use("/api/providers", requireAuth, apiLimiter, providersRouter);
+// OAuth callbacks use a one-time, database-backed state tied to the initiating user.
+app.use("/api/connectors/oauth/callback", connectorsOAuthCallbackRouter);
+app.use("/api/connectors", requireAuth, apiLimiter, connectorsRouter);
 app.use("/api/catalog", requireAuth, apiLimiter, catalogRouter);
 app.use("/api/catalog", requireAuth, apiLimiter, catalogAdminRouter);
 app.use("/api/memory", memoryRouter);

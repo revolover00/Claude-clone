@@ -46,6 +46,9 @@ export interface ProviderStreamParams {
   /** Priority-ordered fallback keys; when present the transport rotates past quota/auth failures. */
   apiKeys?: Array<{ id?: string; label?: string; key: string }>;
   onKeyFailure?: (id: string, code: "KEY_INVALID" | "CREDITS_EXHAUSTED" | "RATE_LIMITED") => Promise<void> | void;
+  /** Optional MCP tool declarations (Gemini-style schema; normalized by the shared transport). */
+  externalTools?: Array<Record<string, any>>;
+  executeToolCall?: (call: { name: string; args: Record<string, any> }) => Promise<{ result: string; skillName?: string; toolError?: boolean } | null>;
 }
 
 export interface Provider {

@@ -7,12 +7,15 @@ import MemoryTab from "./MemoryTab";
 import SkillsTab from "./SkillsTab";
 import AboutTab from "./AboutTab";
 
-const SETTINGS_TABS = ["general", "appearance", "data", "models", "memory", "skills", "providers", "about"] as const;
+const SETTINGS_TABS = ["general", "appearance", "data", "models", "memory", "skills", "connectors", "providers", "about"] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
 const ModelsTab = lazy(() => import("./ModelsTab"));
 
 const ProvidersSettingsView = lazy(() =>
   import("../views/ProvidersSettingsView").then((m) => ({ default: m.ProvidersSettingsView }))
+);
+const ConnectorsSettingsView = lazy(() =>
+  import("../connectors/ConnectorsSettingsView").then((m) => ({ default: m.ConnectorsSettingsView }))
 );
 
 export default function SettingsModal() {
@@ -97,6 +100,7 @@ export default function SettingsModal() {
             <TabBtn id="data" label="Data" />
             <TabBtn id="memory" label="Memory" />
             <TabBtn id="skills" label="Skills" />
+            <TabBtn id="connectors" label="Connectors" />
             <TabBtn id="providers" label="Providers" />
             <TabBtn id="models" label="Model Catalog" />
             <TabBtn id="about" label="About" />
@@ -222,6 +226,11 @@ export default function SettingsModal() {
           {activeTab === "models" && <Suspense fallback={<div className="p-4 text-xs text-ink-muted">Loading model catalog...</div>}><ModelsTab /></Suspense>}
           {activeTab === "memory" && <MemoryTab />}
           {activeTab === "skills" && <SkillsTab />}
+          {activeTab === "connectors" && (
+            <Suspense fallback={<div className="p-4 text-xs text-ink-muted">Loading connectors...</div>}>
+              <ConnectorsSettingsView />
+            </Suspense>
+          )}
           {activeTab === "providers" && (
             <Suspense fallback={<div className="p-4 text-xs text-ink-muted">Loading providers...</div>}>
               <ProvidersSettingsView />
