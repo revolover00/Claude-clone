@@ -71,11 +71,13 @@ export async function buildAuthorizationUrl(
   authorizationUrl.searchParams.set("redirect_uri", redirectUri);
   authorizationUrl.searchParams.set("state", state);
   const scopes = Array.isArray(config.scopes) ? config.scopes.filter((scope: unknown) => typeof scope === "string") : [];
+  const userScopes = Array.isArray(config.user_scopes) ? config.user_scopes.filter((scope: unknown) => typeof scope === "string") : [];
   if (scopes.length > 0) authorizationUrl.searchParams.set("scope", scopes.join(" "));
+  if (userScopes.length > 0) authorizationUrl.searchParams.set("user_scope", userScopes.join(" "));
 
   const extra = config.authorize_params && typeof config.authorize_params === "object" ? config.authorize_params : {};
   for (const [key, value] of Object.entries(extra)) {
-    if (["client_id", "response_type", "redirect_uri", "state", "code_challenge", "code_challenge_method", "scope"].includes(key)) continue;
+    if (["client_id", "response_type", "redirect_uri", "state", "code_challenge", "code_challenge_method", "scope", "user_scope"].includes(key)) continue;
     if (["string", "number", "boolean"].includes(typeof value)) authorizationUrl.searchParams.set(key, String(value));
   }
   if (config.pkce !== false) {
@@ -154,15 +156,32 @@ async function requestTokens(connector: OAuthConnector, values: Record<string, s
   const tokenUrl = await assertSafeRemoteUrl(String(connector.oauth_config?.token_url || ""));
   const response = await fetch(tokenUrl, tokenRequestOptions(connector, credentials, values));
   const payload = await readJsonResponse(response);
-  const nested = payload.authed_user && typeof payload.authed_user === "object" ? payload.authed_user : {};
-  const accessToken = safeString(payload.access_token || nested.access_token, 10_000);
+  const {
+    access_token: rootAccessToken,
+    refresh_token: rootRefreshToken,
+    token_type: rootTokenType,
+    scope: rootScope,
+    expires_in: rootExpiresIn,
+    authed_user: rawAuthedUser,
+    ...payloadFields
+  } = payload;
+  const nested = rawAuthedUser && typeof rawAuthedUser === "object" ? rawAuthedUser : {};
+  const accessToken = safeString(nested.access_token || rootAccessToken, 10_000);
   if (!accessToken) throw new Error("OAuth provider did not return an access token.");
-  const refreshToken = safeString(payload.refresh_token || nested.refresh_token, 10_000) || undefined;
-  const expiresIn = Number(payload.expires_in || nested.expires_in);
+  const refreshToken = safeString(nested.refresh_token || rootRefreshToken, 10_000) || undefined;
+  const tokenType = safeString(nested.token_type || rootTokenType, 100) || undefined;
+  const scope = nested.scope || rootScope;
+  const expiresIn = Number(nested.expires_in || rootExpiresIn);
+  const safeAuthedUser = { ...nested };
+  delete safeAuthedUser.access_token;
+  delete safeAuthedUser.refresh_token;
   return {
-    ...payload,
+    ...payloadFields,
+    ...(Object.keys(safeAuthedUser).length ? { authed_user: safeAuthedUser } : {}),
     access_token: accessToken,
     ...(refreshToken ? { refresh_token: refreshToken } : {}),
+    ...(tokenType ? { token_type: tokenType } : {}),
+    ...(typeof scope === "string" || Array.isArray(scope) ? { scope } : {}),
     ...(Number.isFinite(expiresIn) && expiresIn > 0 ? { expires_at: Date.now() + expiresIn * 1000 } : {}),
   };
 }

@@ -12,7 +12,7 @@ export interface Connector {
   connectionId?: string;
   accountLabel?: string | null;
   status?: "connected" | "error" | "needs_reauth";
-  mcpAvailable: boolean;
+  toolsAvailable: boolean;
   toolsCount: number;
   featured: boolean;
   sortOrder: number;

@@ -4,6 +4,7 @@ import { encryptConnectorSecret } from "../lib/connectors/toolRegistry";
 import { openMcpSession } from "../lib/connectors/mcp";
 import { exchangeOAuthCode, fetchOAuthAccount } from "../lib/connectors/oauth";
 import { getConnectorBySlug, getConnectorDb } from "../lib/connectors/store";
+import { getNativeConnectorToolCount } from "../lib/connectors/nativeTools";
 import { allowedAppOrigin } from "../lib/connectors/url";
 
 const oauthCallbackRouter = Router();
@@ -66,13 +67,14 @@ async function handleOAuthCallback(req: Request, res: Response) {
     const tokens = await exchangeOAuthCode(connector, code, String(pending.code_verifier), String(pending.redirect_uri));
     const account = await fetchOAuthAccount(connector, tokens);
 
-    let toolsCount = 0;
+    let toolsCount = getNativeConnectorToolCount(connector.slug);
     if (connector.mcp_endpoint) {
+      toolsCount = 0;
       try {
         const session = await openMcpSession(connector.mcp_endpoint, tokens.access_token);
         toolsCount = (await session.listTools()).length;
       } catch (error: any) {
-        console.warn(`[Connectors] OAuth succeeded but MCP discovery failed for ${connector.slug}: ${String(error?.message || "unknown error").slice(0, 180)}`);
+        console.warn(`[Connectors] OAuth succeeded but tool discovery failed for ${connector.slug}: ${String(error?.message || "unknown error").slice(0, 180)}`);
       }
     }
 

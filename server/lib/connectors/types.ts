@@ -52,7 +52,7 @@ export interface PublicConnector {
   connectionId?: string;
   accountLabel?: string | null;
   status?: ConnectorConnectionStatus;
-  mcpAvailable: boolean;
+  toolsAvailable: boolean;
   toolsCount: number;
   featured: boolean;
   sortOrder: number;

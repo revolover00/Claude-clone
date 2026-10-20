@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Router, type Request, type Response } from "express";
 import { encryptConnectorSecret } from "../lib/connectors/toolRegistry";
+import { getNativeConnectorToolCount, hasNativeConnectorTools } from "../lib/connectors/nativeTools";
 import { assertSafeRemoteUrl, openMcpSession } from "../lib/connectors/mcp";
 import { buildAuthorizationUrl, createOAuthState, getOAuthCredentials } from "../lib/connectors/oauth";
 import {
@@ -33,18 +34,6 @@ function publicConnection(connection: ConnectorConnectionRecord) {
     toolsCount: connection.tools_count,
     connectedAt: connection.connected_at,
   };
-}
-
-function allowedAppOrigin(value: string, allowPreview: boolean): string | null {
-  try {
-    const url = new URL(value);
-    if (url.username || url.password || url.search || url.hash) return null;
-    if (url.protocol !== "https:" && !(allowPreview && url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname))) return null;
-    if (url.protocol === "http:" && !["localhost", "127.0.0.1"].includes(url.hostname)) return null;
-    return url.origin;
-  } catch {
-    return null;
-  }
 }
 
 function getOAuthUrls(req: Request): { redirectUri: string; appOrigin: string } {
@@ -130,10 +119,10 @@ router.get("/", async (req: Request, res: Response) => {
           connectionId: connection.id,
           accountLabel: connection.account_label,
           status: connection.status,
-          toolsCount: connection.tools_count,
+          toolsCount: connection.tools_count || (!connector.mcp_endpoint ? getNativeConnectorToolCount(connector.slug) : 0),
           connectedAt: connection.connected_at,
         } : { toolsCount: 0 }),
-        mcpAvailable: !!connector.mcp_endpoint,
+        toolsAvailable: !!connector.mcp_endpoint || hasNativeConnectorTools(connector.slug),
         featured: connector.featured,
         sortOrder: connector.sort_order,
       };

@@ -22,7 +22,9 @@ Environment variable names used by the initial catalog:
 
 The server stores one-time, hashed OAuth state and PKCE data in `connector_oauth_states`. On successful authorization, access/refresh tokens are encrypted with `PROVIDER_KEY_ENCRYPTION_SECRET` before being written to `connector_connections`. The API never returns token fields. Disconnecting deletes the app's saved connection; provider-side revocation is not currently requested.
 
-A catalog item can authenticate an account with OAuth and can optionally define `mcp_endpoint`. Only connectors with an MCP endpoint expose discovered tools in chat. The GitHub, Notion, and Linear starter rows include remote MCP endpoints; Google Drive and Slack are OAuth directory entries until an administrator configures a compatible MCP endpoint in Supabase.
+A catalog item can authenticate an account with OAuth and can optionally define `mcp_endpoint`. GitHub, Notion, and Linear use their configured remote MCP endpoints. Google Drive and Slack have native, read-only tools, so they work without an external MCP server; an administrator may set an MCP endpoint to use a compatible remote implementation instead. Drive can search files and read supported text, Google Docs, and Sheets content. Slack can search messages and list/read public channels visible to the connected user.
+
+Slack requests user-level OAuth permissions through `user_scope` (`search:read`, `channels:read`, and `channels:history`) and stores the `authed_user` token when Slack returns one. This is needed for search and user-visible channel history; no write/post tools are exposed. Existing Slack connections are marked for reconnection when these scopes are applied, so they obtain the user token. Google Drive requests only the Drive read-only scope. Native provider requests use fixed HTTPS API hosts, reject redirects, apply a timeout and response-size limit, and return tool output as untrusted data to the model.
 
 ## Add or edit a catalog entry
 
@@ -57,10 +59,10 @@ VALUES
   );
 ```
 
-`client_id_env` and `client_secret_env` names must use the `CONNECTOR_OAUTH_..._CLIENT_ID` / `..._CLIENT_SECRET` prefixes. Accepted token authentication modes are `client_secret_post` (default) and `client_secret_basic`; `token_body_format` is `form` (default) or `json`. Profile endpoints and account-name paths are optional. Catalog writes are limited to Supabase admins by RLS.
+`client_id_env` and `client_secret_env` names must use the `CONNECTOR_OAUTH_..._CLIENT_ID` / `..._CLIENT_SECRET` prefixes. Accepted token authentication modes are `client_secret_post` (default) and `client_secret_basic`; `token_body_format` is `form` (default) or `json`. Use `user_scopes` when a provider distinguishes user grants from application/bot scopes; it is sent as the OAuth `user_scope` parameter. Profile endpoints and account-name paths are optional. Catalog writes are limited to Supabase admins by RLS.
 
 ## Custom MCP servers
 
 Users can add a remote MCP server from **Settings → Connectors → Add MCP server**. The app currently supports MCP Streamable HTTP endpoints, HTTPS only, an optional bearer token, tool discovery, and `tools/call`. Local/private IP addresses and redirects are blocked to reduce SSRF risk. The server response and arguments are size-capped, credentials are encrypted at rest, and tool output is treated as untrusted content in the model context.
 
-Discovered MCP tools are passed to models whose catalog records advertise tool support. The chat tool loop is capped per response. If a server is unavailable or does not speak Streamable HTTP, its tools are skipped for that request; an OAuth connection can remain connected even when its MCP endpoint is not configured or reachable.
+Discovered MCP tools and the built-in Google Drive/Slack tools are passed to models whose catalog records advertise tool support. The chat tool loop is capped per response. If an MCP server is unavailable or does not speak Streamable HTTP, its tools are skipped for that request; an OAuth connection can remain connected even when its endpoint is not reachable.

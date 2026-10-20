@@ -65,7 +65,7 @@ export function ConnectorCard({
       <div className="mt-auto flex items-center justify-between gap-2 pt-4">
         {connector.connected ? (
           <span className="min-w-0 truncate text-[11px] text-ink-faint" title={connector.accountLabel || undefined}>
-            {connector.accountLabel ? `Connected as ${connector.accountLabel}` : connector.mcpAvailable ? `${connector.toolsCount} tools available` : "Account connected"}
+            {connector.accountLabel ? `Connected as ${connector.accountLabel}` : connector.toolsAvailable ? `${connector.toolsCount} tools available` : "Account connected"}
           </span>
         ) : connector.oauthConfigured ? (
           <span className="text-[11px] text-ink-faint">OAuth 2.0</span>

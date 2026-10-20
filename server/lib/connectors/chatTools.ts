@@ -14,7 +14,7 @@ export async function prepareChatToolSupport(userId: string | undefined, signal:
     try {
       connectorToolRegistry = await createConnectorToolRegistry(userId, signal);
     } catch (error: any) {
-      console.warn(`[Connectors] Unable to prepare MCP tools for chat: ${String(error?.message || "unknown error").slice(0, 200)}`);
+      console.warn(`[Connectors] Unable to prepare connector tools for chat: ${String(error?.message || "unknown error").slice(0, 200)}`);
     }
   }
 

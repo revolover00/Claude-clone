@@ -104,6 +104,60 @@ describe("OAuth configuration", () => {
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("owner")).toBe("user");
   });
+
+  it("sends Slack user scopes separately and prevents parameter overrides", async () => {
+    const connector = {
+      slug: "slack",
+      name: "Slack",
+      oauth_config: {
+        authorization_url: "https://slack.com/oauth/v2/authorize",
+        scopes: [],
+        user_scopes: ["search:read", "channels:read", "channels:history"],
+        authorize_params: { scope: "admin", user_scope: "admin", client_id: "wrong" },
+      },
+    };
+    const url = new URL(await buildAuthorizationUrl(connector, "client-id", "state", "challenge", "https://app.example.com/api/connectors/oauth/callback"));
+    expect(url.searchParams.get("scope")).toBeNull();
+    expect(url.searchParams.get("user_scope")).toBe("search:read channels:read channels:history");
+    expect(url.searchParams.get("client_id")).toBe("client-id");
+  });
+
+  it("prefers Slack authed_user credentials and removes duplicate raw tokens", async () => {
+    const connector = {
+      slug: "slack",
+      name: "Slack",
+      oauth_config: {
+        token_url: "https://slack.com/api/oauth.v2.access",
+        client_id_env: "CONNECTOR_OAUTH_SLACK_CLIENT_ID",
+        client_secret_env: "CONNECTOR_OAUTH_SLACK_CLIENT_SECRET",
+      },
+    };
+    vi.stubEnv("CONNECTOR_OAUTH_SLACK_CLIENT_ID", "client-id");
+    vi.stubEnv("CONNECTOR_OAUTH_SLACK_CLIENT_SECRET", "client-secret");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      ok: true,
+      access_token: "xoxb-bot-token",
+      scope: "channels:read",
+      team: { id: "T123", name: "Workspace" },
+      authed_user: {
+        id: "U123",
+        access_token: "xoxp-user-token",
+        refresh_token: "xoxe-user-refresh",
+        token_type: "Bearer",
+        scope: "search:read channels:read channels:history",
+        expires_in: 3600,
+      },
+    }), { headers: { "content-type": "application/json" } })) as any);
+
+    const { exchangeOAuthCode } = await import("../server/lib/connectors/oauth");
+    const tokens = await exchangeOAuthCode(connector, "code", "verifier", "https://app.example.com/api/connectors/oauth/callback");
+    expect(tokens.access_token).toBe("xoxp-user-token");
+    expect(tokens.refresh_token).toBe("xoxe-user-refresh");
+    expect(tokens.scope).toBe("search:read channels:read channels:history");
+    expect(tokens.authed_user).not.toHaveProperty("access_token");
+    expect(tokens.authed_user).not.toHaveProperty("refresh_token");
+    expect(tokens.expires_at).toBeGreaterThan(Date.now());
+  });
 });
 
 describe("MCP tool schema normalization", () => {

@@ -110,7 +110,7 @@ export function ConnectorsSettingsView() {
             <h3 className="text-[17px] font-semibold tracking-[-0.02em] text-ink">Connectors</h3>
             <span className="rounded-full border border-line bg-elev-2 px-2 py-0.5 text-[10.5px] font-medium text-ink-muted">{connectedCount} connected</span>
           </div>
-          <p className="mt-1 max-w-[600px] text-[12px] leading-5 text-ink-muted">Connect the tools you use. Connected MCP tools can be called by supported models during a conversation.</p>
+          <p className="mt-1 max-w-[600px] text-[12px] leading-5 text-ink-muted">Connect the tools you use. Connected tools can be called by supported models during a conversation.</p>
         </div>
         <button type="button" onClick={() => setAddMcpOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line bg-elev-1 px-3 py-2 text-[11.5px] font-medium text-ink transition-colors hover:bg-elev-3">
           <Plus size={14} /> Add MCP server
@@ -236,12 +236,12 @@ export function ConnectorsSettingsView() {
             {"category" in selected && (
               <div className="mt-4 space-y-2 rounded-xl border border-line bg-panel/70 p-3 text-[11.5px]">
                 <div className="flex justify-between gap-3"><span className="text-ink-faint">Authentication</span><span className="text-ink-soft">OAuth 2.0</span></div>
-                <div className="flex justify-between gap-3"><span className="text-ink-faint">MCP tools</span><span className="text-ink-soft">{selected.mcpAvailable ? (selected.connected ? `${selected.toolsCount} discovered` : "Available after connecting") : "Not configured"}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-ink-faint">Chat tools</span><span className="text-ink-soft">{selected.toolsAvailable ? (selected.connected ? `${selected.toolsCount} discovered` : "Available after connecting") : "Not configured"}</span></div>
                 {selected.connected && selected.accountLabel && <div className="flex justify-between gap-3"><span className="text-ink-faint">Account</span><span className="max-w-[65%] truncate text-ink-soft">{selected.accountLabel}</span></div>}
               </div>
             )}
-            {"category" in selected && !selected.mcpAvailable && (
-              <p className="mt-3 text-[11px] leading-4 text-ink-faint">This service can authorize an account. To make its tools callable in chat, configure an MCP endpoint for this connector in the Supabase catalog.</p>
+            {"category" in selected && !selected.toolsAvailable && (
+              <p className="mt-3 text-[11px] leading-4 text-ink-faint">This service can authorize an account, but its tools are not configured for use in chat.</p>
             )}
             {"websiteUrl" in selected && selected.websiteUrl && (
               <a href={selected.websiteUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-[11.5px] text-accent hover:underline">Visit website <ExternalLink size={12} /></a>

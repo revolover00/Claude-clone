@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import React from "react";
 
 const mocks = vi.hoisted(() => ({ authFetch: vi.fn() }));
@@ -32,7 +32,7 @@ const catalogResponse = {
       connectionId: "11111111-1111-4111-8111-111111111111",
       accountLabel: "octocat",
       status: "connected",
-      mcpAvailable: true,
+      toolsAvailable: true,
       toolsCount: 4,
       featured: true,
       sortOrder: 10,
@@ -48,7 +48,7 @@ const catalogResponse = {
       authType: "oauth",
       oauthConfigured: false,
       connected: false,
-      mcpAvailable: true,
+      toolsAvailable: true,
       toolsCount: 0,
       featured: true,
       sortOrder: 20,
@@ -64,10 +64,45 @@ const catalogResponse = {
       authType: "oauth",
       oauthConfigured: true,
       connected: false,
-      mcpAvailable: true,
+      toolsAvailable: true,
       toolsCount: 0,
       featured: false,
       sortOrder: 30,
+    },
+    {
+      slug: "google-drive",
+      name: "Google Drive",
+      description: "Search Drive files and read supported documents.",
+      category: "productivity",
+      icon: "google-drive",
+      accentColor: "#0F9D58",
+      websiteUrl: "https://drive.google.com",
+      authType: "oauth",
+      oauthConfigured: true,
+      connected: true,
+      connectionId: "33333333-3333-4333-8333-333333333333",
+      accountLabel: "maya@example.com",
+      status: "connected",
+      toolsAvailable: true,
+      toolsCount: 2,
+      featured: false,
+      sortOrder: 40,
+    },
+    {
+      slug: "slack",
+      name: "Slack",
+      description: "Search Slack messages and browse public channel history.",
+      category: "communication",
+      icon: "slack",
+      accentColor: "#611F69",
+      websiteUrl: "https://slack.com",
+      authType: "oauth",
+      oauthConfigured: true,
+      connected: false,
+      toolsAvailable: true,
+      toolsCount: 0,
+      featured: false,
+      sortOrder: 50,
     },
   ],
   customConnections: [
@@ -104,6 +139,17 @@ describe("Connectors settings view", () => {
     expect(screen.getByText("Setup required")).toBeDefined();
     expect(screen.getByText("Internal MCP")).toBeDefined();
     expect(screen.getByText("2 tools available in chat")).toBeDefined();
+  });
+
+  it("shows the native Drive and Slack tools as usable after OAuth", async () => {
+    render(<ConnectorsSettingsView />);
+    expect(await screen.findByText("Google Drive")).toBeDefined();
+    expect(screen.getByText("Connected as maya@example.com")).toBeDefined();
+    const slackCard = screen.getByText("Slack").closest("article");
+    expect(slackCard).not.toBeNull();
+    fireEvent.click(within(slackCard!).getByRole("button", { name: "Details" }));
+    expect(screen.getByText("Available after connecting")).toBeDefined();
+    expect(screen.queryByText(/not configured/i)).toBeNull();
   });
 
   it("filters connector cards by search and opens the custom MCP dialog", async () => {
