@@ -2,6 +2,7 @@ import { AlertTriangle } from "lucide-react";
 import MarkdownView from "../chat/MarkdownView";
 import ErrorBoundary from "../shared/ErrorBoundary";
 import type { Artifact } from "../../types/chat";
+import { sanitizeSvgHtml } from "../../utils/sanitizeHtml";
 
 interface ArtifactPreviewProps {
   activeArt: Artifact;
@@ -55,7 +56,7 @@ export default function ArtifactPreview({
         {isSvg ? (
           <div
             className="flex h-full w-full items-center justify-center p-8 bg-preview-canvas overflow-auto scroll-slim [&>svg]:max-w-[90%] [&>svg]:max-h-[85vh] [&>svg]:drop-shadow-lg"
-            dangerouslySetInnerHTML={{ __html: currentCode }}
+            dangerouslySetInnerHTML={{ __html: sanitizeSvgHtml(currentCode) }}
           />
         ) : isMarkdown ? (
           <div className="scroll-slim h-full overflow-auto p-6 bg-shell">

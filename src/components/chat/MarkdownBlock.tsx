@@ -1,5 +1,6 @@
 import React from "react";
 import { marked, type Tokens } from "marked";
+import { sanitizeMarkdownHtml } from "../../utils/sanitizeHtml";
 import CodeBlock from "./CodeBlock";
 import ArtifactCard from "./ArtifactCard";
 import ClaudeSpark from "../icons/ClaudeSpark";
@@ -117,7 +118,7 @@ export const MemoizedBlock = React.memo(
 
       case "heading": {
         const headingToken = token as Tokens.Heading;
-        const innerHtml = marked.parseInline(headingToken.text) as string;
+        const innerHtml = sanitizeMarkdownHtml(marked.parseInline(headingToken.text) as string);
         const depth = Math.min(headingToken.depth, 4);
         const sizeClass =
           depth === 1
@@ -172,7 +173,7 @@ export const MemoizedBlock = React.memo(
 
       case "paragraph": {
         const paraToken = token as Tokens.Paragraph;
-        const innerHtml = marked.parseInline(paraToken.text) as string;
+        const innerHtml = sanitizeMarkdownHtml(marked.parseInline(paraToken.text) as string);
 
         return (
           <p
@@ -198,7 +199,7 @@ export const MemoizedBlock = React.memo(
             className={`my-3 space-y-1.5 ps-6 pe-2 ${listStyle} text-ink/95 text-start`}
           >
             {listToken.items.map((item, itemIdx) => {
-              const itemHtml = marked.parseInline(item.text) as string;
+              const itemHtml = sanitizeMarkdownHtml(marked.parseInline(item.text) as string);
               const isLastItem =
                 isStreaming && isLastBlock && itemIdx === listToken.items.length - 1;
               return (
@@ -214,7 +215,7 @@ export const MemoizedBlock = React.memo(
 
       case "blockquote": {
         const bqToken = token as Tokens.Blockquote;
-        const bqHtml = marked.parse(bqToken.raw) as string;
+        const bqHtml = sanitizeMarkdownHtml(marked.parse(bqToken.raw) as string);
         return (
           <blockquote
             className="my-3 border-s-2 border-line-soft ps-4 pe-2 italic text-ink-soft text-start [&>p]:leading-relaxed [&>p]:text-start"
@@ -235,7 +236,7 @@ export const MemoizedBlock = React.memo(
                       key={cellIdx}
                       className="border border-line px-3.5 py-2 text-start font-medium text-ink"
                       dangerouslySetInnerHTML={{
-                        __html: marked.parseInline(cell.text) as string,
+                        __html: sanitizeMarkdownHtml(marked.parseInline(cell.text) as string),
                       }}
                     />
                   ))}
@@ -252,7 +253,7 @@ export const MemoizedBlock = React.memo(
                         key={cellIdx}
                         className="border border-line px-3.5 py-2 text-ink-soft text-start"
                         dangerouslySetInnerHTML={{
-                          __html: marked.parseInline(cell.text) as string,
+                          __html: sanitizeMarkdownHtml(marked.parseInline(cell.text) as string),
                         }}
                       />
                     ))}
@@ -271,7 +272,7 @@ export const MemoizedBlock = React.memo(
         return null;
 
       default: {
-        const inlineHtml = marked.parseInline(token.raw) as string;
+        const inlineHtml = sanitizeMarkdownHtml(marked.parseInline(token.raw) as string);
         return (
           <div className="text-start">
             <span dangerouslySetInnerHTML={{ __html: inlineHtml }} />
