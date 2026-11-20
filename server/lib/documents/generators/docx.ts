@@ -185,6 +185,7 @@ export async function generateDocxBuffer(title: string, spec: DocxPdfSpec): Prom
 
       case "image": {
         try {
+          if (!isAllowedImageUrl(element.url)) throw new Error("Image URL not allowed");
           const res = await fetch(element.url, { signal: AbortSignal.timeout(5000) });
           if (res.ok) {
             const arrayBuf = await res.arrayBuffer();

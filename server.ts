@@ -87,9 +87,9 @@ app.use("/api/models", modelsRouter);
 app.use("/api/providers", requireAuth, apiLimiter, providersRouter);
 app.use("/api/catalog", requireAuth, apiLimiter, catalogRouter);
 app.use("/api/catalog", requireAuth, apiLimiter, catalogAdminRouter);
-app.use("/api/memory", memoryRouter);
+app.use("/api/memory", requireAuth, apiLimiter, memoryRouter);
 app.use("/api/skills", skillsRouter);
-app.use("/api/documents", documentsRouter);
+app.use("/api/documents", requireAuth, apiLimiter, documentsRouter);
 
 // Auth diagnostics: no auth required (it must answer when auth is broken), rate-limited
 app.use("/api/auth", authDebugRouter);

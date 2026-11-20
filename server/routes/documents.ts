@@ -23,10 +23,11 @@ router.get("/download/:token", (req: Request, res: Response) => {
   res.end(entry.buffer);
 });
 
-// POST /api/documents/create - Direct document creation or retry
+// POST /api/documents/create - Requires authentication
 router.post("/create", async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.id || (req.headers["x-user-id"] as string);
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
     const { format, title, spec } = req.body;
 
     const doc = await createDocumentService({
