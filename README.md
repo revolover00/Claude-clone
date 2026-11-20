@@ -1,5 +1,11 @@
 # Claude UI Clone
 
+[![CI](https://github.com/revolover00/Claude-clone/actions/workflows/ci.yml/badge.svg)](https://github.com/revolover00/Claude-clone/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/revolover00/Claude-clone?style=social)](https://github.com/revolover00/Claude-clone/stargazers)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](#tech-stack)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](#tech-stack)
+
 A high-fidelity clone of the Claude.ai chat experience — built with **React 19**, **TypeScript**, **Tailwind CSS 4**, **Vite** and an **Express 5** gateway streaming over **Server-Sent Events**.
 
 - **15 providers · 668 models** bundled out of the box (OpenAI, Gemini, Groq, OpenRouter, Cerebras, DeepSeek, xAI, Mistral, Together, Fireworks, NVIDIA, Qwen, Moonshot, Z.ai and more) — switch models from the composer, connect a key, done.
